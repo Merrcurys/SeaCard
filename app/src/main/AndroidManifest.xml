@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -24,6 +29,14 @@
         </activity>
         <activity
             android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.QRBonus" />
+        <activity
+            android:name=".ScanCardActivity"
+            android:exported="false"
+            android:theme="@style/Theme.QRBonus" />
+        <activity
+            android:name=".CardDetailActivity"
             android:exported="false"
             android:theme="@style/Theme.QRBonus" />
     </application>

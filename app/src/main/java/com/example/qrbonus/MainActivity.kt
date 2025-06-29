@@ -1,81 +1,128 @@
 package com.example.qrbonus
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.FilterAlt
-import androidx.compose.material.icons.filled.Wallet
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import com.example.qrbonus.ui.theme.QRBonusTheme
 import com.example.qrbonus.ui.theme.BlackBackground
-import androidx.compose.foundation.shape.RoundedCornerShape
-import android.content.Intent
-import android.content.Context
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.graphics.Color
-import androidx.core.view.WindowCompat
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            val context = this
-            var isDark by remember { mutableStateOf(loadThemePref(context)) }
-            val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-                isDark = loadThemePref(context)
-            }
-            LaunchedEffect(isDark) {
-                val window = this@MainActivity.window
-                WindowCompat.getInsetsController(window, window.decorView)?.isAppearanceLightStatusBars = !isDark
-            }
-            QRBonusTheme(darkTheme = isDark) {
-                MainScreen(onSettingsClick = {
-                    launcher.launch(Intent(context, SettingsActivity::class.java))
-                })
-            }
+    private val scanCardLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            recreate()
+        }
+    }
+    
+    private val cardDetailLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            recreate()
         }
     }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        setContent {
+            val context = this
+            var isDark by remember { mutableStateOf(loadThemePref(context)) }
+            var cards by remember { mutableStateOf<List<Card>>(emptyList()) }
+            
+            val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                isDark = loadThemePref(context)
+            }
+            
+            // Функция загрузки карт
+            fun loadCards() {
+                val prefs = getSharedPreferences("cards", Context.MODE_PRIVATE)
+                val cardSet = prefs.getStringSet("card_list", setOf()) ?: setOf()
+                cards = cardSet.mapNotNull { cardString ->
+                    val parts = cardString.split("|")
+                    if (parts.size == 2) {
+                        Card(parts[0], parts[1])
+                    } else null
+                }
+            }
+            
+            LaunchedEffect(isDark) {
+                val window = this@MainActivity.window
+                WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !isDark
+            }
+            
+            LaunchedEffect(Unit) {
+                isDark = loadThemePref(context)
+                loadCards()
+            }
+            
+            QRBonusTheme(darkTheme = isDark) {
+                MainScreen(
+                    cards = cards,
+                    onAddCard = {
+                        val intent = Intent(this@MainActivity, ScanCardActivity::class.java)
+                        scanCardLauncher.launch(intent)
+                    },
+                    onCardClick = { card ->
+                        val intent = Intent(this@MainActivity, CardDetailActivity::class.java).apply {
+                            putExtra("card_name", card.name)
+                            putExtra("card_code", card.code)
+                        }
+                        cardDetailLauncher.launch(intent)
+                    },
+                    onSettingsClick = {
+                        launcher.launch(Intent(context, SettingsActivity::class.java))
+                    }
+                )
+            }
+        }
+    }
+    
     private fun loadThemePref(context: Context): Boolean {
         val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
         return prefs.getBoolean("dark_theme", true)
     }
 }
 
+data class Card(val name: String, val code: String)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(onSettingsClick: () -> Unit = {}) {
-    val cards = remember { mutableStateListOf<String>() } // MVP: просто список строк
+fun MainScreen(
+    cards: List<Card>,
+    onAddCard: () -> Unit,
+    onCardClick: (Card) -> Unit,
+    onSettingsClick: () -> Unit
+) {
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background == BlackBackground
     val topBarColor = if (isDark) BlackBackground else Color(0xFFF5F5F5)
+    
     Scaffold(
         containerColor = colorScheme.background,
         topBar = {
@@ -100,13 +147,13 @@ fun MainScreen(onSettingsClick: () -> Unit = {}) {
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* TODO: добавить карту */ },
+                onClick = onAddCard,
                 containerColor = colorScheme.primary,
                 shape = RoundedCornerShape(24.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp)) {
                     Icon(
-                        painter = painterResource(id = android.R.drawable.ic_input_add),
+                        Icons.Filled.Add,
                         contentDescription = "Добавить карту",
                         tint = colorScheme.onPrimary
                     )
@@ -162,12 +209,13 @@ fun MainScreen(onSettingsClick: () -> Unit = {}) {
                                 modifier = Modifier
                                     .height(120.dp)
                                     .fillMaxWidth()
+                                    .clickable { onCardClick(card) }
                             ) {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(card, color = colorScheme.onSecondary, fontWeight = FontWeight.Bold)
+                                    Text(card.name, color = colorScheme.onSecondary, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -182,6 +230,6 @@ fun MainScreen(onSettingsClick: () -> Unit = {}) {
 @Composable
 fun MainScreenPreview() {
     QRBonusTheme {
-        MainScreen()
+        MainScreen(cards = emptyList(), onAddCard = {}, onCardClick = {}, onSettingsClick = {})
     }
 }
