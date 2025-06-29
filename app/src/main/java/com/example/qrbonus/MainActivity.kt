@@ -65,9 +65,11 @@ class MainActivity : ComponentActivity() {
                 val cardSet = prefs.getStringSet("card_list", setOf()) ?: setOf()
                 cards = cardSet.mapNotNull { cardString ->
                     val parts = cardString.split("|")
-                    if (parts.size == 2) {
-                        Card(parts[0], parts[1])
-                    } else null
+                    when (parts.size) {
+                        2 -> Card(parts[0], parts[1], "barcode") // Старый формат
+                        3 -> Card(parts[0], parts[1], parts[2]) // Новый формат с типом кода
+                        else -> null
+                    }
                 }
             }
             
@@ -92,6 +94,7 @@ class MainActivity : ComponentActivity() {
                         val intent = Intent(this@MainActivity, CardDetailActivity::class.java).apply {
                             putExtra("card_name", card.name)
                             putExtra("card_code", card.code)
+                            putExtra("code_type", card.type)
                         }
                         cardDetailLauncher.launch(intent)
                     },
@@ -109,7 +112,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class Card(val name: String, val code: String)
+data class Card(val name: String, val code: String, val type: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

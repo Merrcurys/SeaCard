@@ -9,6 +9,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.qrbonus.ui.theme.QRBonusTheme
@@ -29,6 +31,7 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.WriterException
 import com.google.zxing.common.BitMatrix
 import com.google.zxing.oned.Code128Writer
+import com.google.zxing.qrcode.QRCodeWriter
 import androidx.core.graphics.set
 import androidx.core.graphics.createBitmap
 
@@ -38,6 +41,7 @@ class CardDetailActivity : ComponentActivity() {
         
         val cardName = intent.getStringExtra("card_name") ?: ""
         val cardCode = intent.getStringExtra("card_code") ?: ""
+        val codeType = intent.getStringExtra("code_type") ?: "barcode"
         
         setContent {
             var showDeleteDialog by remember { mutableStateOf(false) }
@@ -46,6 +50,7 @@ class CardDetailActivity : ComponentActivity() {
                 CardDetailScreen(
                     cardName = cardName,
                     cardCode = cardCode,
+                    codeType = codeType,
                     onBack = { finish() },
                     onDelete = { showDeleteDialog = true }
                 )
@@ -94,13 +99,18 @@ class CardDetailActivity : ComponentActivity() {
 fun CardDetailScreen(
     cardName: String,
     cardCode: String,
+    codeType: String,
     onBack: () -> Unit,
     onDelete: () -> Unit
 ) {
     var barcodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
     
-    LaunchedEffect(cardCode) {
-        barcodeBitmap = generateBarcode(cardCode)
+    LaunchedEffect(cardCode, codeType) {
+        barcodeBitmap = if (codeType == "qr") {
+            generateQRCode(cardCode)
+        } else {
+            generateBarcode(cardCode)
+        }
     }
     
     Box(
@@ -113,7 +123,7 @@ fun CardDetailScreen(
                 title = { Text(cardName, color = Color.White, fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onDelete) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Удалить карту", tint = Color.Red)
+                        Icon(Icons.Filled.Delete, contentDescription = "Удалить карту", tint = Color.White)
                     }
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White)
@@ -130,41 +140,146 @@ fun CardDetailScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                Text(
-                    text = "Код карты",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                
-                Text(
-                    text = cardCode,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
-                
+                // Код (QR или штрихкод)
                 if (barcodeBitmap != null) {
                     Text(
-                        text = "Штрихкод",
-                        fontSize = 20.sp,
+                        text = if (codeType == "qr") "QR-код" else "Штрихкод",
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = Color.White,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
                     
-                    Image(
-                        bitmap = barcodeBitmap!!.asImageBitmap(),
-                        contentDescription = "Штрихкод",
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp)
-                            .padding(16.dp)
+                            .height(if (codeType == "qr") 350.dp else 300.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(20.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                bitmap = barcodeBitmap!!.asImageBitmap(),
+                                contentDescription = if (codeType == "qr") "QR-код" else "Штрихкод",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(if (codeType == "qr") 280.dp else 230.dp)
+                            )
+                        }
+                    }
+                }
+                
+                // Разделитель
+                Divider(
+                    color = Color.White.copy(alpha = 0.2f),
+                    thickness = 1.dp,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                )
+                
+                // Код карты внизу
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Код карты",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.8f)
                     )
+                    
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Text(
+                            text = cardCode,
+                            fontSize = if (cardCode.length > 20) 18.sp else 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp)
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+private fun generateQRCode(content: String): Bitmap? {
+    return try {
+        val writer = QRCodeWriter()
+        val hints = HashMap<EncodeHintType, Any>()
+        hints[EncodeHintType.MARGIN] = 2 // Добавляем небольшие отступы
+        hints[EncodeHintType.ERROR_CORRECTION] = com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.M // Средний уровень коррекции ошибок
+        
+        val bitMatrix: BitMatrix = writer.encode(
+            content,
+            BarcodeFormat.QR_CODE,
+            600, // Увеличиваем размер для лучшего качества
+            600,
+            hints
+        )
+        
+        val width = bitMatrix.width
+        val height = bitMatrix.height
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        
+        // Создаем красивый QR-код с закругленными углами
+        for (x in 0 until width) {
+            for (y in 0 until height) {
+                val isBlack = bitMatrix[x, y]
+                
+                // Определяем, находимся ли мы в угловых маркерах (3 больших квадрата)
+                val isCornerMarker = isInCornerMarker(x, y, width, height)
+                
+                if (isBlack) {
+                    if (isCornerMarker) {
+                        // Темно-синий цвет для угловых маркеров
+                        bitmap.setPixel(x, y, AndroidColor.rgb(25, 118, 210))
+                    } else {
+                        // Черный цвет для остальных элементов
+                        bitmap.setPixel(x, y, AndroidColor.BLACK)
+                    }
+                } else {
+                    // Белый фон
+                    bitmap.setPixel(x, y, AndroidColor.WHITE)
+                }
+            }
+        }
+        
+        bitmap
+    } catch (e: WriterException) {
+        e.printStackTrace()
+        null
+    }
+}
+
+private fun isInCornerMarker(x: Int, y: Int, width: Int, height: Int): Boolean {
+    val markerSize = 7 // Размер углового маркера
+    
+    // Верхний левый угол
+    if (x < markerSize && y < markerSize) return true
+    
+    // Верхний правый угол
+    if (x >= width - markerSize && y < markerSize) return true
+    
+    // Нижний левый угол
+    if (x < markerSize && y >= height - markerSize) return true
+    
+    return false
 }
 
 private fun generateBarcode(content: String): Bitmap? {

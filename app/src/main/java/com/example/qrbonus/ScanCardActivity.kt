@@ -47,10 +47,12 @@ import java.util.concurrent.Executors
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.core.content.edit
 
 class ScanCardActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private var scannedCode: String? = null
+    private var scannedCodeType: String = "barcode"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,9 +95,10 @@ class ScanCardActivity : ComponentActivity() {
                     onCardNameChange = { cardName = it },
                     onCardCodeChange = { cardCode = it },
                     onManualInputToggle = { showManualInput = !showManualInput },
-                    onScanResult = { code ->
+                    onScanResult = { code, codeType ->
                         if (!showManualInput) {
                             cardCode = code
+                            scannedCodeType = codeType
                             scanSuccess = true
                             showManualInput = true  // Автоматически переключаемся на ручной ввод
                             // Вибрация при успешном сканировании
@@ -117,7 +120,7 @@ class ScanCardActivity : ComponentActivity() {
                     },
                     onSaveCard = {
                         if (cardName.isNotBlank() && cardCode.isNotBlank()) {
-                            saveCard(this@ScanCardActivity, cardName, cardCode)
+                            saveCard(this@ScanCardActivity, cardName, cardCode, scannedCodeType)
                             setResult(RESULT_OK)
                             finish()
                         }
@@ -133,11 +136,11 @@ class ScanCardActivity : ComponentActivity() {
         cameraExecutor.shutdown()
     }
     
-    private fun saveCard(context: Context, name: String, code: String) {
+    private fun saveCard(context: Context, name: String, code: String, codeType: String) {
         val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
         val cards = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
-        cards.add("$name|$code")
-        prefs.edit().putStringSet("card_list", cards).apply()
+        cards.add("$name|$code|$codeType")
+        prefs.edit { putStringSet("card_list", cards) }
     }
 }
 
@@ -152,7 +155,7 @@ fun ScanCardScreen(
     onCardNameChange: (String) -> Unit,
     onCardCodeChange: (String) -> Unit,
     onManualInputToggle: () -> Unit,
-    onScanResult: (String) -> Unit,
+    onScanResult: (String, String) -> Unit,
     onSaveCard: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -194,7 +197,9 @@ fun ScanCardScreen(
                 CameraSection(
                     hasCameraPermission = hasCameraPermission,
                     scanSuccess = scanSuccess,
-                    onScanResult = onScanResult,
+                    onScanResult = { code, codeType ->
+                        onScanResult(code, codeType)
+                    },
                     onManualInputToggle = onManualInputToggle
                 )
             }
@@ -207,7 +212,7 @@ fun ScanCardScreen(
 fun CameraSection(
     hasCameraPermission: Boolean,
     scanSuccess: Boolean,
-    onScanResult: (String) -> Unit,
+    onScanResult: (String, String) -> Unit,
     onManualInputToggle: () -> Unit
 ) {
     val context = LocalContext.current
@@ -244,10 +249,25 @@ fun CameraSection(
                                     scanner.process(image)
                                         .addOnSuccessListener { barcodes ->
                                             for (barcode in barcodes) {
+                                                val codeType = when (barcode.format) {
+                                                    Barcode.FORMAT_QR_CODE -> "qr"
+                                                    Barcode.FORMAT_AZTEC -> "qr"
+                                                    Barcode.FORMAT_DATA_MATRIX -> "qr"
+                                                    Barcode.FORMAT_PDF417 -> "qr"
+                                                    Barcode.FORMAT_CODE_128,
+                                                    Barcode.FORMAT_CODE_39,
+                                                    Barcode.FORMAT_EAN_13 -> "barcode"
+                                                    else -> "barcode"
+                                                }
+                                                
                                                 if (barcode.format == Barcode.FORMAT_CODE_128 ||
                                                     barcode.format == Barcode.FORMAT_CODE_39 ||
-                                                    barcode.format == Barcode.FORMAT_EAN_13) {
-                                                    onScanResult(barcode.rawValue ?: "")
+                                                    barcode.format == Barcode.FORMAT_EAN_13 ||
+                                                    barcode.format == Barcode.FORMAT_QR_CODE ||
+                                                    barcode.format == Barcode.FORMAT_AZTEC ||
+                                                    barcode.format == Barcode.FORMAT_DATA_MATRIX ||
+                                                    barcode.format == Barcode.FORMAT_PDF417) {
+                                                    onScanResult(barcode.rawValue ?: "", codeType)
                                                 }
                                             }
                                         }
@@ -329,7 +349,7 @@ fun CameraSection(
             
             // Текст инструкции в затемненной зоне
             Text(
-                text = "Поднесите карту к камере,\nчтобы отсканировать штрих-код",
+                text = "Поднесите карту или QR-код к камере,\nчтобы отсканировать код",
                 color = Color.White,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
