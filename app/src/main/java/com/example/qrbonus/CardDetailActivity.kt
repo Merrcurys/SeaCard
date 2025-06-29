@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -20,10 +21,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import com.example.qrbonus.ui.theme.QRBonusTheme
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -33,7 +40,6 @@ import com.google.zxing.oned.Code128Writer
 import com.google.zxing.qrcode.QRCodeWriter
 import androidx.core.graphics.set
 import androidx.core.graphics.createBitmap
-import android.content.Context
 import androidx.core.content.edit
 
 class CardDetailActivity : ComponentActivity() {
@@ -119,6 +125,7 @@ fun CardDetailScreen(
 ) {
     var barcodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
     val colorScheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
     
     LaunchedEffect(cardCode, codeType) {
         barcodeBitmap = if (codeType == "qr") {
@@ -126,6 +133,14 @@ fun CardDetailScreen(
         } else {
             generateBarcode(cardCode)
         }
+    }
+    
+    // Функция копирования в буфер обмена
+    fun copyToClipboard() {
+        val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Код карты", cardCode)
+        clipboardManager.setPrimaryClip(clip)
+        Toast.makeText(context, "Код скопирован в буфер обмена", Toast.LENGTH_SHORT).show()
     }
     
     Box(
@@ -215,6 +230,13 @@ fun CardDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        copyToClipboard()
+                                    }
+                                )
+                            }
                     ) {
                         Text(
                             text = cardCode,
