@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -165,10 +166,16 @@ fun ScanCardScreen(
     ) {
         Column {
             TopAppBar(
-                title = { Text("Добавление карты", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Добавить карту", color = Color.White, fontWeight = FontWeight.Bold) },
                 actions = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White)
+                    IconButton(
+                        onClick = if (showManualInput) { onManualInputToggle } else { onBack }
+                    ) {
+                        Icon(
+                            Icons.Filled.ArrowBack, 
+                            contentDescription = if (showManualInput) "Вернуться к камере" else "Назад", 
+                            tint = Color.White
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BlackBackground)
@@ -180,7 +187,8 @@ fun ScanCardScreen(
                     cardCode = cardCode,
                     onCardNameChange = onCardNameChange,
                     onCardCodeChange = onCardCodeChange,
-                    onSaveCard = onSaveCard
+                    onSaveCard = onSaveCard,
+                    onBackToCamera = onManualInputToggle
                 )
             } else {
                 CameraSection(
@@ -364,7 +372,8 @@ fun ManualInputSection(
     cardCode: String,
     onCardNameChange: (String) -> Unit,
     onCardCodeChange: (String) -> Unit,
-    onSaveCard: () -> Unit
+    onSaveCard: () -> Unit,
+    onBackToCamera: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -391,6 +400,15 @@ fun ManualInputSection(
             value = cardCode,
             onValueChange = onCardCodeChange,
             label = { Text("Код карты") },
+            trailingIcon = {
+                IconButton(onClick = onBackToCamera) {
+                    Icon(
+                        Icons.Filled.QrCodeScanner,
+                        contentDescription = "Сканировать QR-код",
+                        tint = Color.White
+                    )
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
