@@ -19,25 +19,25 @@ import com.example.qrbonus.ui.theme.FabColor
 import com.example.qrbonus.ui.theme.FabTextColor
 
 private val DarkColorScheme = darkColorScheme(
-    primary = FabColor,
-    onPrimary = FabTextColor,
-    secondary = CardWhite,
-    onSecondary = CardTextBlack,
-    background = BlackBackground,
-    onBackground = MainTextWhite,
-    surface = CardWhite,
-    onSurface = CardTextBlack,
+    primary = Color(0xFFFFFFFF),
+    onPrimary = Color(0xFF1C1C1C),
+    secondary = Color(0xFFFFFFFF),
+    onSecondary = Color(0xFF1C1C1C),
+    background = Color(0xFF111111),
+    onBackground = Color(0xFFFFFFFF),
+    surface = Color(0xFF232323),
+    onSurface = Color(0xFFFFFFFF),
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = FabColor,
-    onPrimary = FabTextColor,
-    secondary = CardWhite,
-    onSecondary = CardTextBlack,
-    background = BlackBackground,
-    onBackground = MainTextWhite,
-    surface = CardWhite,
-    onSurface = CardTextBlack,
+    primary = Color(0xFF444444),
+    onPrimary = Color(0xFFF5F5F5),
+    secondary = Color(0xFFE0E0E0),
+    onSecondary = Color(0xFF232323),
+    background = Color(0xFFF5F5F5),
+    onBackground = Color(0xFF232323),
+    surface = Color(0xFFEAEAEA),
+    onSurface = Color(0xFF232323),
 )
 
 @Composable
