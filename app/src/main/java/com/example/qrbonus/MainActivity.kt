@@ -52,7 +52,8 @@ data class Card(
     val code: String, 
     val type: String,
     val addTime: Long = System.currentTimeMillis(),
-    val usageCount: Int = 0
+    val usageCount: Int = 0,
+    val color: Int = 0xFFFFFFFF.toInt() // Белый цвет по умолчанию
 )
 
 class MainActivity : ComponentActivity() {
@@ -94,7 +95,8 @@ class MainActivity : ComponentActivity() {
                     when (parts.size) {
                         2 -> Card(parts[0], parts[1], "barcode") // Старый формат
                         3 -> Card(parts[0], parts[1], parts[2]) // Новый формат с типом кода
-                        5 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0) // Полный формат
+                        5 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0) // Формат с временем и частотой
+                        6 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0, parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt()) // Полный формат с цветом
                         else -> null
                     }
                 }.sortedWith(getSortComparator(currentSortType))
@@ -109,9 +111,10 @@ class MainActivity : ComponentActivity() {
                     val parts = cardString.split("|")
                     if (parts[0] == cardName) {
                         when (parts.size) {
-                            2 -> "${parts[0]}|${parts[1]}|barcode|${System.currentTimeMillis()}|1"
-                            3 -> "${parts[0]}|${parts[1]}|${parts[2]}|${System.currentTimeMillis()}|1"
-                            5 -> "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${(parts[4].toIntOrNull() ?: 0) + 1}"
+                            2 -> "${parts[0]}|${parts[1]}|barcode|${System.currentTimeMillis()}|1|${0xFFFFFFFF.toInt()}"
+                            3 -> "${parts[0]}|${parts[1]}|${parts[2]}|${System.currentTimeMillis()}|1|${0xFFFFFFFF.toInt()}"
+                            5 -> "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${(parts[4].toIntOrNull() ?: 0) + 1}|${0xFFFFFFFF.toInt()}"
+                            6 -> "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${(parts[4].toIntOrNull() ?: 0) + 1}|${parts[5]}"
                             else -> cardString
                         }
                     } else {
@@ -210,6 +213,15 @@ fun MainScreen(
     var showSearch by remember { mutableStateOf(false) }
     var showFilterMenu by remember { mutableStateOf(false) }
     
+    // Функция для определения темного цвета
+    fun isColorDark(color: Int): Boolean {
+        val red = (color shr 16) and 0xFF
+        val green = (color shr 8) and 0xFF
+        val blue = color and 0xFF
+        val brightness = (red * 299 + green * 587 + blue * 114) / 1000
+        return brightness < 128
+    }
+    
     val filteredCards = remember(cards, searchQuery) {
         if (searchQuery.isBlank()) {
             cards
@@ -270,7 +282,7 @@ fun MainScreen(
                             onDismissRequest = { showFilterMenu = false },
                             modifier = Modifier.background(colorScheme.surface)
                         ) {
-                            SortType.values().forEach { sortType ->
+                            SortType.entries.forEach { sortType ->
                                 DropdownMenuItem(
                                     text = { 
                                         Text(
@@ -372,8 +384,8 @@ fun MainScreen(
                         items(filteredCards) { card ->
                             Card(
                                 colors = CardDefaults.cardColors(
-                                    containerColor = colorScheme.secondary,
-                                    contentColor = colorScheme.onSecondary
+                                    containerColor = Color(card.color),
+                                    contentColor = if (isColorDark(card.color)) Color.White else Color.Black
                                 ),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
@@ -391,9 +403,9 @@ fun MainScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
+    Text(
                                         text = card.name,
-                                        color = colorScheme.onSecondary,
+                                        color = if (isColorDark(card.color)) Color.White else Color.Black,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
                                         textAlign = TextAlign.Center,

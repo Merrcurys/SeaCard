@@ -21,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Keyboard
@@ -35,6 +36,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.example.qrbonus.ui.theme.QRBonusTheme
@@ -48,6 +50,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.core.content.edit
+import androidx.compose.foundation.clickable
 
 class ScanCardActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
@@ -65,6 +68,7 @@ class ScanCardActivity : ComponentActivity() {
             var cardCode by remember { mutableStateOf("") }
             var scanSuccess by remember { mutableStateOf(false) }
             var isDark by remember { mutableStateOf(loadThemePref(this@ScanCardActivity)) }
+            var selectedColor by remember { mutableStateOf(0xFFFFFFFF.toInt()) } // Белый по умолчанию
             
             val launcher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
@@ -93,8 +97,10 @@ class ScanCardActivity : ComponentActivity() {
                     cardName = cardName,
                     cardCode = cardCode,
                     scanSuccess = scanSuccess,
+                    selectedColor = selectedColor,
                     onCardNameChange = { cardName = it },
                     onCardCodeChange = { cardCode = it },
+                    onColorChange = { selectedColor = it },
                     onManualInputToggle = { showManualInput = !showManualInput },
                     onScanResult = { code, codeType ->
                         if (!showManualInput) {
@@ -121,7 +127,7 @@ class ScanCardActivity : ComponentActivity() {
                     },
                     onSaveCard = {
                         if (cardName.isNotBlank() && cardCode.isNotBlank()) {
-                            saveCard(this@ScanCardActivity, cardName, cardCode, scannedCodeType)
+                            saveCard(this@ScanCardActivity, cardName, cardCode, scannedCodeType, selectedColor)
                             setResult(RESULT_OK)
                             finish()
                         }
@@ -137,11 +143,11 @@ class ScanCardActivity : ComponentActivity() {
         cameraExecutor.shutdown()
     }
     
-    private fun saveCard(context: Context, name: String, code: String, codeType: String) {
+    private fun saveCard(context: Context, name: String, code: String, codeType: String, color: Int) {
         val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
         val cards = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
         val currentTime = System.currentTimeMillis()
-        cards.add("$name|$code|$codeType|$currentTime|0")
+        cards.add("$name|$code|$codeType|$currentTime|0|$color")
         prefs.edit { putStringSet("card_list", cards) }
     }
     
@@ -159,8 +165,10 @@ fun ScanCardScreen(
     cardName: String,
     cardCode: String,
     scanSuccess: Boolean,
+    selectedColor: Int,
     onCardNameChange: (String) -> Unit,
     onCardCodeChange: (String) -> Unit,
+    onColorChange: (Int) -> Unit,
     onManualInputToggle: () -> Unit,
     onScanResult: (String, String) -> Unit,
     onSaveCard: () -> Unit,
@@ -196,8 +204,10 @@ fun ScanCardScreen(
                 ManualInputSection(
                     cardName = cardName,
                     cardCode = cardCode,
+                    selectedColor = selectedColor,
                     onCardNameChange = onCardNameChange,
                     onCardCodeChange = onCardCodeChange,
+                    onColorChange = onColorChange,
                     onSaveCard = onSaveCard,
                     onBackToCamera = onManualInputToggle
                 )
@@ -403,12 +413,28 @@ fun CameraSection(
 fun ManualInputSection(
     cardName: String,
     cardCode: String,
+    selectedColor: Int,
     onCardNameChange: (String) -> Unit,
     onCardCodeChange: (String) -> Unit,
+    onColorChange: (Int) -> Unit,
     onSaveCard: () -> Unit,
     onBackToCamera: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    
+    // Доступные цвета для карт
+    val cardColors = listOf(
+        0xFFFFFFFF.toInt(), // Белый
+        0xFFFF4444.toInt(), // Красный
+        0xFF4CAF50.toInt(), // Зеленый
+        0xFF2196F3.toInt(), // Синий
+        0xFFFF9800.toInt(), // Оранжевый
+        0xFFFFEB3B.toInt(), // Желтый
+        0xFFE91E63.toInt(), // Розовый
+        0xFF9C27B0.toInt(), // Фиолетовый
+        0xFF000000.toInt(), // Черный
+        0xFF9E9E9E.toInt()  // Серый
+    )
     
     Column(
         modifier = Modifier
@@ -454,6 +480,70 @@ fun ManualInputSection(
                 unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
             )
         )
+        
+        // Выбор цвета карты
+        Column {
+            Text(
+                text = "Выберите цвет карты",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            
+            // Сетка цветов без прокрутки
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Первый ряд (5 цветов)
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    cardColors.take(5).forEach { color ->
+                        val isSelected = color == selectedColor
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .background(
+                                    color = Color(color),
+                                    shape = CircleShape
+                                )
+                                .border(
+                                    width = if (isSelected) 3.dp else 1.dp,
+                                    color = if (isSelected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.3f),
+                                    shape = CircleShape
+                                )
+                                .clickable { onColorChange(color) }
+                        )
+                    }
+                }
+                
+                // Второй ряд (5 цветов)
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    cardColors.drop(5).forEach { color ->
+                        val isSelected = color == selectedColor
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .background(
+                                    color = Color(color),
+                                    shape = CircleShape
+                                )
+                                .border(
+                                    width = if (isSelected) 3.dp else 1.dp,
+                                    color = if (isSelected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.3f),
+                                    shape = CircleShape
+                                )
+                                .clickable { onColorChange(color) }
+                        )
+                    }
+                }
+            }
+        }
         
         Spacer(modifier = Modifier.weight(1f))
         
