@@ -64,6 +64,7 @@ class ScanCardActivity : ComponentActivity() {
             var cardName by remember { mutableStateOf("") }
             var cardCode by remember { mutableStateOf("") }
             var scanSuccess by remember { mutableStateOf(false) }
+            var isDark by remember { mutableStateOf(loadThemePref(this@ScanCardActivity)) }
             
             val launcher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
@@ -85,7 +86,7 @@ class ScanCardActivity : ComponentActivity() {
                 }
             }
             
-            QRBonusTheme(darkTheme = true) {
+            QRBonusTheme(darkTheme = isDark) {
                 ScanCardScreen(
                     hasCameraPermission = hasCameraPermission,
                     showManualInput = showManualInput,
@@ -143,6 +144,11 @@ class ScanCardActivity : ComponentActivity() {
         cards.add("$name|$code|$codeType|$currentTime|0")
         prefs.edit { putStringSet("card_list", cards) }
     }
+    
+    private fun loadThemePref(context: Context): Boolean {
+        val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        return prefs.getBoolean("dark_theme", true)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -162,15 +168,16 @@ fun ScanCardScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val colorScheme = MaterialTheme.colorScheme
     
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BlackBackground)
+            .background(colorScheme.background)
     ) {
         Column {
             TopAppBar(
-                title = { Text("Добавить карту", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Добавить карту", color = colorScheme.onSurface, fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(
                         onClick = if (showManualInput) { onManualInputToggle } else { onBack }
@@ -178,11 +185,11 @@ fun ScanCardScreen(
                         Icon(
                             Icons.Filled.ArrowBack, 
                             contentDescription = if (showManualInput) "Вернуться к камере" else "Назад", 
-                            tint = Color.White
+                            tint = colorScheme.onSurface
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BlackBackground)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
             )
             
             if (showManualInput) {
@@ -218,6 +225,8 @@ fun CameraSection(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val colorScheme = MaterialTheme.colorScheme
+    val isDark = colorScheme.background == BlackBackground
     
     Box(
         modifier = Modifier.fillMaxSize()
@@ -299,7 +308,7 @@ fun CameraSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(150.dp)
-                    .background(Color.Black.copy(alpha = 0.5f))
+                    .background(if (isDark) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.5f))
             )
             
             // Затемнение снизу
@@ -308,7 +317,7 @@ fun CameraSection(
                     .fillMaxWidth()
                     .height(250.dp)
                     .align(Alignment.BottomCenter)
-                    .background(Color.Black.copy(alpha = 0.5f))
+                    .background(if (isDark) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.5f))
             )
             
             // Область сканирования в центре
@@ -324,8 +333,8 @@ fun CameraSection(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.White.copy(alpha = 0.05f))
-                        .border(2.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                        .background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f))
+                        .border(2.dp, if (isDark) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                 ) {
                     Row(
                         modifier = Modifier
@@ -339,8 +348,11 @@ fun CameraSection(
                                     .width(if (index % 2 == 0) 4.dp else 2.dp)
                                     .height(80.dp)
                                     .background(
-                                        if (index % 3 == 0) Color.White.copy(alpha = 0.3f)
-                                        else Color.White.copy(alpha = 0.1f)
+                                        if (index % 3 == 0) {
+                                            if (isDark) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.3f)
+                                        } else {
+                                            if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.1f)
+                                        }
                                     )
                             )
                         }
@@ -351,7 +363,7 @@ fun CameraSection(
             // Текст инструкции в затемненной зоне
             Text(
                 text = "Поднесите карту к камере,\nчтобы отсканировать код",
-                color = Color.White,
+                color = if (isDark) Color.White else Color.Black,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
@@ -362,26 +374,26 @@ fun CameraSection(
             // Кнопка ручного ввода
             Button(
                 onClick = onManualInputToggle,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                colors = ButtonDefaults.buttonColors(containerColor = if (isDark) colorScheme.surface else Color.White),
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 32.dp, start = 80.dp, end = 80.dp)
                     .height(48.dp)
             ) {
-                Icon(Icons.Filled.Keyboard, contentDescription = null, tint = Color.Black)
+                Icon(Icons.Filled.Keyboard, contentDescription = null, tint = if (isDark) Color.White else Color.Black)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Ручной ввод", color = Color.Black, fontWeight = FontWeight.Medium)
+                Text("Ручной ввод", color = if (isDark) Color.White else Color.Black, fontWeight = FontWeight.Medium)
             }
         } else {
             // Заглушка если нет разрешения на камеру
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black),
+                    .background(colorScheme.background),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Нет разрешения на камеру", color = Color.White)
+                Text("Нет разрешения на камеру", color = colorScheme.onSurface)
             }
         }
     }
@@ -396,6 +408,8 @@ fun ManualInputSection(
     onSaveCard: () -> Unit,
     onBackToCamera: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -408,12 +422,12 @@ fun ManualInputSection(
             label = { Text("Название карты") },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedBorderColor = Color.White,
-                unfocusedBorderColor = Color.Gray,
-                focusedLabelColor = Color.White,
-                unfocusedLabelColor = Color.Gray
+                focusedTextColor = colorScheme.onSurface,
+                unfocusedTextColor = colorScheme.onSurface,
+                focusedBorderColor = colorScheme.primary,
+                unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.5f),
+                focusedLabelColor = colorScheme.primary,
+                unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
             )
         )
         
@@ -426,18 +440,18 @@ fun ManualInputSection(
                     Icon(
                         Icons.Filled.QrCodeScanner,
                         contentDescription = "Сканировать QR-код",
-                        tint = Color.White
+                        tint = colorScheme.onSurface
                     )
                 }
             },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedBorderColor = Color.White,
-                unfocusedBorderColor = Color.Gray,
-                focusedLabelColor = Color.White,
-                unfocusedLabelColor = Color.Gray
+                focusedTextColor = colorScheme.onSurface,
+                unfocusedTextColor = colorScheme.onSurface,
+                focusedBorderColor = colorScheme.primary,
+                unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.5f),
+                focusedLabelColor = colorScheme.primary,
+                unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
             )
         )
         
@@ -446,10 +460,10 @@ fun ManualInputSection(
         Button(
             onClick = onSaveCard,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
             enabled = cardName.isNotBlank() && cardCode.isNotBlank()
         ) {
-            Text("Сохранить карту", color = Color.Black)
+            Text("Сохранить карту", color = colorScheme.onPrimary)
         }
     }
 } 

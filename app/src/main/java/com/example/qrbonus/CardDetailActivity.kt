@@ -25,7 +25,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.qrbonus.ui.theme.QRBonusTheme
-import com.example.qrbonus.ui.theme.BlackBackground
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.WriterException
@@ -34,6 +33,8 @@ import com.google.zxing.oned.Code128Writer
 import com.google.zxing.qrcode.QRCodeWriter
 import androidx.core.graphics.set
 import androidx.core.graphics.createBitmap
+import android.content.Context
+import androidx.core.content.edit
 
 class CardDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,8 +46,9 @@ class CardDetailActivity : ComponentActivity() {
         
         setContent {
             var showDeleteDialog by remember { mutableStateOf(false) }
+            var isDark by remember { mutableStateOf(loadThemePref(this@CardDetailActivity)) }
             
-            QRBonusTheme(darkTheme = true) {
+            QRBonusTheme(darkTheme = isDark) {
                 CardDetailScreen(
                     cardName = cardName,
                     cardCode = cardCode,
@@ -77,9 +79,9 @@ class CardDetailActivity : ComponentActivity() {
                                 Text("Отмена")
                             }
                         },
-                        containerColor = Color(0xFF2A2A2A),
-                        titleContentColor = Color.White,
-                        textContentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        textContentColor = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -89,8 +91,20 @@ class CardDetailActivity : ComponentActivity() {
     private fun deleteCard(context: android.content.Context, name: String, code: String) {
         val prefs = context.getSharedPreferences("cards", android.content.Context.MODE_PRIVATE)
         val cards = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
-        cards.remove("$name|$code")
-        prefs.edit().putStringSet("card_list", cards).apply()
+        
+        // Удаляем карту по имени (первая часть строки)
+        val cardToRemove = cards.find { cardString ->
+            val parts = cardString.split("|")
+            parts.isNotEmpty() && parts[0] == name
+        }
+        
+        cardToRemove?.let { cards.remove(it) }
+        prefs.edit { putStringSet("card_list", cards) }
+    }
+    
+    private fun loadThemePref(context: Context): Boolean {
+        val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        return prefs.getBoolean("dark_theme", true)
     }
 }
 
@@ -104,6 +118,7 @@ fun CardDetailScreen(
     onDelete: () -> Unit
 ) {
     var barcodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    val colorScheme = MaterialTheme.colorScheme
     
     LaunchedEffect(cardCode, codeType) {
         barcodeBitmap = if (codeType == "qr") {
@@ -116,20 +131,20 @@ fun CardDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BlackBackground)
+            .background(colorScheme.background)
     ) {
         Column {
             TopAppBar(
-                title = { Text(cardName, color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text(cardName, color = colorScheme.onSurface, fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onDelete) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Удалить карту", tint = Color.White)
+                        Icon(Icons.Filled.Delete, contentDescription = "Удалить карту", tint = colorScheme.onSurface)
                     }
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White)
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BlackBackground)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
             )
             
             Column(
@@ -146,7 +161,7 @@ fun CardDetailScreen(
                         text = if (codeType == "qr") "QR-код" else "Штрихкод",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = colorScheme.onSurface,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     
@@ -177,7 +192,7 @@ fun CardDetailScreen(
                 
                 // Разделитель
                 Divider(
-                    color = Color.White.copy(alpha = 0.2f),
+                    color = colorScheme.onSurface.copy(alpha = 0.2f),
                     thickness = 1.dp,
                     modifier = Modifier.padding(horizontal = 32.dp)
                 )
@@ -191,11 +206,11 @@ fun CardDetailScreen(
                         text = "Код карты",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = colorScheme.onSurface.copy(alpha = 0.8f)
                     )
                     
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f)),
+                        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -205,7 +220,7 @@ fun CardDetailScreen(
                             text = cardCode,
                             fontSize = if (cardCode.length > 20) 18.sp else 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = colorScheme.onSurface,
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -235,7 +250,7 @@ private fun generateQRCode(content: String): Bitmap? {
         
         val width = bitMatrix.width
         val height = bitMatrix.height
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(width, height)
         
         // Создаем красивый QR-код с закругленными углами
         for (x in 0 until width) {
@@ -248,14 +263,13 @@ private fun generateQRCode(content: String): Bitmap? {
                 if (isBlack) {
                     if (isCornerMarker) {
                         // Темно-синий цвет для угловых маркеров
-                        bitmap.setPixel(x, y, AndroidColor.rgb(25, 118, 210))
-                    } else {
+                        bitmap[x, y] = AndroidColor.rgb(25, 118, 210)
+                    } else
                         // Черный цвет для остальных элементов
-                        bitmap.setPixel(x, y, AndroidColor.BLACK)
-                    }
+                        bitmap[x, y] = AndroidColor.BLACK
                 } else {
                     // Белый фон
-                    bitmap.setPixel(x, y, AndroidColor.WHITE)
+                    bitmap[x, y] = AndroidColor.WHITE
                 }
             }
         }
