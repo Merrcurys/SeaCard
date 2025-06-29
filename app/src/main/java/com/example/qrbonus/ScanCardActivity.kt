@@ -139,7 +139,8 @@ class ScanCardActivity : ComponentActivity() {
     private fun saveCard(context: Context, name: String, code: String, codeType: String) {
         val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
         val cards = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
-        cards.add("$name|$code|$codeType")
+        val currentTime = System.currentTimeMillis()
+        cards.add("$name|$code|$codeType|$currentTime|0")
         prefs.edit { putStringSet("card_list", cards) }
     }
 }
@@ -349,7 +350,7 @@ fun CameraSection(
             
             // Текст инструкции в затемненной зоне
             Text(
-                text = "Поднесите карту или QR-код к камере,\nчтобы отсканировать код",
+                text = "Поднесите карту к камере,\nчтобы отсканировать код",
                 color = Color.White,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
