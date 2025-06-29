@@ -18,6 +18,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -163,7 +165,7 @@ fun ScanCardScreen(
     ) {
         Column {
             TopAppBar(
-                title = { Text("Добавить карту", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Добавление карты", color = Color.White, fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White)
@@ -203,121 +205,154 @@ fun CameraSection(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
         if (hasCameraPermission) {
+            AndroidView(
+                factory = { ctx ->
+                    PreviewView(ctx).apply {
+                        implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+                update = { previewView ->
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        val preview = Preview.Builder().build()
+                        val imageAnalysis = ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build()
+                            .apply {
+                                setAnalyzer(
+                                    Executors.newSingleThreadExecutor()
+                                ) { imageProxy ->
+                                    val image = InputImage.fromMediaImage(
+                                        imageProxy.image!!,
+                                        imageProxy.imageInfo.rotationDegrees
+                                    )
+                                    val scanner = BarcodeScanning.getClient()
+                                    scanner.process(image)
+                                        .addOnSuccessListener { barcodes ->
+                                            for (barcode in barcodes) {
+                                                if (barcode.format == Barcode.FORMAT_CODE_128 ||
+                                                    barcode.format == Barcode.FORMAT_CODE_39 ||
+                                                    barcode.format == Barcode.FORMAT_EAN_13) {
+                                                    onScanResult(barcode.rawValue ?: "")
+                                                }
+                                            }
+                                        }
+                                        .addOnCompleteListener {
+                                            imageProxy.close()
+                                        }
+                                }
+                            }
+                        
+                        try {
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                preview,
+                                imageAnalysis
+                            )
+                            preview.setSurfaceProvider(previewView.surfaceProvider)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }, ContextCompat.getMainExecutor(context))
+                }
+            )
+            
+            // Затемнение сверху
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(400.dp)
-                    .padding(16.dp)
+                    .height(150.dp)
+                    .background(Color.Black.copy(alpha = 0.5f))
+            )
+            
+            // Затемнение снизу
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(Color.Black.copy(alpha = 0.5f))
+            )
+            
+            // Область сканирования в центре
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .align(Alignment.TopCenter)
+                    .offset(y = 225.dp)
+                    .padding(horizontal = 60.dp)
             ) {
-                AndroidView(
-                    factory = { ctx ->
-                        PreviewView(ctx).apply {
-                            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                    update = { previewView ->
-                        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-                        cameraProviderFuture.addListener({
-                            val cameraProvider = cameraProviderFuture.get()
-                            val preview = Preview.Builder().build()
-                            val imageAnalysis = ImageAnalysis.Builder()
-                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                                .build()
-                                .apply {
-                                    setAnalyzer(
-                                        Executors.newSingleThreadExecutor()
-                                    ) { imageProxy ->
-                                        val image = InputImage.fromMediaImage(
-                                            imageProxy.image!!,
-                                            imageProxy.imageInfo.rotationDegrees
-                                        )
-                                        val scanner = BarcodeScanning.getClient()
-                                        scanner.process(image)
-                                            .addOnSuccessListener { barcodes ->
-                                                for (barcode in barcodes) {
-                                                    if (barcode.format == Barcode.FORMAT_CODE_128 ||
-                                                        barcode.format == Barcode.FORMAT_CODE_39 ||
-                                                        barcode.format == Barcode.FORMAT_EAN_13) {
-                                                        onScanResult(barcode.rawValue ?: "")
-                                                    }
-                                                }
-                                            }
-                                            .addOnCompleteListener {
-                                                imageProxy.close()
-                                            }
-                                    }
-                                }
-                            
-                            try {
-                                cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
-                                    lifecycleOwner,
-                                    CameraSelector.DEFAULT_BACK_CAMERA,
-                                    preview,
-                                    imageAnalysis
-                                )
-                                preview.setSurfaceProvider(previewView.surfaceProvider)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }, ContextCompat.getMainExecutor(context))
-                    }
-                )
-                
-                // Индикатор успешного сканирования
-                if (scanSuccess) {
-                    Box(
+                // Полупрозрачный штрихкод
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .border(2.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                ) {
+                    Row(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Green.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center
+                            .align(Alignment.Center)
+                            .padding(32.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.Green),
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = "Код распознан!",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(16.dp)
+                        repeat(20) { index ->
+                            Box(
+                                modifier = Modifier
+                                    .width(if (index % 2 == 0) 4.dp else 2.dp)
+                                    .height(80.dp)
+                                    .background(
+                                        if (index % 3 == 0) Color.White.copy(alpha = 0.3f)
+                                        else Color.White.copy(alpha = 0.1f)
+                                    )
                             )
                         }
                     }
                 }
             }
-        } else {
-            Box(
+            
+            // Текст инструкции в затемненной зоне
+            Text(
+                text = "Поднесите карту к камере,\nчтобы отсканировать штрих-код",
+                color = Color.White,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(400.dp)
-                    .padding(16.dp)
-                    .background(Color.Gray, RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Нет разрешения на камеру", color = Color.White)
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 120.dp, start = 32.dp, end = 32.dp)
+            )
+            
+            // Кнопка ручного ввода
             Button(
                 onClick = onManualInputToggle,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                modifier = Modifier.weight(1f)
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp, start = 80.dp, end = 80.dp)
+                    .height(48.dp)
             ) {
                 Icon(Icons.Filled.Keyboard, contentDescription = null, tint = Color.Black)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Ручной ввод", color = Color.Black)
+                Text("Ручной ввод", color = Color.Black, fontWeight = FontWeight.Medium)
+            }
+        } else {
+            // Заглушка если нет разрешения на камеру
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Нет разрешения на камеру", color = Color.White)
             }
         }
     }
