@@ -31,6 +31,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import android.provider.Settings
+import android.content.Intent
 import com.example.qrbonus.ui.theme.QRBonusTheme
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -41,8 +43,12 @@ import com.google.zxing.qrcode.QRCodeWriter
 import androidx.core.graphics.set
 import androidx.core.graphics.createBitmap
 import androidx.core.content.edit
+import androidx.core.net.toUri
 
 class CardDetailActivity : ComponentActivity() {
+    private var originalBrightness: Float = 0f
+    private var hasBrightnessPermission: Boolean = false
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -50,9 +56,28 @@ class CardDetailActivity : ComponentActivity() {
         val cardCode = intent.getStringExtra("card_code") ?: ""
         val codeType = intent.getStringExtra("code_type") ?: "barcode"
         
+        // Проверяем разрешение на изменение яркости
+        hasBrightnessPermission = Settings.System.canWrite(this)
+        
+        // Сохраняем текущую яркость и увеличиваем её
+        if (hasBrightnessPermission) {
+            originalBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
+            setBrightness(1.0f) // Максимальная яркость
+        }
+        
         setContent {
             var showDeleteDialog by remember { mutableStateOf(false) }
             var isDark by remember { mutableStateOf(loadThemePref(this@CardDetailActivity)) }
+            var showPermissionDialog by remember { mutableStateOf(!hasBrightnessPermission) }
+            
+            // Обновляем проверку разрешения при изменении состояния
+            LaunchedEffect(Unit) {
+                if (Settings.System.canWrite(this@CardDetailActivity)) {
+                    hasBrightnessPermission = true
+                    originalBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
+                    setBrightness(1.0f)
+                }
+            }
             
             QRBonusTheme(darkTheme = isDark) {
                 CardDetailScreen(
@@ -62,6 +87,35 @@ class CardDetailActivity : ComponentActivity() {
                     onBack = { finish() },
                     onDelete = { showDeleteDialog = true }
                 )
+                
+                // Диалог запроса разрешения на изменение яркости
+                if (showPermissionDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showPermissionDialog = false },
+                        title = { Text("Разрешение на изменение яркости") },
+                        text = { Text("Для лучшего сканирования кодов приложению нужно разрешение на изменение яркости экрана. Перейдите в настройки и включите разрешение для QRБонус.") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
+                                    intent.data = "package:$packageName".toUri()
+                                    startActivity(intent)
+                                    showPermissionDialog = false
+                                }
+                            ) {
+                                Text("Настройки", color = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showPermissionDialog = false }) {
+                                Text("Отмена")
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        textContentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                }
                 
                 // Диалог подтверждения удаления
                 if (showDeleteDialog) {
@@ -91,6 +145,24 @@ class CardDetailActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // Восстанавливаем оригинальную яркость при закрытии экрана
+        if (hasBrightnessPermission) {
+            setBrightness(originalBrightness)
+        }
+    }
+    
+    private fun setBrightness(brightness: Float) {
+        try {
+            val layoutParams = window.attributes
+            layoutParams.screenBrightness = brightness.coerceIn(0.01f, 1.0f)
+            window.attributes = layoutParams
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
     
