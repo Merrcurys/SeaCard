@@ -7,8 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -22,6 +25,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +43,7 @@ import com.example.qrbonus.ui.theme.BlackBackground
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import java.util.*
 import androidx.core.content.edit
+import androidx.activity.compose.BackHandler
 
 enum class SortType(val displayName: String) {
     ADD_TIME("По времени добавления"),
@@ -160,6 +165,18 @@ class MainActivity : ComponentActivity() {
                         currentSortType = newSortType
                         saveSortTypePref(context, newSortType)
                         loadCards()
+                    },
+                    onDeleteCards = { cardsToDelete ->
+                        val prefs = getSharedPreferences("cards", Context.MODE_PRIVATE)
+                        val cardSet = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
+                        val updatedCardSet = cardSet.filterNot { cardString ->
+                            val parts = cardString.split("|")
+                            cardsToDelete.any { card ->
+                                parts[0] == card.name
+                            }
+                        }.toSet()
+                        prefs.edit { putStringSet("card_list", updatedCardSet) }
+                        loadCards()
                     }
                 )
             }
@@ -196,7 +213,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MainScreen(
     cards: List<Card>,
@@ -204,7 +221,8 @@ fun MainScreen(
     onAddCard: () -> Unit,
     onCardClick: (Card) -> Unit,
     onSettingsClick: () -> Unit,
-    onSortTypeChange: (SortType) -> Unit
+    onSortTypeChange: (SortType) -> Unit,
+    onDeleteCards: (List<Card>) -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background == BlackBackground
@@ -212,6 +230,8 @@ fun MainScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
     var showFilterMenu by remember { mutableStateOf(false) }
+    var selectedCards by remember { mutableStateOf<Set<Card>>(emptySet()) }
+    var selectionMode by remember { mutableStateOf(false) }
     
     // Функция для определения темного цвета
     fun isColorDark(color: Int): Boolean {
@@ -232,12 +252,20 @@ fun MainScreen(
         }
     }
     
+    // Обработка системной кнопки "назад" для сброса выбора
+    BackHandler(enabled = selectionMode) {
+        selectionMode = false
+        selectedCards = emptySet()
+    }
+    
     Scaffold(
         containerColor = colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
-                    if (showSearch) {
+                    if (selectionMode) {
+                        Text("Выбрано: ${selectedCards.size}", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    } else if (showSearch) {
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
@@ -270,64 +298,76 @@ fun MainScreen(
                 },
                 navigationIcon = {},
                 actions = {
-                    IconButton(onClick = { showSearch = !showSearch }) {
-                        Icon(Icons.Default.Search, contentDescription = "Поиск", tint = colorScheme.onSurface)
-                    }
-                    Box {
-                        IconButton(onClick = { showFilterMenu = true }) {
-                            Icon(Icons.Default.FilterAlt, contentDescription = "Фильтр", tint = colorScheme.onSurface)
+                    if (selectionMode) {
+                        IconButton(onClick = {
+                            onDeleteCards(selectedCards.toList())
+                            selectedCards = emptySet()
+                            selectionMode = false
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = colorScheme.onSurface)
                         }
-                        DropdownMenu(
-                            expanded = showFilterMenu,
-                            onDismissRequest = { showFilterMenu = false },
-                            modifier = Modifier.background(colorScheme.surface)
-                        ) {
-                            SortType.entries.forEach { sortType ->
-                                DropdownMenuItem(
-                                    text = { 
-                                        Text(
-                                            text = sortType.displayName,
-                                            color = if (currentSortType == sortType) colorScheme.primary else colorScheme.onSurface
-                                        ) 
-                                    },
-                                    onClick = {
-                                        onSortTypeChange(sortType)
-                                        showFilterMenu = false
-                                    },
-                                    leadingIcon = {
-                                        if (currentSortType == sortType) {
-                                            Icon(
-                                                Icons.Default.Check,
-                                                contentDescription = "Выбрано",
-                                                tint = colorScheme.primary
-                                            )
+                    } else {
+                        IconButton(onClick = { showSearch = !showSearch }) {
+                            Icon(Icons.Default.Search, contentDescription = "Поиск", tint = colorScheme.onSurface)
+                        }
+                        Box {
+                            IconButton(onClick = { showFilterMenu = true }) {
+                                Icon(Icons.Default.FilterAlt, contentDescription = "Фильтр", tint = colorScheme.onSurface)
+                            }
+                            DropdownMenu(
+                                expanded = showFilterMenu,
+                                onDismissRequest = { showFilterMenu = false },
+                                modifier = Modifier.background(colorScheme.surface)
+                            ) {
+                                SortType.entries.forEach { sortType ->
+                                    DropdownMenuItem(
+                                        text = { 
+                                            Text(
+                                                text = sortType.displayName,
+                                                color = if (currentSortType == sortType) colorScheme.primary else colorScheme.onSurface
+                                            ) 
+                                        },
+                                        onClick = {
+                                            onSortTypeChange(sortType)
+                                            showFilterMenu = false
+                                        },
+                                        leadingIcon = {
+                                            if (currentSortType == sortType) {
+                                                Icon(
+                                                    Icons.Default.Check,
+                                                    contentDescription = "Выбрано",
+                                                    tint = colorScheme.primary
+                                                )
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
-                    }
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = colorScheme.onSurface)
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = colorScheme.onSurface)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarColor)
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddCard,
-                containerColor = colorScheme.primary,
-                shape = RoundedCornerShape(24.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp)) {
-                    Icon(
-                        Icons.Filled.Add,
-                        contentDescription = "Добавить карту",
-                        tint = colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Добавить карту", color = colorScheme.onPrimary)
+            if (!selectionMode) {
+                FloatingActionButton(
+                    onClick = onAddCard,
+                    containerColor = colorScheme.primary,
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp)) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = "Добавить карту",
+                            tint = colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Добавить карту", color = colorScheme.onPrimary)
+                    }
                 }
             }
         },
@@ -344,6 +384,10 @@ fun MainScreen(
                         if (showSearch) {
                             showSearch = false
                             searchQuery = ""
+                        }
+                        if (selectionMode) {
+                            selectionMode = false
+                            selectedCards = emptySet()
                         }
                     }
             ) {
@@ -382,6 +426,7 @@ fun MainScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(filteredCards) { card ->
+                            val isSelected = selectedCards.contains(card)
                             Card(
                                 colors = CardDefaults.cardColors(
                                     containerColor = Color(card.color),
@@ -391,19 +436,45 @@ fun MainScreen(
                                 modifier = Modifier
                                     .height(100.dp)
                                     .fillMaxWidth()
-                                    .clickable { 
-                                        if (showSearch) {
-                                            showSearch = false
-                                            searchQuery = ""
+                                    .then(
+                                        if (isSelected) Modifier
+                                            .border(
+                                                width = 3.dp,
+                                                color = colorScheme.primary,
+                                                shape = RoundedCornerShape(12.dp)
+                                            )
+                                        else Modifier
+                                    )
+                                    .combinedClickable(
+                                        onClick = {
+                                            if (selectionMode) {
+                                                selectedCards = if (isSelected) selectedCards - card else selectedCards + card
+                                                if (selectedCards.isEmpty()) selectionMode = false
+                                            } else {
+                                                onCardClick(card)
+                                            }
+                                        },
+                                        onLongClick = {
+                                            if (!selectionMode) {
+                                                selectionMode = true
+                                                selectedCards = setOf(card)
+                                            }
                                         }
-                                        onCardClick(card) 
-                                    }
+                                    )
                             ) {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-    Text(
+                                    // Затемнение поверх цвета карточки, если выбрана
+                                    if (isSelected) {
+                                        Box(
+                                            modifier = Modifier
+                                                .matchParentSize()
+                                                .background(Color.Black.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp))
+                                        )
+                                    }
+                                    Text(
                                         text = card.name,
                                         color = if (isColorDark(card.color)) Color.White else Color.Black,
                                         fontWeight = FontWeight.Bold,
@@ -413,6 +484,14 @@ fun MainScreen(
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.padding(8.dp)
                                     )
+                                    if (isSelected) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = "Выбрано",
+                                            tint = colorScheme.primary,
+                                            modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -427,6 +506,6 @@ fun MainScreen(
 @Composable
 fun MainScreenPreview() {
     QRBonusTheme {
-        MainScreen(cards = emptyList(), currentSortType = SortType.ADD_TIME, onAddCard = {}, onCardClick = {}, onSettingsClick = {}, onSortTypeChange = {})
+        MainScreen(cards = emptyList(), currentSortType = SortType.ADD_TIME, onAddCard = {}, onCardClick = {}, onSettingsClick = {}, onSortTypeChange = {}, onDeleteCards = {})
     }
 }

@@ -203,7 +203,7 @@ fun CardDetailScreen(
         barcodeBitmap = if (codeType == "qr") {
             generateQRCode(cardCode)
         } else {
-            generateBarcode(cardCode)
+            generateBarcode(cardCode, codeType)
         }
     }
     
@@ -390,30 +390,49 @@ private fun isInCornerMarker(x: Int, y: Int, width: Int, height: Int): Boolean {
     return false
 }
 
-private fun generateBarcode(content: String): Bitmap? {
+private fun generateBarcode(content: String, codeType: String = "code128"): Bitmap? {
     return try {
-        val writer = Code128Writer()
+        val writer = when (codeType.lowercase()) {
+            "ean13" -> com.google.zxing.oned.EAN13Writer()
+            "upca" -> com.google.zxing.oned.UPCAWriter()
+            "code128" -> com.google.zxing.oned.Code128Writer()
+            "code39" -> com.google.zxing.oned.Code39Writer()
+            "code93" -> com.google.zxing.oned.Code93Writer()
+            "codabar" -> com.google.zxing.oned.CodaBarWriter()
+            "ean8" -> com.google.zxing.oned.EAN8Writer()
+            "itf" -> com.google.zxing.oned.ITFWriter()
+            "upce" -> com.google.zxing.oned.UPCEWriter()
+            else -> com.google.zxing.oned.Code128Writer()
+        }
+        val format = when (codeType.lowercase()) {
+            "ean13" -> BarcodeFormat.EAN_13
+            "upca" -> BarcodeFormat.UPC_A
+            "code128" -> BarcodeFormat.CODE_128
+            "code39" -> BarcodeFormat.CODE_39
+            "code93" -> BarcodeFormat.CODE_93
+            "codabar" -> BarcodeFormat.CODABAR
+            "ean8" -> BarcodeFormat.EAN_8
+            "itf" -> BarcodeFormat.ITF
+            "upce" -> BarcodeFormat.UPC_E
+            else -> BarcodeFormat.CODE_128
+        }
         val hints = HashMap<EncodeHintType, Any>()
         hints[EncodeHintType.MARGIN] = 0
-        
         val bitMatrix: BitMatrix = writer.encode(
             content,
-            BarcodeFormat.CODE_128,
+            format,
             800,
             200,
             hints
         )
-        
         val width = bitMatrix.width
         val height = bitMatrix.height
         val bitmap = createBitmap(width, height)
-        
         for (x in 0 until width) {
             for (y in 0 until height) {
                 bitmap[x, y] = if (bitMatrix[x, y]) AndroidColor.BLACK else AndroidColor.WHITE
             }
         }
-        
         bitmap
     } catch (e: WriterException) {
         e.printStackTrace()

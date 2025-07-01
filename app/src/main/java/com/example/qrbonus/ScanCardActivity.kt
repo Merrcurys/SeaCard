@@ -270,19 +270,28 @@ fun CameraSection(
                                         .addOnSuccessListener { barcodes ->
                                             for (barcode in barcodes) {
                                                 val codeType = when (barcode.format) {
-                                                    Barcode.FORMAT_QR_CODE -> "qr"
-                                                    Barcode.FORMAT_AZTEC -> "qr"
-                                                    Barcode.FORMAT_DATA_MATRIX -> "qr"
-                                                    Barcode.FORMAT_PDF417 -> "qr"
-                                                    Barcode.FORMAT_CODE_128,
-                                                    Barcode.FORMAT_CODE_39,
-                                                    Barcode.FORMAT_EAN_13 -> "barcode"
+                                                    Barcode.FORMAT_QR_CODE, Barcode.FORMAT_AZTEC, Barcode.FORMAT_DATA_MATRIX, Barcode.FORMAT_PDF417 -> "qr"
+                                                    Barcode.FORMAT_CODE_128 -> "code128"
+                                                    Barcode.FORMAT_EAN_13 -> "ean13"
+                                                    Barcode.FORMAT_UPC_A -> "upca"
+                                                    Barcode.FORMAT_CODE_39 -> "code39"
+                                                    Barcode.FORMAT_CODE_93 -> "code93"
+                                                    Barcode.FORMAT_CODABAR -> "codabar"
+                                                    Barcode.FORMAT_EAN_8 -> "ean8"
+                                                    Barcode.FORMAT_ITF -> "itf"
+                                                    Barcode.FORMAT_UPC_E -> "upce"
                                                     else -> "barcode"
                                                 }
                                                 
                                                 if (barcode.format == Barcode.FORMAT_CODE_128 ||
                                                     barcode.format == Barcode.FORMAT_CODE_39 ||
+                                                    barcode.format == Barcode.FORMAT_CODE_93 ||
+                                                    barcode.format == Barcode.FORMAT_CODABAR ||
                                                     barcode.format == Barcode.FORMAT_EAN_13 ||
+                                                    barcode.format == Barcode.FORMAT_EAN_8 ||
+                                                    barcode.format == Barcode.FORMAT_ITF ||
+                                                    barcode.format == Barcode.FORMAT_UPC_A ||
+                                                    barcode.format == Barcode.FORMAT_UPC_E ||
                                                     barcode.format == Barcode.FORMAT_QR_CODE ||
                                                     barcode.format == Barcode.FORMAT_AZTEC ||
                                                     barcode.format == Barcode.FORMAT_DATA_MATRIX ||
