@@ -33,12 +33,13 @@ import android.content.Context
 import android.widget.Toast
 import android.provider.Settings
 import android.content.Intent
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Edit
 import com.example.qrbonus.ui.theme.QRBonusTheme
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.WriterException
 import com.google.zxing.common.BitMatrix
-import com.google.zxing.oned.Code128Writer
 import com.google.zxing.qrcode.QRCodeWriter
 import androidx.core.graphics.set
 import androidx.core.graphics.createBitmap
@@ -55,6 +56,7 @@ class CardDetailActivity : ComponentActivity() {
         val cardName = intent.getStringExtra("card_name") ?: ""
         val cardCode = intent.getStringExtra("card_code") ?: ""
         val codeType = intent.getStringExtra("code_type") ?: "barcode"
+        val cardColor = intent.getIntExtra("card_color", 0xFFFFFFFF.toInt())
         
         // Проверяем разрешение на изменение яркости
         hasBrightnessPermission = Settings.System.canWrite(this)
@@ -69,6 +71,10 @@ class CardDetailActivity : ComponentActivity() {
             var showDeleteDialog by remember { mutableStateOf(false) }
             var isDark by remember { mutableStateOf(loadThemePref(this@CardDetailActivity)) }
             var showPermissionDialog by remember { mutableStateOf(!hasBrightnessPermission) }
+            var cardNameState by remember { mutableStateOf(cardName) }
+            var cardCodeState by remember { mutableStateOf(cardCode) }
+            var codeTypeState by remember { mutableStateOf(codeType) }
+            var cardColorState by remember { mutableStateOf(cardColor) }
             
             // Обновляем проверку разрешения при изменении состояния
             LaunchedEffect(Unit) {
@@ -81,11 +87,23 @@ class CardDetailActivity : ComponentActivity() {
             
             QRBonusTheme(darkTheme = isDark) {
                 CardDetailScreen(
-                    cardName = cardName,
-                    cardCode = cardCode,
-                    codeType = codeType,
+                    cardName = cardNameState,
+                    cardCode = cardCodeState,
+                    codeType = codeTypeState,
+                    cardColor = cardColorState,
                     onBack = { finish() },
-                    onDelete = { showDeleteDialog = true }
+                    onDelete = {
+                        deleteCard(this@CardDetailActivity, cardNameState, cardCodeState, codeTypeState, cardColorState)
+                        setResult(RESULT_OK)
+                        finish()
+                    },
+                    onEdit = { newName, newCode, newType, newColor ->
+                        editCard(this@CardDetailActivity, cardNameState, cardCodeState, codeTypeState, cardColorState, newName, newCode, newType, newColor)
+                        cardNameState = newName
+                        cardCodeState = newCode
+                        codeTypeState = newType
+                        cardColorState = newColor
+                    }
                 )
                 
                 // Диалог запроса разрешения на изменение яркости
@@ -122,13 +140,11 @@ class CardDetailActivity : ComponentActivity() {
                     AlertDialog(
                         onDismissRequest = { showDeleteDialog = false },
                         title = { Text("Удалить карту?") },
-                        text = { Text("Карта \"$cardName\" будет удалена безвозвратно.") },
+                        text = { Text("Карта '$cardNameState' будет удалена безвозвратно.") },
                         confirmButton = {
                             TextButton(
                                 onClick = {
-                                    deleteCard(this@CardDetailActivity, cardName, cardCode)
-                                    setResult(RESULT_OK)
-                                    finish()
+                                    showDeleteDialog = false
                                 }
                             ) {
                                 Text("Удалить", color = Color.Red)
@@ -166,18 +182,37 @@ class CardDetailActivity : ComponentActivity() {
         }
     }
     
-    private fun deleteCard(context: android.content.Context, name: String, code: String) {
-        val prefs = context.getSharedPreferences("cards", android.content.Context.MODE_PRIVATE)
+    private fun deleteCard(context: Context, name: String, code: String, type: String, color: Int) {
+        val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
         val cards = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
-        
-        // Удаляем карту по имени (первая часть строки)
         val cardToRemove = cards.find { cardString ->
             val parts = cardString.split("|")
-            parts.isNotEmpty() && parts[0] == name
+            parts.isNotEmpty() && parts[0] == name && parts[1] == code && (parts.size < 3 || parts[2] == type) && (parts.size < 6 || parts[5].toIntOrNull() == color)
         }
-        
         cardToRemove?.let { cards.remove(it) }
         prefs.edit { putStringSet("card_list", cards) }
+    }
+    
+    private fun editCard(context: Context, oldName: String, oldCode: String, oldType: String, oldColor: Int, newName: String, newCode: String, newType: String, newColor: Int) {
+        val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
+        val cards = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
+        val cardToEdit = cards.find { cardString ->
+            val parts = cardString.split("|")
+            parts.isNotEmpty() && parts[0] == oldName && parts[1] == oldCode && (parts.size < 3 || parts[2] == oldType) && (parts.size < 6 || parts[5].toIntOrNull() == oldColor)
+        }
+        if (cardToEdit != null) {
+            cards.remove(cardToEdit)
+            val parts = cardToEdit.split("|")
+            val newCardString = when (parts.size) {
+                2 -> "$newName|$newCode"
+                3 -> "$newName|$newCode|$newType"
+                5 -> "$newName|$newCode|$newType|${parts[3]}|${parts[4]}"
+                6 -> "$newName|$newCode|$newType|${parts[3]}|${parts[4]}|$newColor"
+                else -> "$newName|$newCode|$newType|${System.currentTimeMillis()}|0|$newColor"
+            }
+            cards.add(newCardString)
+            prefs.edit { putStringSet("card_list", cards) }
+        }
     }
     
     private fun loadThemePref(context: Context): Boolean {
@@ -192,29 +227,41 @@ fun CardDetailScreen(
     cardName: String,
     cardCode: String,
     codeType: String,
+    cardColor: Int,
     onBack: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: (String, String, String, Int) -> Unit
 ) {
     var barcodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
-    
-    LaunchedEffect(cardCode, codeType) {
-        barcodeBitmap = if (codeType == "qr") {
-            generateQRCode(cardCode)
-        } else {
-            generateBarcode(cardCode, codeType)
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editName by remember { mutableStateOf(cardName) }
+    var editCode by remember { mutableStateOf(cardCode) }
+    var editType by remember { mutableStateOf(codeType) }
+    var editColor by remember { mutableStateOf(cardColor) }
+    var editError by remember { mutableStateOf("") }
+
+    LaunchedEffect(editCode, editType) {
+        if (isValidBarcodeWithChecksum(editCode, editType)) {
+            barcodeBitmap = if (editType == "qr") {
+                generateQRCode(editCode)
+            } else {
+                generateBarcode(editCode, editType)
+            }
         }
     }
-    
+
     // Функция копирования в буфер обмена
     fun copyToClipboard() {
         val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Код карты", cardCode)
+        val clip = ClipData.newPlainText("Код карты", editCode)
         clipboardManager.setPrimaryClip(clip)
         Toast.makeText(context, "Код скопирован в буфер обмена", Toast.LENGTH_SHORT).show()
     }
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -222,18 +269,114 @@ fun CardDetailScreen(
     ) {
         Column {
             TopAppBar(
-                title = { Text(cardName, color = colorScheme.onSurface, fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Удалить карту", tint = colorScheme.onSurface)
-                    }
+                title = {},
+                navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
                     }
                 },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Меню", tint = colorScheme.onSurface)
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier.background(colorScheme.surface)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Изменить карту") },
+                                onClick = {
+                                    showMenu = false
+                                    showEditDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Удалить карту", color = Color.Red) },
+                                onClick = {
+                                    showMenu = false
+                                    showDeleteDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
+                                }
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
             )
-            
+            // Диалог удаления
+            if (showDeleteDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog = false },
+                    title = { Text("Удалить карту?") },
+                    text = { Text("Карта '$cardName' будет удалена безвозвратно.") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showDeleteDialog = false
+                                onDelete()
+                            }
+                        ) {
+                            Text("Удалить", color = Color.Red)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteDialog = false }) {
+                            Text("Отмена")
+                        }
+                    },
+                    containerColor = colorScheme.surface,
+                    titleContentColor = colorScheme.onSurface,
+                    textContentColor = colorScheme.onSurface
+                )
+            }
+            // Диалог редактирования
+            if (showEditDialog) {
+                Surface(
+                    color = colorScheme.background,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    ManualInputSection(
+                        cardName = editName,
+                        cardCode = editCode,
+                        selectedColor = editColor,
+                        onCardNameChange = { editName = it },
+                        onCardCodeChange = {
+                            editCode = it
+                            editType = ScanCardActivity.detectCodeType(it)
+                        },
+                        onColorChange = { editColor = it },
+                        onSaveCard = {
+                            if (editName.isBlank() || editCode.isBlank()) {
+                                editError = "Заполните все поля"
+                            } else if (editType != "qr" && editCode.any { !it.isDigit() }) {
+                                editError = "Штрихкод должен содержать только цифры"
+                            } else if (!isValidBarcodeWithChecksum(editCode, editType)) {
+                                editError = when (editType.lowercase()) {
+                                    "ean8" -> "Некорректный EAN-8: неверная контрольная сумма"
+                                    "ean13" -> "Некорректный EAN-13: неверная контрольная сумма"
+                                    "upca" -> "Некорректный UPC-A: неверная контрольная сумма"
+                                    else -> ""
+                                }
+                            } else {
+                                showEditDialog = false
+                                editError = ""
+                                onEdit(editName, editCode, editType, editColor)
+                            }
+                        },
+                        onBackToCamera = { showEditDialog = false }
+                    )
+                    if (editError.isNotEmpty()) {
+                        Text(editError, color = Color.Red, fontSize = 13.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+                    }
+                }
+            }
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -245,17 +388,16 @@ fun CardDetailScreen(
                 // Код (QR или штрихкод)
                 if (barcodeBitmap != null) {
                     Text(
-                        text = if (codeType == "qr") "QR-код" else "Штрихкод",
+                        text = editName,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurface,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (codeType == "qr") 350.dp else 300.dp),
+                            .height(if (editType == "qr") 350.dp else 300.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
                         shape = RoundedCornerShape(20.dp)
@@ -268,22 +410,19 @@ fun CardDetailScreen(
                         ) {
                             Image(
                                 bitmap = barcodeBitmap!!.asImageBitmap(),
-                                contentDescription = if (codeType == "qr") "QR-код" else "Штрихкод",
+                                contentDescription = editName,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(if (codeType == "qr") 280.dp else 230.dp)
+                                    .height(if (editType == "qr") 280.dp else 230.dp)
                             )
                         }
                     }
                 }
-                
-                // Разделитель
                 Divider(
                     color = colorScheme.onSurface.copy(alpha = 0.2f),
                     thickness = 1.dp,
                     modifier = Modifier.padding(horizontal = 32.dp)
                 )
-                
                 // Код карты внизу
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -295,7 +434,6 @@ fun CardDetailScreen(
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
                     )
-                    
                     Card(
                         colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
                         shape = RoundedCornerShape(16.dp),
@@ -310,9 +448,10 @@ fun CardDetailScreen(
                                 )
                             }
                     ) {
+                        val formattedCode = formatBarcodeForStandard(editCode, editType)
                         Text(
-                            text = cardCode,
-                            fontSize = if (cardCode.length > 20) 18.sp else 24.sp,
+                            text = formattedCode,
+                            fontSize = if (editCode.length > 20) 18.sp else 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = colorScheme.onSurface,
                             textAlign = TextAlign.Center,
@@ -324,6 +463,19 @@ fun CardDetailScreen(
                 }
             }
         }
+    }
+}
+
+// Функция для форматирования штрихкода с отступами по стандарту
+fun formatBarcodeForStandard(code: String, codeType: String): String {
+    return when (codeType.lowercase()) {
+        "ean13" -> code.chunked(1) // EAN-13: 1-6-6 (обычно 1 6 6, но для простоты разбить по 1)
+            .let { if (it.size >= 13) it[0] + " " + it.subList(1,7).joinToString("") + " " + it.subList(7,13).joinToString("") else code }
+        "upca" -> code.chunked(1)
+            .let { if (it.size >= 12) it[0] + " " + it.subList(1,6).joinToString("") + " " + it.subList(6,11).joinToString("") + " " + it[11] else code }
+        "ean8" -> code.chunked(1)
+            .let { if (it.size >= 8) it.subList(0,4).joinToString("") + " " + it.subList(4,8).joinToString("") else code }
+        else -> code
     }
 }
 
@@ -437,5 +589,35 @@ private fun generateBarcode(content: String, codeType: String = "code128"): Bitm
     } catch (e: WriterException) {
         e.printStackTrace()
         null
+    }
+}
+
+fun isValidBarcodeWithChecksum(code: String, codeType: String): Boolean {
+    fun ean8Checksum(s: String): Int {
+        val sum = s.take(7).mapIndexed { i, c ->
+            val n = c.digitToInt()
+            if (i % 2 == 0) n * 3 else n
+        }.sum()
+        return (10 - (sum % 10)) % 10
+    }
+    fun ean13Checksum(s: String): Int {
+        val sum = s.take(12).mapIndexed { i, c ->
+            val n = c.digitToInt()
+            if (i % 2 == 0) n else n * 3
+        }.sum()
+        return (10 - (sum % 10)) % 10
+    }
+    fun upcaChecksum(s: String): Int {
+        val sum = s.take(11).mapIndexed { i, c ->
+            val n = c.digitToInt()
+            if (i % 2 == 0) n * 3 else n
+        }.sum()
+        return (10 - (sum % 10)) % 10
+    }
+    return when (codeType.lowercase()) {
+        "ean8" -> code.length == 8 && code.all { it.isDigit() } && code.last().digitToInt() == ean8Checksum(code)
+        "ean13" -> code.length == 13 && code.all { it.isDigit() } && code.last().digitToInt() == ean13Checksum(code)
+        "upca" -> code.length == 12 && code.all { it.isDigit() } && code.last().digitToInt() == upcaChecksum(code)
+        else -> true
     }
 } 

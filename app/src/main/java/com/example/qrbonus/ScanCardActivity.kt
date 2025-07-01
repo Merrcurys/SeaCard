@@ -155,6 +155,18 @@ class ScanCardActivity : ComponentActivity() {
         val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
         return prefs.getBoolean("dark_theme", true)
     }
+
+    companion object {
+        fun detectCodeType(code: String): String {
+            return when {
+                code.all { it.isDigit() } && code.length == 13 -> "ean13"
+                code.all { it.isDigit() } && code.length == 12 -> "upca"
+                code.all { it.isDigit() } && code.length == 8 -> "ean8"
+                code.all { it.isDigit() } -> "code128"
+                else -> "qr"
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

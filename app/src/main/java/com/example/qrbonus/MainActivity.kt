@@ -62,6 +62,7 @@ data class Card(
 )
 
 class MainActivity : ComponentActivity() {
+    private lateinit var loadCards: () -> Unit
     private val scanCardLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -74,7 +75,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
-            recreate()
+            loadCards()
         }
     }
 
@@ -155,6 +156,7 @@ class MainActivity : ComponentActivity() {
                             putExtra("card_name", card.name)
                             putExtra("card_code", card.code)
                             putExtra("code_type", card.type)
+                            putExtra("card_color", card.color)
                         }
                         cardDetailLauncher.launch(intent)
                     },

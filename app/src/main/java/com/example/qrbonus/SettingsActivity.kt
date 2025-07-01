@@ -9,8 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Brightness2
-import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,6 +34,13 @@ import androidx.compose.ui.composed
 import androidx.core.view.WindowCompat
 import androidx.core.content.edit
 import androidx.compose.ui.tooling.preview.Preview
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,17 +83,20 @@ class SettingsActivity : ComponentActivity() {
 @Composable
 fun SettingsScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit, onBack: () -> Unit) {
     val colorScheme = MaterialTheme.colorScheme
-    val sunButtonColor = if (isDarkTheme) colorScheme.secondary else Color(0xFFFDFDFD)
-    val moonButtonColor = Color(0xFF232323)
-    val moonIconColor = Color.White
-    val sunIconColor = colorScheme.onSecondary
+    val context = LocalContext.current
     val topBarColor = if (isDarkTheme) BlackBackground else Color(0xFFF5F5F5)
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    val appVersion = remember { "1.0.0" } // TODO: BuildConfig.VERSION_NAME
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(colorScheme.background)
     ) {
-        Column {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             TopAppBar(
                 title = { Text("Настройки", color = colorScheme.onSurface, fontWeight = FontWeight.Bold) },
                 actions = {
@@ -98,46 +106,130 @@ fun SettingsScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit, onBac
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarColor)
             )
-            Spacer(modifier = Modifier.height(48.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(32.dp),
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+            Spacer(modifier = Modifier.height(32.dp))
+            // Кастомный тумблер темы
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+                color = if (isDarkTheme) colorScheme.onPrimary else colorScheme.primary,
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+                    .fillMaxWidth()
             ) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = sunButtonColor,
-                    shadowElevation = 8.dp,
+                Row(
                     modifier = Modifier
-                        .size(100.dp)
-                        .noRippleClickable { onThemeChange(false) }
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Icon(
-                            imageVector = Icons.Filled.WbSunny,
-                            contentDescription = "Светлая тема",
-                            tint = sunIconColor,
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-                }
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = moonButtonColor,
-                    shadowElevation = 8.dp,
-                    modifier = Modifier
-                        .size(100.dp)
-                        .noRippleClickable { onThemeChange(true) }
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Icon(
-                            imageVector = Icons.Filled.Brightness2,
-                            contentDescription = "Тёмная тема",
-                            tint = moonIconColor,
-                            modifier = Modifier.size(48.dp)
-                        )
+                    Text(
+                        text = "Тема приложения",
+                        color = if (isDarkTheme) colorScheme.onSurface else colorScheme.onPrimary,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 18.sp
+                    )
+                    // Кастомный тумблер
+                    Box(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .width(56.dp)
+                            .background(
+                                if (isDarkTheme) colorScheme.primary.copy(alpha = 0.7f) else colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .clickable { onThemeChange(!isDarkTheme) },
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        androidx.compose.animation.AnimatedContent(targetState = isDarkTheme, label = "") { checked ->
+                            Box(
+                                modifier = Modifier
+                                    .padding(start = if (checked) 24.dp else 4.dp, end = if (checked) 4.dp else 24.dp)
+                                    .size(24.dp)
+                                    .background(
+                                        if (checked) colorScheme.primary else colorScheme.onPrimary,
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                            )
+                        }
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(32.dp))
+            // Кнопка Telegram
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, "https://t.me/merrcurys".toUri())
+                    context.startActivity(intent)
+                },
+                shape = RoundedCornerShape(14.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = if (isDarkTheme) colorScheme.onPrimary else colorScheme.primary,
+                    contentColor = if (isDarkTheme) colorScheme.onSurface else colorScheme.onPrimary
+                ),
+                elevation = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp)
+            ) {
+                Text("Связаться с разработчиком", fontWeight = FontWeight.Medium)
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            // Кнопка удалить все карточки
+            Button(
+                onClick = { showDeleteDialog = true },
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text("Удалить все карточки", color = Color.White, fontWeight = FontWeight.Medium)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            // Версия приложения
+            Text(
+                text = "Версия приложения: $appVersion",
+                color = colorScheme.onSurface.copy(alpha = 0.5f),
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+        // Диалог подтверждения удаления
+        if (showDeleteDialog) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Удалить все карточки?") },
+                text = { Text("Вы уверены что хотите удалить все карточки?") },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            // Удаляем все карточки
+                            val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
+                            prefs.edit { remove("card_list") }
+                            showDeleteDialog = false
+                        }
+                    ) {
+                        Text("Удалить", color = Color.Red)
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Отмена")
+                    }
+                },
+                containerColor = colorScheme.surface,
+                titleContentColor = colorScheme.onSurface,
+                textContentColor = colorScheme.onSurface
+            )
         }
     }
 }
