@@ -13,10 +13,15 @@
 
 ## Как запустить
 
-Скачайте 
+Чтобы запустить приложение на Android 8.0+ скачайте [APK](https://github.com/Merrcurys/QRBonus/releases/tag/v0.1.0-alpha).
 
 ## Стек технологий
 
 - Kotlin
-- Jetpack Compose (Material 3)
-- AndroidX
+- Jetpack Compose
+- Barcode Scanning
+- Zxing
+
+## Лицензия
+
+QRBonus расспространяется под лицензией GNU GPL-3.0.
