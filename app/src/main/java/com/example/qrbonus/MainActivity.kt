@@ -62,22 +62,6 @@ data class Card(
 )
 
 class MainActivity : ComponentActivity() {
-    private lateinit var loadCards: () -> Unit
-    private val scanCardLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            recreate()
-        }
-    }
-    
-    private val cardDetailLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            loadCards()
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,11 +71,7 @@ class MainActivity : ComponentActivity() {
             var isDark by remember { mutableStateOf(loadThemePref(context)) }
             var cards by remember { mutableStateOf<List<Card>>(emptyList()) }
             var currentSortType by remember { mutableStateOf(loadSortTypePref(context)) }
-            
-            val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-                isDark = loadThemePref(context)
-            }
-            
+
             // Функция загрузки карт
             fun loadCards() {
                 val prefs = getSharedPreferences("cards", Context.MODE_PRIVATE)
@@ -106,6 +86,23 @@ class MainActivity : ComponentActivity() {
                         else -> null
                     }
                 }.sortedWith(getSortComparator(currentSortType))
+            }
+
+            val scanCardLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    loadCards()
+                }
+            }
+
+            val cardDetailLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    loadCards()
+                }
+            }
+
+            val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                isDark = loadThemePref(context)
+                loadCards()
             }
             
             // Функция обновления частоты использования карты

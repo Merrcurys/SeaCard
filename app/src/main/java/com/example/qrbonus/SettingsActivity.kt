@@ -35,7 +35,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.content.edit
 import androidx.compose.ui.tooling.preview.Preview
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.material3.Button
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.platform.LocalContext
@@ -216,6 +215,7 @@ fun SettingsScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit, onBac
                             val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
                             prefs.edit { remove("card_list") }
                             showDeleteDialog = false
+                            onBack()
                         }
                     ) {
                         Text("Удалить", color = Color.Red)
