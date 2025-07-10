@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -65,10 +66,71 @@ class ScanCardActivity : ComponentActivity() {
             var selectedColor by remember { mutableStateOf(0xFFFFFFFF.toInt()) } // Белый по умолчанию
             var scanned by remember { mutableStateOf(false) } // Новый флаг: был ли скан
 
+            val context = this@ScanCardActivity
+            val coroutineScope = rememberCoroutineScope()
+
+            // Launcher для запроса разрешения на камеру
             val launcher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
             ) { isGranted ->
                 hasCameraPermission = isGranted
+            }
+
+            // Launcher для выбора изображения из галереи
+            val galleryLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.GetContent()
+            ) { uri ->
+                if (uri != null) {
+                    try {
+                        val image = InputImage.fromFilePath(context, uri)
+                        val scanner = BarcodeScanning.getClient()
+                        scanner.process(image)
+                            .addOnSuccessListener { barcodes ->
+                                var found = false
+                                for (barcode in barcodes) {
+                                    val codeType = when (barcode.format) {
+                                        Barcode.FORMAT_QR_CODE, Barcode.FORMAT_AZTEC, Barcode.FORMAT_DATA_MATRIX, Barcode.FORMAT_PDF417 -> "qr"
+                                        Barcode.FORMAT_CODE_128 -> "code128"
+                                        Barcode.FORMAT_EAN_13 -> "ean13"
+                                        Barcode.FORMAT_UPC_A -> "upca"
+                                        Barcode.FORMAT_CODE_39 -> "code39"
+                                        Barcode.FORMAT_CODE_93 -> "code93"
+                                        Barcode.FORMAT_CODABAR -> "codabar"
+                                        Barcode.FORMAT_EAN_8 -> "ean8"
+                                        Barcode.FORMAT_ITF -> "itf"
+                                        Barcode.FORMAT_UPC_E -> "upce"
+                                        else -> "barcode"
+                                    }
+                                    if (!scanned) {
+                                        cardCode = barcode.rawValue ?: ""
+                                        scannedCodeType = codeType
+                                        scanSuccess = true
+                                        scanned = true
+                                        found = true
+                                        // Вибрация при успешном сканировании
+                                        val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                            val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                            vibratorManager.defaultVibrator
+                                        } else {
+                                            @Suppress("DEPRECATION")
+                                            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                                        }
+                                        vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+                                        coroutineScope.launch {
+                                            delay(2000)
+                                            scanSuccess = false
+                                        }
+                                        break
+                                    }
+                                }
+                                if (!found) {
+                                    android.widget.Toast.makeText(context, "Код не был найден", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
             }
             
             LaunchedEffect(Unit) {
@@ -111,7 +173,6 @@ class ScanCardActivity : ComponentActivity() {
                                 getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                             }
                             vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
-                            // Сбрасываем индикатор успеха через 2 секунды
                             MainScope().launch {
                                 delay(2000)
                                 scanSuccess = false
@@ -125,7 +186,8 @@ class ScanCardActivity : ComponentActivity() {
                             finish()
                         }
                     },
-                    onBack = { finish() }
+                    onBack = { finish() },
+                    onGalleryClick = { galleryLauncher.launch("image/*") }
                 )
             }
         }
@@ -176,7 +238,8 @@ fun ScanCardScreen(
     onColorChange: (Int) -> Unit,
     onScanResult: (String, String) -> Unit,
     onSaveCard: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onGalleryClick: () -> Unit // Новый параметр
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Box(
@@ -204,7 +267,8 @@ fun ScanCardScreen(
                     scanSuccess = scanSuccess,
                     onScanResult = { code, codeType ->
                         onScanResult(code, codeType)
-                    }
+                    },
+                    onGalleryClick = onGalleryClick // Передаём callback
                 )
             } else {
                 CardInputSection(
@@ -226,7 +290,8 @@ fun ScanCardScreen(
 fun CameraSection(
     hasCameraPermission: Boolean,
     scanSuccess: Boolean,
-    onScanResult: (String, String) -> Unit
+    onScanResult: (String, String) -> Unit,
+    onGalleryClick: () -> Unit // Новый параметр
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -376,6 +441,34 @@ fun CameraSection(
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 120.dp, start = 32.dp, end = 32.dp)
             )
+            // Кнопка галереи по центру под текстом
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 56.dp)
+            ) {
+                Button(
+                    onClick = onGalleryClick,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isDark) Color.Black.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.35f),
+                        contentColor = if (isDark) Color.White else Color.Black
+                    ),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
+                    modifier = Modifier
+                        .width(140.dp)
+                        .height(44.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Photo,
+                        contentDescription = "Открыть галерею",
+                        tint = if (isDark) Color.White else Color.Black,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Галерея", fontWeight = FontWeight.Medium)
+                }
+            }
         } else {
             Box(
                 modifier = Modifier
