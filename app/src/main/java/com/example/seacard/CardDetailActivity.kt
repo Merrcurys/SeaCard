@@ -45,7 +45,6 @@ import androidx.core.graphics.set
 import androidx.core.graphics.createBitmap
 import androidx.core.content.edit
 import androidx.core.net.toUri
-import com.example.seacard.CardInputSection
 
 class CardDetailActivity : ComponentActivity() {
     private var originalBrightness: Float = 0f
@@ -457,7 +456,7 @@ fun CardDetailScreen(
 // Функция для форматирования штрихкода с отступами по стандарту
 fun formatBarcodeForStandard(code: String, codeType: String): String {
     return when (codeType.lowercase()) {
-        "ean13" -> code.chunked(1) // EAN-13: 1-6-6 (обычно 1 6 6, но для простоты разбить по 1)
+        "ean13" -> code.chunked(1)
             .let { if (it.size >= 13) it[0] + " " + it.subList(1,7).joinToString("") + " " + it.subList(7,13).joinToString("") else code }
         "upca" -> code.chunked(1)
             .let { if (it.size >= 12) it[0] + " " + it.subList(1,6).joinToString("") + " " + it.subList(6,11).joinToString("") + " " + it[11] else code }

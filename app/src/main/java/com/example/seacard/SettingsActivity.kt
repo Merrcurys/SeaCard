@@ -40,6 +40,13 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,7 +113,7 @@ fun SettingsScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit, onBac
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarColor)
             )
             Spacer(modifier = Modifier.height(32.dp))
-            // Кастомный тумблер темы
+            // Тумблер смены темы
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 tonalElevation = 0.dp,
@@ -130,28 +137,61 @@ fun SettingsScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit, onBac
                         fontSize = 18.sp
                     )
                     // Кастомный тумблер
+                    val switchWidth = 64.dp
+                    val switchHeight = 36.dp
+                    val thumbSize = 32.dp
+                    val padding = 2.dp
+                    val thumbOffset by animateDpAsState(
+                        targetValue = if (isDarkTheme) switchWidth - thumbSize - padding else padding,
+                        animationSpec = tween(durationMillis = 300), label = "thumbOffset"
+                    )
+                    val trackColor by animateColorAsState(
+                        targetValue = colorScheme.surfaceVariant,
+                        animationSpec = tween(durationMillis = 300), label = "trackColor"
+                    )
+                    val iconColor = if (isDarkTheme) Color.White else Color(0xFF222222)
                     Box(
                         modifier = Modifier
-                            .height(32.dp)
-                            .width(56.dp)
-                            .background(
-                                if (isDarkTheme) colorScheme.primary.copy(alpha = 0.7f) else colorScheme.surfaceVariant,
-                                shape = RoundedCornerShape(16.dp)
-                            )
-                            .clickable { onThemeChange(!isDarkTheme) },
+                            .width(switchWidth)
+                            .height(switchHeight)
+                            .background(trackColor, shape = RoundedCornerShape(18.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { onThemeChange(!isDarkTheme) },
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        androidx.compose.animation.AnimatedContent(targetState = isDarkTheme, label = "") { checked ->
-                            Box(
-                                modifier = Modifier
-                                    .padding(start = if (checked) 24.dp else 4.dp, end = if (checked) 4.dp else 24.dp)
-                                    .size(24.dp)
-                                    .background(
-                                        if (checked) colorScheme.primary else colorScheme.onPrimary,
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                            )
-                        }
+                        // Солнце
+                        Icon(
+                            imageVector = Icons.Filled.LightMode,
+                            contentDescription = "Светлая тема",
+                            tint = iconColor,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .align(Alignment.CenterStart)
+                                .padding(start = 6.dp)
+                        )
+                        // Луна
+                        Icon(
+                            imageVector = Icons.Filled.DarkMode,
+                            contentDescription = "Темная тема",
+                            tint = iconColor,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 6.dp)
+                        )
+                        // Кружок
+                        Box(
+                            modifier = Modifier
+                                .offset(x = thumbOffset)
+                                .size(thumbSize)
+                                .background(
+                                    if (isDarkTheme) colorScheme.primary else colorScheme.onPrimary,
+                                    shape = CircleShape
+                                )
+                                .border(1.dp, colorScheme.onSurface.copy(alpha = 0.1f), CircleShape)
+                        )
                     }
                 }
             }
