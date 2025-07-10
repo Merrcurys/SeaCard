@@ -13,7 +13,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +43,18 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import java.util.*
 import androidx.core.content.edit
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import java.io.IOException
+import androidx.compose.ui.draw.clip
+import com.example.seacard.CardCoverPickerScreen
 
 enum class SortType(val displayName: String) {
     ADD_TIME("По времени добавления"),
@@ -58,7 +69,8 @@ data class Card(
     val type: String,
     val addTime: Long = System.currentTimeMillis(),
     val usageCount: Int = 0,
-    val color: Int = 0xFFFFFFFF.toInt() // Белый цвет по умолчанию
+    val color: Int = 0xFFFFFFFF.toInt(), // Белый цвет по умолчанию
+    val coverAsset: String? = null // Путь к обложке, если есть
 )
 
 class MainActivity : ComponentActivity() {
@@ -71,6 +83,8 @@ class MainActivity : ComponentActivity() {
             var isDark by remember { mutableStateOf(loadThemePref(context)) }
             var cards by remember { mutableStateOf<List<Card>>(emptyList()) }
             var currentSortType by remember { mutableStateOf(loadSortTypePref(context)) }
+            var showCoverPicker by remember { mutableStateOf(false) }
+            var pendingCoverAsset by remember { mutableStateOf<String?>(null) }
 
             // Функция загрузки карт
             fun loadCards() {
@@ -82,7 +96,8 @@ class MainActivity : ComponentActivity() {
                         2 -> Card(parts[0], parts[1], "barcode") // Старый формат
                         3 -> Card(parts[0], parts[1], parts[2]) // Новый формат с типом кода
                         5 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0) // Формат с временем и частотой
-                        6 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0, parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt()) // Полный формат с цветом
+                        6 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0, parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt()) // Формат с цветом
+                        7 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0, parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt(), parts[6].takeIf { it.isNotBlank() }) // Формат с coverAsset
                         else -> null
                     }
                 }.sortedWith(getSortComparator(currentSortType))
@@ -140,44 +155,60 @@ class MainActivity : ComponentActivity() {
             }
             
             SeaCardTheme(darkTheme = isDark) {
-                MainScreen(
-                    cards = cards,
-                    currentSortType = currentSortType,
-                    onAddCard = {
-                        val intent = Intent(this@MainActivity, ScanCardActivity::class.java)
-                        scanCardLauncher.launch(intent)
-                    },
-                    onCardClick = { card ->
-                        updateCardUsage(card.name)
-                        val intent = Intent(this@MainActivity, CardDetailActivity::class.java).apply {
-                            putExtra("card_name", card.name)
-                            putExtra("card_code", card.code)
-                            putExtra("code_type", card.type)
-                            putExtra("card_color", card.color)
+                if (showCoverPicker) {
+                    CardCoverPickerScreen(
+                        onCoverSelected = { coverAsset: String? ->
+                            showCoverPicker = false
+                            pendingCoverAsset = coverAsset
+                            // Запустить сканер, передав coverAsset
+                            val intent = Intent(this@MainActivity, ScanCardActivity::class.java)
+                            if (coverAsset != null) intent.putExtra("cover_asset", coverAsset as String)
+                            scanCardLauncher.launch(intent)
+                        },
+                        onBack = {
+                            showCoverPicker = false
                         }
-                        cardDetailLauncher.launch(intent)
-                    },
-                    onSettingsClick = {
-                        launcher.launch(Intent(context, SettingsActivity::class.java))
-                    },
-                    onSortTypeChange = { newSortType ->
-                        currentSortType = newSortType
-                        saveSortTypePref(context, newSortType)
-                        loadCards()
-                    },
-                    onDeleteCards = { cardsToDelete ->
-                        val prefs = getSharedPreferences("cards", Context.MODE_PRIVATE)
-                        val cardSet = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
-                        val updatedCardSet = cardSet.filterNot { cardString ->
-                            val parts = cardString.split("|")
-                            cardsToDelete.any { card ->
-                                parts[0] == card.name
+                    )
+                } else {
+                    MainScreen(
+                        cards = cards,
+                        currentSortType = currentSortType,
+                        onAddCard = {
+                            showCoverPicker = true
+                        },
+                        onCardClick = { card ->
+                            updateCardUsage(card.name)
+                            val intent = Intent(this@MainActivity, CardDetailActivity::class.java).apply {
+                                putExtra("card_name", card.name)
+                                putExtra("card_code", card.code)
+                                putExtra("code_type", card.type)
+                                putExtra("card_color", card.color)
+                                putExtra("cover_asset", card.coverAsset)
                             }
-                        }.toSet()
-                        prefs.edit { putStringSet("card_list", updatedCardSet) }
-                        loadCards()
-                    }
-                )
+                            cardDetailLauncher.launch(intent)
+                        },
+                        onSettingsClick = {
+                            launcher.launch(Intent(context, SettingsActivity::class.java))
+                        },
+                        onSortTypeChange = { newSortType ->
+                            currentSortType = newSortType
+                            saveSortTypePref(context, newSortType)
+                            loadCards()
+                        },
+                        onDeleteCards = { cardsToDelete ->
+                            val prefs = getSharedPreferences("cards", Context.MODE_PRIVATE)
+                            val cardSet = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
+                            val updatedCardSet = cardSet.filterNot { cardString ->
+                                val parts = cardString.split("|")
+                                cardsToDelete.any { card ->
+                                    parts[0] == card.name
+                                }
+                            }.toSet()
+                            prefs.edit { putStringSet("card_list", updatedCardSet) }
+                            loadCards()
+                        }
+                    )
+                }
             }
         }
     }
@@ -428,8 +459,8 @@ fun MainScreen(
                             val isSelected = selectedCards.contains(card)
                             Card(
                                 colors = CardDefaults.cardColors(
-                                    containerColor = Color(card.color),
-                                    contentColor = if (isColorDark(card.color)) Color.White else Color.Black
+                                    containerColor = if (card.coverAsset != null) Color.Transparent else Color(card.color),
+                                    contentColor = if (card.coverAsset != null) Color.Unspecified else if (isColorDark(card.color)) Color.White else Color.Black
                                 ),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
@@ -473,16 +504,37 @@ fun MainScreen(
                                                 .background(Color.Black.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp))
                                         )
                                     }
-                                    Text(
-                                        text = card.name,
-                                        color = if (isColorDark(card.color)) Color.White else Color.Black,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        textAlign = TextAlign.Center,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(8.dp)
-                                    )
+                                    if (card.coverAsset != null) {
+                                        val context = LocalContext.current
+                                        val assetManager = context.assets
+                                        val imageBitmap: ImageBitmap? = remember(card.coverAsset) {
+                                            try {
+                                                val input = assetManager.open(card.coverAsset)
+                                                val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                                input.close()
+                                                bmp?.asImageBitmap()
+                                            } catch (e: Exception) { null }
+                                        }
+                                        if (imageBitmap != null) {
+                                            Image(
+                                                bitmap = imageBitmap,
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            text = card.name,
+                                            color = if (isColorDark(card.color)) Color.White else Color.Black,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.padding(8.dp)
+                                        )
+                                    }
                                     if (isSelected) {
                                         Icon(
                                             Icons.Default.Check,

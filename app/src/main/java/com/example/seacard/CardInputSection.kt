@@ -22,7 +22,8 @@ fun CardInputSection(
     onCardNameChange: (String) -> Unit,
     onCardCodeChange: (String) -> Unit,
     onColorChange: (Int) -> Unit,
-    onSaveCard: () -> Unit
+    onSaveCard: () -> Unit,
+    coverAsset: String? = null
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val cardColors = listOf(
@@ -72,67 +73,69 @@ fun CardInputSection(
                 unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
             )
         )
-        Column {
-            Text(
-                text = "Выберите цвет карты",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    modifier = Modifier.fillMaxWidth()
+        if (coverAsset == null) {
+            Column {
+                Text(
+                    text = "Выберите цвет карты",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    cardColors.take(5).forEach { color ->
-                        val isSelected = color == selectedColor
-                        val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .background(
-                                    color = Color(color),
-                                    shape = CircleShape
-                                )
-                                .border(
-                                    width = if (isSelected) 3.dp else 1.dp,
-                                    color = borderColor,
-                                    shape = CircleShape
-                                )
-                                .clickable(
-                                    interactionSource = androidx.compose.runtime.remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { onColorChange(color) }
-                        )
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        cardColors.take(5).forEach { color ->
+                            val isSelected = color == selectedColor
+                            val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .background(
+                                        color = Color(color),
+                                        shape = CircleShape
+                                    )
+                                    .border(
+                                        width = if (isSelected) 3.dp else 1.dp,
+                                        color = borderColor,
+                                        shape = CircleShape
+                                    )
+                                    .clickable(
+                                        interactionSource = androidx.compose.runtime.remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { onColorChange(color) }
+                            )
+                        }
                     }
-                }
-                Row(
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    cardColors.drop(5).forEach { color ->
-                        val isSelected = color == selectedColor
-                        val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .background(
-                                    color = Color(color),
-                                    shape = CircleShape
-                                )
-                                .border(
-                                    width = if (isSelected) 3.dp else 1.dp,
-                                    color = borderColor,
-                                    shape = CircleShape
-                                )
-                                .clickable(
-                                    interactionSource = androidx.compose.runtime.remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { onColorChange(color) }
-                        )
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        cardColors.drop(5).forEach { color ->
+                            val isSelected = color == selectedColor
+                            val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .background(
+                                        color = Color(color),
+                                        shape = CircleShape
+                                    )
+                                    .border(
+                                        width = if (isSelected) 3.dp else 1.dp,
+                                        color = borderColor,
+                                        shape = CircleShape
+                                    )
+                                    .clickable(
+                                        interactionSource = androidx.compose.runtime.remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { onColorChange(color) }
+                            )
+                        }
                     }
                 }
             }

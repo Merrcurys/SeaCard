@@ -56,6 +56,7 @@ class ScanCardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         cameraExecutor = Executors.newSingleThreadExecutor()
+        val coverAsset: String? = intent.getStringExtra("cover_asset")
         
         setContent {
             var hasCameraPermission by remember { mutableStateOf(false) }
@@ -181,13 +182,14 @@ class ScanCardActivity : ComponentActivity() {
                     },
                     onSaveCard = {
                         if (cardName.isNotBlank() && cardCode.isNotBlank()) {
-                            saveCard(this@ScanCardActivity, cardName, cardCode, scannedCodeType, selectedColor)
+                            saveCardWithCover(this@ScanCardActivity, cardName, cardCode, scannedCodeType, selectedColor, coverAsset)
                             setResult(RESULT_OK)
                             finish()
                         }
                     },
                     onBack = { finish() },
-                    onGalleryClick = { galleryLauncher.launch("image/*") }
+                    onGalleryClick = { galleryLauncher.launch("image/*") },
+                    coverAsset = coverAsset
                 )
             }
         }
@@ -203,6 +205,18 @@ class ScanCardActivity : ComponentActivity() {
         val cards = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
         val currentTime = System.currentTimeMillis()
         cards.add("$name|$code|$codeType|$currentTime|0|$color")
+        prefs.edit { putStringSet("card_list", cards) }
+    }
+
+    private fun saveCardWithCover(context: Context, name: String, code: String, codeType: String, color: Int, coverAsset: String?) {
+        val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
+        val cards = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
+        val currentTime = System.currentTimeMillis()
+        if (coverAsset != null) {
+            cards.add("$name|$code|$codeType|$currentTime|0|$color|$coverAsset")
+        } else {
+            cards.add("$name|$code|$codeType|$currentTime|0|$color")
+        }
         prefs.edit { putStringSet("card_list", cards) }
     }
     
@@ -239,7 +253,8 @@ fun ScanCardScreen(
     onScanResult: (String, String) -> Unit,
     onSaveCard: () -> Unit,
     onBack: () -> Unit,
-    onGalleryClick: () -> Unit // Новый параметр
+    onGalleryClick: () -> Unit, // Новый параметр
+    coverAsset: String? // Новый параметр
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Box(
@@ -278,7 +293,8 @@ fun ScanCardScreen(
                     onCardNameChange = onCardNameChange,
                     onCardCodeChange = onCardCodeChange,
                     onColorChange = onColorChange,
-                    onSaveCard = onSaveCard
+                    onSaveCard = onSaveCard,
+                    coverAsset = coverAsset
                 )
             }
         }
