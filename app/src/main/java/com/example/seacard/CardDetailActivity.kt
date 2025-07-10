@@ -45,6 +45,7 @@ import androidx.core.graphics.set
 import androidx.core.graphics.createBitmap
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import com.example.seacard.CardInputSection
 
 class CardDetailActivity : ComponentActivity() {
     private var originalBrightness: Float = 0f
@@ -342,35 +343,22 @@ fun CardDetailScreen(
                     color = colorScheme.background,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    ManualInputSection(
+                    CardInputSection(
                         cardName = editName,
                         cardCode = editCode,
                         selectedColor = editColor,
                         onCardNameChange = { editName = it },
-                        onCardCodeChange = {
-                            editCode = it
-                            editType = ScanCardActivity.detectCodeType(it)
-                        },
+                        onCardCodeChange = {}, // поле не изменяется
                         onColorChange = { editColor = it },
                         onSaveCard = {
-                            if (editName.isBlank() || editCode.isBlank()) {
-                                editError = "Заполните все поля"
-                            } else if (editType != "qr" && editCode.any { !it.isDigit() }) {
-                                editError = "Штрихкод должен содержать только цифры"
-                            } else if (!isValidBarcodeWithChecksum(editCode, editType)) {
-                                editError = when (editType.lowercase()) {
-                                    "ean8" -> "Некорректный EAN-8: неверная контрольная сумма"
-                                    "ean13" -> "Некорректный EAN-13: неверная контрольная сумма"
-                                    "upca" -> "Некорректный UPC-A: неверная контрольная сумма"
-                                    else -> ""
-                                }
+                            if (editName.isBlank()) {
+                                editError = "Заполните имя карты"
                             } else {
                                 showEditDialog = false
                                 editError = ""
                                 onEdit(editName, editCode, editType, editColor)
                             }
-                        },
-                        onBackToCamera = { showEditDialog = false }
+                        }
                     )
                     if (editError.isNotEmpty()) {
                         Text(editError, color = Color.Red, fontSize = 13.sp, modifier = Modifier.align(Alignment.CenterHorizontally))

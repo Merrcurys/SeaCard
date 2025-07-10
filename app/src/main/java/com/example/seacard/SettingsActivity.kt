@@ -85,7 +85,7 @@ fun SettingsScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit, onBac
     val context = LocalContext.current
     val topBarColor = if (isDarkTheme) BlackBackground else Color(0xFFF5F5F5)
     var showDeleteDialog by remember { mutableStateOf(false) }
-    val appVersion = remember { "1.0.0" } // TODO: BuildConfig.VERSION_NAME
+    val appVersion = BuildConfig.VERSION_NAME
 
     Box(
         modifier = Modifier
