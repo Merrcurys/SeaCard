@@ -3,7 +3,7 @@
 **Море карт** — современное Android-приложение для хранения и генерации виртуальных карт лояльности с поддержкой штрихкодов. Всё хранится локально, без сервера. Интерфейс полностью на русском языке и ориентирован на простоту и стиль.
 
 <p align="center">
-      <img src="https://github.com/user-attachments/assets/9af78871-676f-4f62-8a69-48fb86a886df" alt="Project Logo" width="726">
+      <img src="https://github.com/user-attachments/assets/8b354b64-3a30-4afb-8971-a60f4b845917" alt="Project Logo" width="726">
 </p>
 
 ## Возможности
