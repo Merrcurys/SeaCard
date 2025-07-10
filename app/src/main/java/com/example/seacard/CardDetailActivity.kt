@@ -1,4 +1,4 @@
-package com.example.qrbonus
+package com.example.seacard
 
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
@@ -35,7 +35,7 @@ import android.provider.Settings
 import android.content.Intent
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Edit
-import com.example.qrbonus.ui.theme.QRBonusTheme
+import com.example.seacard.ui.theme.SeaCardTheme
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.WriterException
@@ -85,7 +85,7 @@ class CardDetailActivity : ComponentActivity() {
                 }
             }
             
-            QRBonusTheme(darkTheme = isDark) {
+            SeaCardTheme(darkTheme = isDark) {
                 CardDetailScreen(
                     cardName = cardNameState,
                     cardCode = cardCodeState,

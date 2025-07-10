@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.qrbonus"
+    namespace = "com.example.seacard"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.qrbonus"
+        applicationId = "com.example.seacard"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

@@ -14,15 +14,15 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
-        android:label="QRБонус"
+        android:label="Море карт"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.QRBonus"
+        android:theme="@style/Theme.SeaCard"
         tools:targetApi="31">
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.QRBonus">
+            android:theme="@style/Theme.SeaCard">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -32,15 +32,15 @@
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:theme="@style/Theme.QRBonus" />
+            android:theme="@style/Theme.SeaCard" />
         <activity
             android:name=".ScanCardActivity"
             android:exported="false"
-            android:theme="@style/Theme.QRBonus" />
+            android:theme="@style/Theme.SeaCard" />
         <activity
             android:name=".CardDetailActivity"
             android:exported="false"
-            android:theme="@style/Theme.QRBonus" />
+            android:theme="@style/Theme.SeaCard" />
     </application>
 
 </manifest>

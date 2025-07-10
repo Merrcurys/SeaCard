@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "QRBonus"
+rootProject.name = "SeaCard"
 include(":app")
  

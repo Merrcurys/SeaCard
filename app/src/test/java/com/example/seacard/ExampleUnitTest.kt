@@ -1,4 +1,4 @@
-package com.example.qrbonus
+package com.example.seacard
 
 import org.junit.Test
 

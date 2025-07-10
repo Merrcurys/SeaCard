@@ -1,4 +1,4 @@
-package com.example.qrbonus.ui.theme
+package com.example.seacard.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

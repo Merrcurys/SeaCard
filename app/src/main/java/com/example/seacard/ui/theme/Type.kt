@@ -1,4 +1,4 @@
-package com.example.qrbonus.ui.theme
+package com.example.seacard.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

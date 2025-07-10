@@ -1,4 +1,4 @@
-package com.example.qrbonus
+package com.example.seacard
 
 import android.content.Context
 import android.os.Bundle
@@ -19,8 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.qrbonus.ui.theme.QRBonusTheme
-import com.example.qrbonus.ui.theme.BlackBackground
+import com.example.seacard.ui.theme.SeaCardTheme
+import com.example.seacard.ui.theme.BlackBackground
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.ArrowBack
@@ -54,7 +54,7 @@ class SettingsActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 isDark = loadThemePref(context)
             }
-            QRBonusTheme(darkTheme = isDark) {
+            SeaCardTheme(darkTheme = isDark) {
                 SettingsScreen(
                     isDarkTheme = isDark,
                     onThemeChange = { dark ->
@@ -245,7 +245,7 @@ fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = composed {
 @Preview(showBackground = true)
 @Composable
 fun SettingsScreenPreview() {
-    QRBonusTheme(darkTheme = true) {
+    SeaCardTheme(darkTheme = true) {
         SettingsScreen(
             isDarkTheme = true,
             onThemeChange = {},

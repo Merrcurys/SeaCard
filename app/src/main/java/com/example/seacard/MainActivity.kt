@@ -1,4 +1,4 @@
-package com.example.qrbonus
+package com.example.seacard
 
 import android.content.Context
 import android.content.Intent
@@ -38,8 +38,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.example.qrbonus.ui.theme.QRBonusTheme
-import com.example.qrbonus.ui.theme.BlackBackground
+import com.example.seacard.ui.theme.SeaCardTheme
+import com.example.seacard.ui.theme.BlackBackground
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import java.util.*
 import androidx.core.content.edit
@@ -139,7 +139,7 @@ class MainActivity : ComponentActivity() {
                 loadCards()
             }
             
-            QRBonusTheme(darkTheme = isDark) {
+            SeaCardTheme(darkTheme = isDark) {
                 MainScreen(
                     cards = cards,
                     currentSortType = currentSortType,
@@ -504,7 +504,7 @@ fun MainScreen(
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview() {
-    QRBonusTheme {
+    SeaCardTheme {
         MainScreen(cards = emptyList(), currentSortType = SortType.ADD_TIME, onAddCard = {}, onCardClick = {}, onSettingsClick = {}, onSortTypeChange = {}, onDeleteCards = {})
     }
 }
