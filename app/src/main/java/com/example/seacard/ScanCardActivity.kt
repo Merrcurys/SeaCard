@@ -61,7 +61,7 @@ class ScanCardActivity : ComponentActivity() {
             var hasCameraPermission by remember { mutableStateOf(false) }
             val initialCardName = coverAsset?.let {
                 val fileName = it.substringAfterLast('/')
-                com.example.seacard.CoverNames.coverNameMap[fileName] ?: fileName.substringBeforeLast('.')
+                CoverNames.coverNameMap[fileName] ?: fileName.substringBeforeLast('.')
             } ?: ""
             var cardName by remember { mutableStateOf(initialCardName) }
             var cardCode by remember { mutableStateOf("") }
@@ -110,7 +110,7 @@ class ScanCardActivity : ComponentActivity() {
                                         cardCode = barcode.rawValue ?: ""
                                         scannedCodeType = codeType
                                         scanSuccess = true
-                                        scanned = true
+                                        scanned = true // <-- теперь блокирует повторную вибрацию
                                         found = true
                                         // Вибрация при успешном сканировании
                                         val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -177,18 +177,21 @@ class ScanCardActivity : ComponentActivity() {
                             onCardCodeChange = { cardCode = it },
                             onColorChange = { selectedColor = it },
                             onScanResult = { code, codeType ->
-                                cardCode = code
-                                scannedCodeType = codeType
-                                scanSuccess = true
-                                // Вибрация при успешном сканировании
-                                val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                    val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                                    vibratorManager.defaultVibrator
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                                if (!scanned) {
+                                    cardCode = code
+                                    scannedCodeType = codeType
+                                    scanSuccess = true
+                                    scanned = true
+                                    // Вибрация при успешном сканировании
+                                    val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                        val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                        vibratorManager.defaultVibrator
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                                    }
+                                    vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
                                 }
-                                vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
                             },
                             onSaveCard = {},
                             onBack = { finish() },
@@ -207,18 +210,21 @@ class ScanCardActivity : ComponentActivity() {
                             onCardCodeChange = { cardCode = it },
                             onColorChange = { selectedColor = it },
                             onScanResult = { code, codeType ->
-                                cardCode = code
-                                scannedCodeType = codeType
-                                scanSuccess = true
-                                // Вибрация при успешном сканировании
-                                val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                    val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                                    vibratorManager.defaultVibrator
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                                if (!scanned) {
+                                    cardCode = code
+                                    scannedCodeType = codeType
+                                    scanSuccess = true
+                                    scanned = true
+                                    // Вибрация при успешном сканировании
+                                    val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                        val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                        vibratorManager.defaultVibrator
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                                    }
+                                    vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
                                 }
-                                vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
                             },
                             onSaveCard = {
                                 if (cardName.isNotBlank() && cardCode.isNotBlank()) {

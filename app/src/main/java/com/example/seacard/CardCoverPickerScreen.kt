@@ -14,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -106,126 +105,141 @@ fun CardCoverPickerScreen(
             },
             containerColor = Color.Transparent
         ) { innerPadding ->
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding), // убрал .padding(16.dp)
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(innerPadding)
             ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    label = { Text("Поиск по названию") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    singleLine = true
-                )
-                if (filteredCovers.isEmpty()) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text("Поиск по названию") },
                         modifier = Modifier
-                            .weight(1f)
                             .fillMaxWidth()
-                            .offset(y = (-48).dp),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Wallet,
-                            contentDescription = "Нет карт",
-                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.18f),
-                            modifier = Modifier.size(72.dp)
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text(
-                            text = "Карта не нашлась, попробуйте добавить вручную",
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 30.sp,
-                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        contentPadding = PaddingValues(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(filteredCovers) { coverName ->
-                            val assetPath = "cards/$coverName"
-                            val imageBitmap: ImageBitmap? = try {
-                                val input = assetManager.open(assetPath)
-                                val bmp = android.graphics.BitmapFactory.decodeStream(input)
-                                input.close()
-                                bmp?.asImageBitmap()
-                            } catch (e: Exception) { null }
-                            val displayName = coverNameMap[coverName] ?: coverName.substringBeforeLast('.')
-                            Card(
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .height(100.dp)
-                                    .fillMaxWidth()
-                                    .clickable { onCoverSelected(assetPath) },
-                                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                            .padding(horizontal = 12.dp, vertical = 0.dp)
+                            .padding(bottom = 12.dp),
+                        singleLine = true
+                    )
+                    if (filteredCovers.isEmpty()) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .offset(y = (-48).dp),
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Wallet,
+                                contentDescription = "Нет карт",
+                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.18f),
+                                modifier = Modifier.size(72.dp)
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Text(
+                                text = "Карта не нашлась, попробуйте добавить вручную",
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                lineHeight = 30.sp,
+                                modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize().padding(bottom = 60.dp)) {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                contentPadding = PaddingValues(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxSize()
                             ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (imageBitmap != null) {
-                                        Image(
-                                            bitmap = imageBitmap,
-                                            contentDescription = displayName,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    } else {
-                                        Text("Ошибка", color = Color.Red)
-                                    }
-                                    // Градиентная подложка и текст
-                                    Box(
+                                items(filteredCovers) { coverName ->
+                                    val assetPath = "cards/$coverName"
+                                    val imageBitmap: ImageBitmap? = try {
+                                        val input = assetManager.open(assetPath)
+                                        val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                        input.close()
+                                        bmp?.asImageBitmap()
+                                    } catch (e: Exception) { null }
+                                    val displayName = coverNameMap[coverName] ?: coverName.substringBeforeLast('.')
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier
-                                            .align(Alignment.BottomCenter)
+                                            .height(100.dp)
                                             .fillMaxWidth()
-                                            .height(38.dp)
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    colors = listOf(Color.Transparent, Color(0xCC000000)),
-                                                    startY = 0f,
-                                                    endY = 100f
-                                                ),
-                                                shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                                            )
+                                            .clickable { onCoverSelected(assetPath) },
+                                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                     ) {
-                                        Text(
-                                            text = displayName,
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 16.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier
-                                                .align(Alignment.Center)
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                                            textAlign = TextAlign.Center,
-                                            style = TextStyle(
-                                                shadow = Shadow(
-                                                    color = Color.Black.copy(alpha = 0.7f),
-                                                    offset = Offset(0f, 1.5f),
-                                                    blurRadius = 3f
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (imageBitmap != null) {
+                                                Image(
+                                                    bitmap = imageBitmap,
+                                                    contentDescription = displayName,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
                                                 )
-                                            )
-                                        )
+                                            } else {
+                                                Text("Ошибка", color = Color.Red)
+                                            }
+                                            // Градиентная подложка и текст
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomCenter)
+                                                    .fillMaxWidth()
+                                                    .height(38.dp)
+                                                    .background(
+                                                        Brush.verticalGradient(
+                                                            colors = listOf(Color.Transparent, Color(0xCC000000)),
+                                                            startY = 0f,
+                                                            endY = 100f
+                                                        ),
+                                                        shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                                                    )
+                                            ) {
+                                                Text(
+                                                    text = displayName,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 16.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier
+                                                        .align(Alignment.Center)
+                                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                    textAlign = TextAlign.Center,
+                                                    style = TextStyle(
+                                                        shadow = Shadow(
+                                                            color = Color.Black.copy(alpha = 0.7f),
+                                                            offset = Offset(0f, 1.5f),
+                                                            blurRadius = 3f
+                                                        )
+                                                    )
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { onCoverSelected(null) }, modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = { onCoverSelected(null) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                ) {
                     Text("Добавить вручную")
                 }
             }

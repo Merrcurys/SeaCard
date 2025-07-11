@@ -50,11 +50,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.runtime.remember
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import java.io.IOException
-import androidx.compose.ui.draw.clip
-import com.example.seacard.CardCoverPickerScreen
 import com.example.seacard.ui.theme.GradientBackground
 
 enum class SortType(val displayName: String) {
