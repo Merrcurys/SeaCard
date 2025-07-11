@@ -5,6 +5,15 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.background
+import androidx.compose.ui.unit.dp
+import com.example.seacard.ui.theme.BerlinAzure
+import com.example.seacard.ui.theme.Peach
+import com.example.seacard.ui.theme.BlackBackground
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFFFFFFF),
@@ -39,4 +48,36 @@ fun SeaCardTheme(
         typography = Typography,
         content = content
     )
+}
+
+@Composable
+fun GradientBackground(darkTheme: Boolean, content: @Composable () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        val gradient = if (darkTheme) {
+            Brush.verticalGradient(
+                colorStops = arrayOf(
+                    0.0f to BerlinAzure,
+                    0.6f to BlackBackground,
+                    1.0f to BlackBackground
+                )
+            )
+        } else {
+            // Просто белый фон без градиента
+            null
+        }
+        if (gradient != null) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(gradient)
+            ) {}
+        } else {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(LightColorScheme.background)
+            ) {}
+        }
+        content()
+    }
 }

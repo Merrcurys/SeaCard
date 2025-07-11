@@ -38,6 +38,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.example.seacard.ui.theme.SeaCardTheme
 import com.example.seacard.ui.theme.BlackBackground
+import com.example.seacard.ui.theme.GradientBackground
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
@@ -165,72 +166,74 @@ class ScanCardActivity : ComponentActivity() {
             }
 
             SeaCardTheme(darkTheme = isDark) {
-                if (coverAsset != null) {
-                    ScanCardScreen(
-                        hasCameraPermission = hasCameraPermission,
-                        scanned = scanned,
-                        cardName = cardName,
-                        cardCode = cardCode,
-                        scanSuccess = scanSuccess,
-                        selectedColor = selectedColor,
-                        onCardNameChange = { cardName = it },
-                        onCardCodeChange = { cardCode = it },
-                        onColorChange = { selectedColor = it },
-                        onScanResult = { code, codeType ->
-                            cardCode = code
-                            scannedCodeType = codeType
-                            scanSuccess = true
-                            // Вибрация при успешном сканировании
-                            val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                                vibratorManager.defaultVibrator
-                            } else {
-                                @Suppress("DEPRECATION")
-                                getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                            }
-                            vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
-                        },
-                        onSaveCard = {}, // не нужен
-                        onBack = { finish() },
-                        onGalleryClick = { galleryLauncher.launch("image/*") },
-                        coverAsset = coverAsset
-                    )
-                } else {
-                    ScanCardScreen(
-                        hasCameraPermission = hasCameraPermission,
-                        scanned = scanned,
-                        cardName = cardName,
-                        cardCode = cardCode,
-                        scanSuccess = scanSuccess,
-                        selectedColor = selectedColor,
-                        onCardNameChange = { cardName = it },
-                        onCardCodeChange = { cardCode = it },
-                        onColorChange = { selectedColor = it },
-                        onScanResult = { code, codeType ->
-                            cardCode = code
-                            scannedCodeType = codeType
-                            scanSuccess = true
-                            // Вибрация при успешном сканировании
-                            val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                                vibratorManager.defaultVibrator
-                            } else {
-                                @Suppress("DEPRECATION")
-                                getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                            }
-                            vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
-                        },
-                        onSaveCard = {
-                            if (cardName.isNotBlank() && cardCode.isNotBlank()) {
-                                saveCardWithCover(this@ScanCardActivity, cardName, cardCode, scannedCodeType, selectedColor, null)
-                                setResult(RESULT_OK)
-                                finish()
-                            }
-                        },
-                        onBack = { finish() },
-                        onGalleryClick = { galleryLauncher.launch("image/*") },
-                        coverAsset = null
-                    )
+                GradientBackground(darkTheme = isDark) {
+                    if (coverAsset != null) {
+                        ScanCardScreen(
+                            hasCameraPermission = hasCameraPermission,
+                            scanned = scanned,
+                            cardName = cardName,
+                            cardCode = cardCode,
+                            scanSuccess = scanSuccess,
+                            selectedColor = selectedColor,
+                            onCardNameChange = { cardName = it },
+                            onCardCodeChange = { cardCode = it },
+                            onColorChange = { selectedColor = it },
+                            onScanResult = { code, codeType ->
+                                cardCode = code
+                                scannedCodeType = codeType
+                                scanSuccess = true
+                                // Вибрация при успешном сканировании
+                                val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                    val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                    vibratorManager.defaultVibrator
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                                }
+                                vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+                            },
+                            onSaveCard = {}, // не нужен
+                            onBack = { finish() },
+                            onGalleryClick = { galleryLauncher.launch("image/*") },
+                            coverAsset = coverAsset
+                        )
+                    } else {
+                        ScanCardScreen(
+                            hasCameraPermission = hasCameraPermission,
+                            scanned = scanned,
+                            cardName = cardName,
+                            cardCode = cardCode,
+                            scanSuccess = scanSuccess,
+                            selectedColor = selectedColor,
+                            onCardNameChange = { cardName = it },
+                            onCardCodeChange = { cardCode = it },
+                            onColorChange = { selectedColor = it },
+                            onScanResult = { code, codeType ->
+                                cardCode = code
+                                scannedCodeType = codeType
+                                scanSuccess = true
+                                // Вибрация при успешном сканировании
+                                val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                    val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                    vibratorManager.defaultVibrator
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                                }
+                                vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+                            },
+                            onSaveCard = {
+                                if (cardName.isNotBlank() && cardCode.isNotBlank()) {
+                                    saveCardWithCover(this@ScanCardActivity, cardName, cardCode, scannedCodeType, selectedColor, null)
+                                    setResult(RESULT_OK)
+                                    finish()
+                                }
+                            },
+                            onBack = { finish() },
+                            onGalleryClick = { galleryLauncher.launch("image/*") },
+                            coverAsset = null
+                        )
+                    }
                 }
             }
         }

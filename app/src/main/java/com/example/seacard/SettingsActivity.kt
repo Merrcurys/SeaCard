@@ -47,6 +47,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
+import com.example.seacard.ui.theme.GradientBackground
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,14 +63,17 @@ class SettingsActivity : ComponentActivity() {
                 isDark = loadThemePref(context)
             }
             SeaCardTheme(darkTheme = isDark) {
-                SettingsScreen(
-                    isDarkTheme = isDark,
-                    onThemeChange = { dark ->
-                        isDark = dark
-                        saveThemePref(context, dark)
-                    },
-                    onBack = { finish() }
-                )
+                GradientBackground(darkTheme = isDark) {
+                    SettingsScreen(
+                        isDarkTheme = isDark,
+                        onThemeChange = { dark ->
+                            isDark = dark
+                            saveThemePref(context, dark)
+                        },
+                        onBack = { finish() },
+                        topBarContainerColor = Color.Transparent
+                    )
+                }
             }
         }
     }
@@ -87,17 +91,16 @@ class SettingsActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit, onBack: () -> Unit, topBarContainerColor: Color = Color.Transparent) {
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
-    val topBarColor = if (isDarkTheme) BlackBackground else Color(0xFFF5F5F5)
     var showDeleteDialog by remember { mutableStateOf(false) }
     val appVersion = BuildConfig.VERSION_NAME
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(colorScheme.background)
+            .background(Color.Transparent)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -110,7 +113,7 @@ fun SettingsScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit, onBac
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarColor)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
             Spacer(modifier = Modifier.height(32.dp))
             // Тумблер смены темы
@@ -289,6 +292,8 @@ fun SettingsScreenPreview() {
         SettingsScreen(
             isDarkTheme = true,
             onThemeChange = {},
-            onBack = {})
+            onBack = {},
+            topBarContainerColor = Color.Transparent
+        )
     }
 } 

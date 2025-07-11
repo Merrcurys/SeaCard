@@ -36,6 +36,7 @@ import android.content.Intent
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Edit
 import com.example.seacard.ui.theme.SeaCardTheme
+import com.example.seacard.ui.theme.GradientBackground
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.WriterException
@@ -86,79 +87,82 @@ class CardDetailActivity : ComponentActivity() {
             }
             
             SeaCardTheme(darkTheme = isDark) {
-                CardDetailScreen(
-                    cardName = cardNameState,
-                    cardCode = cardCodeState,
-                    codeType = codeTypeState,
-                    cardColor = cardColorState,
-                    onBack = { finish() },
-                    onDelete = {
-                        deleteCard(this@CardDetailActivity, cardNameState, cardCodeState, codeTypeState, cardColorState)
-                        setResult(RESULT_OK)
-                        finish()
-                    },
-                    onEdit = { newName, newCode, newType, newColor ->
-                        editCard(this@CardDetailActivity, cardNameState, cardCodeState, codeTypeState, cardColorState, newName, newCode, newType, newColor)
-                        cardNameState = newName
-                        cardCodeState = newCode
-                        codeTypeState = newType
-                        cardColorState = newColor
+                GradientBackground(darkTheme = isDark) {
+                    CardDetailScreen(
+                        cardName = cardNameState,
+                        cardCode = cardCodeState,
+                        codeType = codeTypeState,
+                        cardColor = cardColorState,
+                        onBack = { finish() },
+                        onDelete = {
+                            deleteCard(this@CardDetailActivity, cardNameState, cardCodeState, codeTypeState, cardColorState)
+                            setResult(RESULT_OK)
+                            finish()
+                        },
+                        onEdit = { newName, newCode, newType, newColor ->
+                            editCard(this@CardDetailActivity, cardNameState, cardCodeState, codeTypeState, cardColorState, newName, newCode, newType, newColor)
+                            cardNameState = newName
+                            cardCodeState = newCode
+                            codeTypeState = newType
+                            cardColorState = newColor
+                        },
+                        topBarContainerColor = Color.Transparent
+                    )
+                    
+                    // Диалог запроса разрешения на изменение яркости
+                    if (showPermissionDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showPermissionDialog = false },
+                            title = { Text("Разрешение на изменение яркости") },
+                            text = { Text("Для лучшего сканирования кодов приложению нужно разрешение на изменение яркости экрана. Перейдите в настройки и включите разрешение для QRБонус.") },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
+                                        intent.data = "package:$packageName".toUri()
+                                        startActivity(intent)
+                                        showPermissionDialog = false
+                                    }
+                                ) {
+                                    Text("Настройки", color = MaterialTheme.colorScheme.primary)
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showPermissionDialog = false }) {
+                                    Text("Отмена")
+                                }
+                            },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface,
+                            textContentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                )
-                
-                // Диалог запроса разрешения на изменение яркости
-                if (showPermissionDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showPermissionDialog = false },
-                        title = { Text("Разрешение на изменение яркости") },
-                        text = { Text("Для лучшего сканирования кодов приложению нужно разрешение на изменение яркости экрана. Перейдите в настройки и включите разрешение для QRБонус.") },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
-                                    intent.data = "package:$packageName".toUri()
-                                    startActivity(intent)
-                                    showPermissionDialog = false
+                    
+                    // Диалог подтверждения удаления
+                    if (showDeleteDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showDeleteDialog = false },
+                            title = { Text("Удалить карту?") },
+                            text = { Text("Карта '$cardNameState' будет удалена безвозвратно.") },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        showDeleteDialog = false
+                                    }
+                                ) {
+                                    Text("Удалить", color = Color.Red)
                                 }
-                            ) {
-                                Text("Настройки", color = MaterialTheme.colorScheme.primary)
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showPermissionDialog = false }) {
-                                Text("Отмена")
-                            }
-                        },
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface,
-                        textContentColor = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                
-                // Диалог подтверждения удаления
-                if (showDeleteDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showDeleteDialog = false },
-                        title = { Text("Удалить карту?") },
-                        text = { Text("Карта '$cardNameState' будет удалена безвозвратно.") },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    showDeleteDialog = false
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showDeleteDialog = false }) {
+                                    Text("Отмена")
                                 }
-                            ) {
-                                Text("Удалить", color = Color.Red)
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showDeleteDialog = false }) {
-                                Text("Отмена")
-                            }
-                        },
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface,
-                        textContentColor = MaterialTheme.colorScheme.onSurface
-                    )
+                            },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface,
+                            textContentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         }
@@ -230,7 +234,8 @@ fun CardDetailScreen(
     cardColor: Int,
     onBack: () -> Unit,
     onDelete: () -> Unit,
-    onEdit: (String, String, String, Int) -> Unit
+    onEdit: (String, String, String, Int) -> Unit,
+    topBarContainerColor: Color = Color.Transparent
 ) {
     var barcodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
     val colorScheme = MaterialTheme.colorScheme
@@ -308,7 +313,7 @@ fun CardDetailScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarContainerColor)
             )
             // Диалог удаления
             if (showDeleteDialog) {
