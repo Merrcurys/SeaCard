@@ -60,12 +60,17 @@ class ScanCardActivity : ComponentActivity() {
         
         setContent {
             var hasCameraPermission by remember { mutableStateOf(false) }
-            var cardName by remember { mutableStateOf("") }
+            val initialCardName = coverAsset?.let {
+                val fileName = it.substringAfterLast('/')
+                com.example.seacard.CoverNames.coverNameMap[fileName] ?: fileName.substringBeforeLast('.')
+            } ?: ""
+            var cardName by remember { mutableStateOf(initialCardName) }
             var cardCode by remember { mutableStateOf("") }
             var scanSuccess by remember { mutableStateOf(false) }
             var isDark by remember { mutableStateOf(loadThemePref(this@ScanCardActivity)) }
             var selectedColor by remember { mutableStateOf(0xFFFFFFFF.toInt()) } // Белый по умолчанию
             var scanned by remember { mutableStateOf(false) } // Новый флаг: был ли скан
+            var cardSaved by remember { mutableStateOf(false) }
 
             val context = this@ScanCardActivity
             val coroutineScope = rememberCoroutineScope()
@@ -148,23 +153,33 @@ class ScanCardActivity : ComponentActivity() {
                 }
             }
             
+            if (coverAsset != null) {
+                LaunchedEffect(cardCode) {
+                    if (!cardSaved && cardName.isNotBlank() && cardCode.isNotBlank()) {
+                        saveCardWithCover(this@ScanCardActivity, cardName, cardCode, scannedCodeType, selectedColor, coverAsset)
+                        cardSaved = true
+                        setResult(RESULT_OK)
+                        finish()
+                    }
+                }
+            }
+
             SeaCardTheme(darkTheme = isDark) {
-                ScanCardScreen(
-                    hasCameraPermission = hasCameraPermission,
-                    scanned = scanned,
-                    cardName = cardName,
-                    cardCode = cardCode,
-                    scanSuccess = scanSuccess,
-                    selectedColor = selectedColor,
-                    onCardNameChange = { cardName = it },
-                    onCardCodeChange = { cardCode = it },
-                    onColorChange = { selectedColor = it },
-                    onScanResult = { code, codeType ->
-                        if (!scanned) {
+                if (coverAsset != null) {
+                    ScanCardScreen(
+                        hasCameraPermission = hasCameraPermission,
+                        scanned = scanned,
+                        cardName = cardName,
+                        cardCode = cardCode,
+                        scanSuccess = scanSuccess,
+                        selectedColor = selectedColor,
+                        onCardNameChange = { cardName = it },
+                        onCardCodeChange = { cardCode = it },
+                        onColorChange = { selectedColor = it },
+                        onScanResult = { code, codeType ->
                             cardCode = code
                             scannedCodeType = codeType
                             scanSuccess = true
-                            scanned = true
                             // Вибрация при успешном сканировании
                             val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                                 val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
@@ -174,23 +189,49 @@ class ScanCardActivity : ComponentActivity() {
                                 getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                             }
                             vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
-                            MainScope().launch {
-                                delay(2000)
-                                scanSuccess = false
+                        },
+                        onSaveCard = {}, // не нужен
+                        onBack = { finish() },
+                        onGalleryClick = { galleryLauncher.launch("image/*") },
+                        coverAsset = coverAsset
+                    )
+                } else {
+                    ScanCardScreen(
+                        hasCameraPermission = hasCameraPermission,
+                        scanned = scanned,
+                        cardName = cardName,
+                        cardCode = cardCode,
+                        scanSuccess = scanSuccess,
+                        selectedColor = selectedColor,
+                        onCardNameChange = { cardName = it },
+                        onCardCodeChange = { cardCode = it },
+                        onColorChange = { selectedColor = it },
+                        onScanResult = { code, codeType ->
+                            cardCode = code
+                            scannedCodeType = codeType
+                            scanSuccess = true
+                            // Вибрация при успешном сканировании
+                            val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                vibratorManager.defaultVibrator
+                            } else {
+                                @Suppress("DEPRECATION")
+                                getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                             }
-                        }
-                    },
-                    onSaveCard = {
-                        if (cardName.isNotBlank() && cardCode.isNotBlank()) {
-                            saveCardWithCover(this@ScanCardActivity, cardName, cardCode, scannedCodeType, selectedColor, coverAsset)
-                            setResult(RESULT_OK)
-                            finish()
-                        }
-                    },
-                    onBack = { finish() },
-                    onGalleryClick = { galleryLauncher.launch("image/*") },
-                    coverAsset = coverAsset
-                )
+                            vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+                        },
+                        onSaveCard = {
+                            if (cardName.isNotBlank() && cardCode.isNotBlank()) {
+                                saveCardWithCover(this@ScanCardActivity, cardName, cardCode, scannedCodeType, selectedColor, null)
+                                setResult(RESULT_OK)
+                                finish()
+                            }
+                        },
+                        onBack = { finish() },
+                        onGalleryClick = { galleryLauncher.launch("image/*") },
+                        coverAsset = null
+                    )
+                }
             }
         }
     }
@@ -276,25 +317,26 @@ fun ScanCardScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
             )
-            if (!scanned) {
+            if (coverAsset == null && cardCode.isNotBlank()) {
+                // После сканирования вручную — показываем форму
+                CardInputSection(
+                    cardName = cardName,
+                    cardCode = cardCode,
+                    selectedColor = selectedColor,
+                    onCardNameChange = onCardNameChange,
+                    onCardCodeChange = {}, // не даём менять код вручную
+                    onColorChange = onColorChange,
+                    onSaveCard = onSaveCard,
+                    coverAsset = null
+                )
+            } else {
                 CameraSection(
                     hasCameraPermission = hasCameraPermission,
                     scanSuccess = scanSuccess,
                     onScanResult = { code, codeType ->
                         onScanResult(code, codeType)
                     },
-                    onGalleryClick = onGalleryClick // Передаём callback
-                )
-            } else {
-                CardInputSection(
-                    cardName = cardName,
-                    cardCode = cardCode,
-                    selectedColor = selectedColor,
-                    onCardNameChange = onCardNameChange,
-                    onCardCodeChange = onCardCodeChange,
-                    onColorChange = onColorChange,
-                    onSaveCard = onSaveCard,
-                    coverAsset = coverAsset
+                    onGalleryClick = onGalleryClick
                 )
             }
         }

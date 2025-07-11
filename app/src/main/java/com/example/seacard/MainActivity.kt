@@ -170,44 +170,44 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 } else {
-                    MainScreen(
-                        cards = cards,
-                        currentSortType = currentSortType,
-                        onAddCard = {
+                MainScreen(
+                    cards = cards,
+                    currentSortType = currentSortType,
+                    onAddCard = {
                             showCoverPicker = true
-                        },
-                        onCardClick = { card ->
-                            updateCardUsage(card.name)
-                            val intent = Intent(this@MainActivity, CardDetailActivity::class.java).apply {
-                                putExtra("card_name", card.name)
-                                putExtra("card_code", card.code)
-                                putExtra("code_type", card.type)
-                                putExtra("card_color", card.color)
+                    },
+                    onCardClick = { card ->
+                        updateCardUsage(card.name)
+                        val intent = Intent(this@MainActivity, CardDetailActivity::class.java).apply {
+                            putExtra("card_name", card.name)
+                            putExtra("card_code", card.code)
+                            putExtra("code_type", card.type)
+                            putExtra("card_color", card.color)
                                 putExtra("cover_asset", card.coverAsset)
-                            }
-                            cardDetailLauncher.launch(intent)
-                        },
-                        onSettingsClick = {
-                            launcher.launch(Intent(context, SettingsActivity::class.java))
-                        },
-                        onSortTypeChange = { newSortType ->
-                            currentSortType = newSortType
-                            saveSortTypePref(context, newSortType)
-                            loadCards()
-                        },
-                        onDeleteCards = { cardsToDelete ->
-                            val prefs = getSharedPreferences("cards", Context.MODE_PRIVATE)
-                            val cardSet = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
-                            val updatedCardSet = cardSet.filterNot { cardString ->
-                                val parts = cardString.split("|")
-                                cardsToDelete.any { card ->
-                                    parts[0] == card.name
-                                }
-                            }.toSet()
-                            prefs.edit { putStringSet("card_list", updatedCardSet) }
-                            loadCards()
                         }
-                    )
+                        cardDetailLauncher.launch(intent)
+                    },
+                    onSettingsClick = {
+                        launcher.launch(Intent(context, SettingsActivity::class.java))
+                    },
+                    onSortTypeChange = { newSortType ->
+                        currentSortType = newSortType
+                        saveSortTypePref(context, newSortType)
+                        loadCards()
+                    },
+                    onDeleteCards = { cardsToDelete ->
+                        val prefs = getSharedPreferences("cards", Context.MODE_PRIVATE)
+                        val cardSet = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
+                        val updatedCardSet = cardSet.filterNot { cardString ->
+                            val parts = cardString.split("|")
+                            cardsToDelete.any { card ->
+                                parts[0] == card.name
+                            }
+                        }.toSet()
+                        prefs.edit { putStringSet("card_list", updatedCardSet) }
+                        loadCards()
+                    }
+                )
                 }
             }
         }
@@ -524,16 +524,16 @@ fun MainScreen(
                                             )
                                         }
                                     } else {
-                                        Text(
-                                            text = card.name,
-                                            color = if (isColorDark(card.color)) Color.White else Color.Black,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(8.dp)
-                                        )
+                                    Text(
+                                        text = card.name,
+                                        color = if (isColorDark(card.color)) Color.White else Color.Black,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
                                     }
                                     if (isSelected) {
                                         Icon(
