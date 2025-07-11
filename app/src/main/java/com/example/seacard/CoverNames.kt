@@ -67,6 +67,7 @@ object CoverNames {
         "gazpromneft.webp" to "Газпромнефть",
         "gipfel.webp" to "Gipfel",
         "gloriajeans.webp" to "Gloria Jeans",
+        "globus.webp" to "Глобус",
         "gum.webp" to "ГУМ",
         "hoff.webp" to "Hoff",
         "htc.webp" to "HTC",

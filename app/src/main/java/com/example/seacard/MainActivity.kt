@@ -94,7 +94,15 @@ class MainActivity : ComponentActivity() {
                         3 -> Card(parts[0], parts[1], parts[2])
                         5 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0) // Формат с временем и частотой
                         6 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0, parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt()) // Формат с цветом
-                        7 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0, parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt(), parts[6].takeIf { it.isNotBlank() }) // Формат с coverAsset
+                        7 -> Card(
+                            parts[0],
+                            parts[1],
+                            parts[2],
+                            parts[3].toLongOrNull() ?: System.currentTimeMillis(),
+                            parts[4].toIntOrNull() ?: 0, // usageCount
+                            parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt(), // color
+                            parts[6].takeIf { it.isNotBlank() } // coverAsset
+                        )
                         else -> null
                     }
                 }.sortedWith(getSortComparator(currentSortType))
@@ -130,6 +138,7 @@ class MainActivity : ComponentActivity() {
                             3 -> "${parts[0]}|${parts[1]}|${parts[2]}|${System.currentTimeMillis()}|1|${0xFFFFFFFF.toInt()}"
                             5 -> "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${(parts[4].toIntOrNull() ?: 0) + 1}|${0xFFFFFFFF.toInt()}"
                             6 -> "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${(parts[4].toIntOrNull() ?: 0) + 1}|${parts[5]}"
+                            7 -> "${parts[0]}|${parts[1]}|${parts[2]}|${parts[3]}|${(parts[4].toIntOrNull() ?: 0) + 1}|${parts[5]}|${parts[6]}"
                             else -> cardString
                         }
                     } else {
