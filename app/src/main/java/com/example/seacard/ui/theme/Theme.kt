@@ -8,10 +8,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
-import androidx.compose.ui.unit.dp
-import com.example.seacard.ui.theme.BerlinAzure
-import com.example.seacard.ui.theme.Peach
-import com.example.seacard.ui.theme.BlackBackground
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 

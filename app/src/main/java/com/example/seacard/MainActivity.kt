@@ -70,8 +70,8 @@ data class Card(
     val type: String,
     val addTime: Long = System.currentTimeMillis(),
     val usageCount: Int = 0,
-    val color: Int = 0xFFFFFFFF.toInt(), // Белый цвет по умолчанию
-    val coverAsset: String? = null // Путь к обложке, если есть
+    val color: Int = 0xFFFFFFFF.toInt(),
+    val coverAsset: String? = null
 )
 
 class MainActivity : ComponentActivity() {
@@ -94,8 +94,8 @@ class MainActivity : ComponentActivity() {
                 cards = cardSet.mapNotNull { cardString ->
                     val parts = cardString.split("|")
                     when (parts.size) {
-                        2 -> Card(parts[0], parts[1], "barcode") // Старый формат
-                        3 -> Card(parts[0], parts[1], parts[2]) // Новый формат с типом кода
+                        2 -> Card(parts[0], parts[1], "barcode")
+                        3 -> Card(parts[0], parts[1], parts[2])
                         5 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0) // Формат с временем и частотой
                         6 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0, parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt()) // Формат с цветом
                         7 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0, parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt(), parts[6].takeIf { it.isNotBlank() }) // Формат с coverAsset
@@ -161,7 +161,6 @@ class MainActivity : ComponentActivity() {
                         onCoverSelected = { coverAsset: String? ->
                             showCoverPicker = false
                             pendingCoverAsset = coverAsset
-                            // Запустить сканер, передав coverAsset
                             val intent = Intent(this@MainActivity, ScanCardActivity::class.java)
                             if (coverAsset != null) intent.putExtra("cover_asset", coverAsset as String)
                             scanCardLauncher.launch(intent)
@@ -291,7 +290,7 @@ fun MainScreen(
         }
     
         Scaffold(
-            containerColor = Color.Transparent, // Make top bar transparent
+            containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
                     title = {

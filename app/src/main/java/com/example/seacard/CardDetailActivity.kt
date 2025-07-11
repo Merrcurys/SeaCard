@@ -58,6 +58,7 @@ class CardDetailActivity : ComponentActivity() {
         val cardCode = intent.getStringExtra("card_code") ?: ""
         val codeType = intent.getStringExtra("code_type") ?: "barcode"
         val cardColor = intent.getIntExtra("card_color", 0xFFFFFFFF.toInt())
+        val coverAsset = intent.getStringExtra("cover_asset")
         
         // Проверяем разрешение на изменение яркости
         hasBrightnessPermission = Settings.System.canWrite(this)
@@ -93,6 +94,7 @@ class CardDetailActivity : ComponentActivity() {
                         cardCode = cardCodeState,
                         codeType = codeTypeState,
                         cardColor = cardColorState,
+                        coverAsset = coverAsset,
                         onBack = { finish() },
                         onDelete = {
                             deleteCard(this@CardDetailActivity, cardNameState, cardCodeState, codeTypeState, cardColorState)
@@ -207,11 +209,13 @@ class CardDetailActivity : ComponentActivity() {
         if (cardToEdit != null) {
             cards.remove(cardToEdit)
             val parts = cardToEdit.split("|")
-            val newCardString = when (parts.size) {
-                2 -> "$newName|$newCode"
-                3 -> "$newName|$newCode|$newType"
-                5 -> "$newName|$newCode|$newType|${parts[3]}|${parts[4]}"
-                6 -> "$newName|$newCode|$newType|${parts[3]}|${parts[4]}|$newColor"
+            val coverAsset = if (parts.size >= 7) parts[6] else null
+            val newCardString = when {
+                coverAsset != null -> "$newName|$newCode|$newType|${parts.getOrNull(3) ?: System.currentTimeMillis()}|${parts.getOrNull(4) ?: 0}|$newColor|$coverAsset"
+                parts.size == 2 -> "$newName|$newCode"
+                parts.size == 3 -> "$newName|$newCode|$newType"
+                parts.size == 5 -> "$newName|$newCode|$newType|${parts[3]}|${parts[4]}"
+                parts.size == 6 -> "$newName|$newCode|$newType|${parts[3]}|${parts[4]}|$newColor"
                 else -> "$newName|$newCode|$newType|${System.currentTimeMillis()}|0|$newColor"
             }
             cards.add(newCardString)
@@ -232,6 +236,7 @@ fun CardDetailScreen(
     cardCode: String,
     codeType: String,
     cardColor: Int,
+    coverAsset: String? = null,
     onBack: () -> Unit,
     onDelete: () -> Unit,
     onEdit: (String, String, String, Int) -> Unit,
@@ -273,48 +278,50 @@ fun CardDetailScreen(
             .background(colorScheme.background)
     ) {
         Column {
-            TopAppBar(
-                title = {},
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
-                    }
-                },
-                actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Меню", tint = colorScheme.onSurface)
+            if (!showEditDialog) {
+                TopAppBar(
+                    title = {},
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
                         }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                            modifier = Modifier.background(colorScheme.surface)
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Изменить карту") },
-                                onClick = {
-                                    showMenu = false
-                                    showEditDialog = true
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Edit, contentDescription = null)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Удалить карту", color = Color.Red) },
-                                onClick = {
-                                    showMenu = false
-                                    showDeleteDialog = true
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
-                                }
-                            )
+                    },
+                    actions = {
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "Меню", tint = colorScheme.onSurface)
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false },
+                                modifier = Modifier.background(colorScheme.surface)
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Изменить карту") },
+                                    onClick = {
+                                        showMenu = false
+                                        showEditDialog = true
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Edit, contentDescription = null)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Удалить карту", color = Color.Red) },
+                                    onClick = {
+                                        showMenu = false
+                                        showDeleteDialog = true
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
+                                    }
+                                )
+                            }
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarContainerColor)
-            )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarContainerColor)
+                )
+            }
             // Диалог удаления
             if (showDeleteDialog) {
                 AlertDialog(
@@ -362,7 +369,11 @@ fun CardDetailScreen(
                                 editError = ""
                                 onEdit(editName, editCode, editType, editColor)
                             }
-                        }
+                        },
+                        coverAsset = coverAsset,
+                        showTopBar = false, // убираем TopAppBar при редактировании
+                        isEditMode = true, // показываем TopAppBar с заголовком 'Изменение карты'
+                        onBack = onBack
                     )
                     if (editError.isNotEmpty()) {
                         Text(editError, color = Color.Red, fontSize = 13.sp, modifier = Modifier.align(Alignment.CenterHorizontally))

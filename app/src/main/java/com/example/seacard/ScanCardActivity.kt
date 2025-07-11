@@ -22,7 +22,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,7 +43,6 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.core.content.edit
@@ -69,8 +67,8 @@ class ScanCardActivity : ComponentActivity() {
             var cardCode by remember { mutableStateOf("") }
             var scanSuccess by remember { mutableStateOf(false) }
             var isDark by remember { mutableStateOf(loadThemePref(this@ScanCardActivity)) }
-            var selectedColor by remember { mutableStateOf(0xFFFFFFFF.toInt()) } // Белый по умолчанию
-            var scanned by remember { mutableStateOf(false) } // Новый флаг: был ли скан
+            var selectedColor by remember { mutableStateOf(0xFFFFFFFF.toInt()) }
+            var scanned by remember { mutableStateOf(false) }
             var cardSaved by remember { mutableStateOf(false) }
 
             val context = this@ScanCardActivity
@@ -192,7 +190,7 @@ class ScanCardActivity : ComponentActivity() {
                                 }
                                 vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
                             },
-                            onSaveCard = {}, // не нужен
+                            onSaveCard = {},
                             onBack = { finish() },
                             onGalleryClick = { galleryLauncher.launch("image/*") },
                             coverAsset = coverAsset
@@ -297,8 +295,8 @@ fun ScanCardScreen(
     onScanResult: (String, String) -> Unit,
     onSaveCard: () -> Unit,
     onBack: () -> Unit,
-    onGalleryClick: () -> Unit, // Новый параметр
-    coverAsset: String? // Новый параметр
+    onGalleryClick: () -> Unit,
+    coverAsset: String?
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Box(
@@ -307,19 +305,6 @@ fun ScanCardScreen(
             .background(colorScheme.background)
     ) {
         Column {
-            TopAppBar(
-                title = { Text("Добавить карту", color = colorScheme.onSurface, fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.Filled.ArrowBack,
-                            contentDescription = "Назад",
-                            tint = colorScheme.onSurface
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
-            )
             if (coverAsset == null && cardCode.isNotBlank()) {
                 // После сканирования вручную — показываем форму
                 CardInputSection(
@@ -327,10 +312,11 @@ fun ScanCardScreen(
                     cardCode = cardCode,
                     selectedColor = selectedColor,
                     onCardNameChange = onCardNameChange,
-                    onCardCodeChange = {}, // не даём менять код вручную
+                    onCardCodeChange = {},
                     onColorChange = onColorChange,
                     onSaveCard = onSaveCard,
-                    coverAsset = null
+                    coverAsset = null,
+                    onBack = onBack
                 )
             } else {
                 CameraSection(
@@ -352,7 +338,7 @@ fun CameraSection(
     hasCameraPermission: Boolean,
     scanSuccess: Boolean,
     onScanResult: (String, String) -> Unit,
-    onGalleryClick: () -> Unit // Новый параметр
+    onGalleryClick: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
