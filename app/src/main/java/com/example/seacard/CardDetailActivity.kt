@@ -491,7 +491,7 @@ fun CardDetailScreen(
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
                     )
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.85f)),
+                        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier
                             .fillMaxWidth()
