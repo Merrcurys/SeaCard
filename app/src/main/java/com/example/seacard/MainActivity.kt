@@ -279,11 +279,21 @@ fun MainScreen(
         }
     
         val filteredCards = remember(cards, searchQuery) {
+            fun normalize(text: String): String {
+                return text
+                    .replace("'", "")
+                    .replace("’", "")
+                    .replace("`", "")
+                    .replace("ё", "е", ignoreCase = true)
+                    .replace("Ё", "Е", ignoreCase = true)
+                    .lowercase()
+            }
             if (searchQuery.isBlank()) {
                 cards
             } else {
+                val normQuery = normalize(searchQuery)
                 cards.filter { card ->
-                    card.name.contains(searchQuery, ignoreCase = true)
+                    normalize(card.name).contains(normQuery)
                 }
             }
         }
@@ -455,7 +465,7 @@ fun MainScreen(
                     } else {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(8.dp),
+                            contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 80.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxSize()

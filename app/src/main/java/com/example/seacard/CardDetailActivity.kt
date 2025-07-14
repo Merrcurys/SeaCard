@@ -453,11 +453,14 @@ fun CardDetailScreen(
             ) {
                 // Код (QR или штрихкод)
                 if (barcodeBitmap != null) {
+                    val isSquareCode = editType == "qr" || editType == "datamatrix"
+                    val cardHeight = if (isSquareCode) 350.dp else 300.dp
+                    val imageHeight = if (editType == "qr" || editType == "datamatrix") 230.dp else 230.dp
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 16.dp, bottom = 8.dp)
-                            .height(if (editType == "qr") 350.dp else 300.dp)
+                            .height(cardHeight)
                             .shadow(18.dp, RoundedCornerShape(28.dp)),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 18.dp),
@@ -475,7 +478,7 @@ fun CardDetailScreen(
                                 contentDescription = editName,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(if (editType == "qr") 280.dp else 230.dp)
+                                    .height(imageHeight)
                             )
                         }
                     }
@@ -546,7 +549,7 @@ private fun generateQRCode(content: String): Bitmap? {
     return try {
         val writer = QRCodeWriter()
         val hints = HashMap<EncodeHintType, Any>()
-        hints[EncodeHintType.MARGIN] = 2 // Добавляем небольшие отступы
+        hints[EncodeHintType.MARGIN] = 0
         hints[EncodeHintType.ERROR_CORRECTION] = com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.M // Средний уровень коррекции ошибок
         
         val bitMatrix: BitMatrix = writer.encode(

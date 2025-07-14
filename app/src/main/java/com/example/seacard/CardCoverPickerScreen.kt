@@ -61,10 +61,20 @@ fun CardCoverPickerScreen(
             }
         }
         val filteredCovers = remember(coverList, searchQuery, sortAsc) {
+            fun normalize(text: String): String {
+                return text
+                    .replace("'", "")
+                    .replace("’", "")
+                    .replace("`", "")
+                    .replace("ё", "е", ignoreCase = true)
+                    .replace("Ё", "Е", ignoreCase = true)
+                    .lowercase()
+            }
+            val normQuery = normalize(searchQuery)
             coverList
                 .filter { file ->
                     val name = coverNameMap[file] ?: file.substringBeforeLast('.')
-                    name.contains(searchQuery, ignoreCase = true)
+                    normalize(name).contains(normQuery)
                 }
                 .sortedWith(
                     if (sortAsc)
