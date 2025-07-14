@@ -12,7 +12,7 @@ android {
         applicationId = "com.example.seacard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
+        versionCode = 4
         versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -54,13 +54,13 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     
     // CameraX
-    implementation("androidx.camera:camera-core:1.4.0-alpha04")
-    implementation("androidx.camera:camera-camera2:1.4.0-alpha04")
-    implementation("androidx.camera:camera-lifecycle:1.4.0-alpha04")
-    implementation("androidx.camera:camera-view:1.4.0-alpha04")
+    implementation("androidx.camera:camera-core:1.4.2")
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
     
     // ML Kit Barcode Scanning
-    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
     
     // ZXing
     implementation("com.google.zxing:core:3.5.2")

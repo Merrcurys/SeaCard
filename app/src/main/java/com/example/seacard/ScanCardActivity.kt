@@ -70,6 +70,7 @@ class ScanCardActivity : ComponentActivity() {
             var selectedColor by remember { mutableStateOf(0xFFFFFFFF.toInt()) }
             var scanned by remember { mutableStateOf(false) }
             var cardSaved by remember { mutableStateOf(false) }
+            var codeTypeState by remember { mutableStateOf("") } // <--- добавляем состояние типа кода
 
             val context = this@ScanCardActivity
             val coroutineScope = rememberCoroutineScope()
@@ -94,7 +95,10 @@ class ScanCardActivity : ComponentActivity() {
                                 var found = false
                                 for (barcode in barcodes) {
                                     val codeType = when (barcode.format) {
-                                        Barcode.FORMAT_QR_CODE, Barcode.FORMAT_AZTEC, Barcode.FORMAT_DATA_MATRIX, Barcode.FORMAT_PDF417 -> "qr"
+                                        Barcode.FORMAT_QR_CODE -> "qr"
+                                        Barcode.FORMAT_AZTEC -> "aztec"
+                                        Barcode.FORMAT_DATA_MATRIX -> "datamatrix"
+                                        Barcode.FORMAT_PDF417 -> "pdf417"
                                         Barcode.FORMAT_CODE_128 -> "code128"
                                         Barcode.FORMAT_EAN_13 -> "ean13"
                                         Barcode.FORMAT_UPC_A -> "upca"
@@ -108,7 +112,7 @@ class ScanCardActivity : ComponentActivity() {
                                     }
                                     if (!scanned) {
                                         cardCode = barcode.rawValue ?: ""
-                                        scannedCodeType = codeType
+                                        codeTypeState = codeType // сохраняем тип кода, определённый сканером
                                         scanSuccess = true
                                         scanned = true // <-- теперь блокирует повторную вибрацию
                                         found = true
@@ -155,7 +159,7 @@ class ScanCardActivity : ComponentActivity() {
             if (coverAsset != null) {
                 LaunchedEffect(cardCode) {
                     if (!cardSaved && cardName.isNotBlank() && cardCode.isNotBlank()) {
-                        saveCardWithCover(this@ScanCardActivity, cardName, cardCode, scannedCodeType, selectedColor, coverAsset)
+                        saveCardWithCover(this@ScanCardActivity, cardName, cardCode, codeTypeState.ifBlank { "barcode" }, selectedColor, coverAsset)
                         cardSaved = true
                         setResult(RESULT_OK)
                         finish()
@@ -174,12 +178,12 @@ class ScanCardActivity : ComponentActivity() {
                             scanSuccess = scanSuccess,
                             selectedColor = selectedColor,
                             onCardNameChange = { cardName = it },
-                            onCardCodeChange = { cardCode = it },
+                            onCardCodeChange = { newCode -> cardCode = newCode }, // только меняем код, тип не трогаем
                             onColorChange = { selectedColor = it },
                             onScanResult = { code, codeType ->
                                 if (!scanned) {
                                     cardCode = code
-                                    scannedCodeType = codeType
+                                    codeTypeState = codeType
                                     scanSuccess = true
                                     scanned = true
                                     // Вибрация при успешном сканировании
@@ -193,7 +197,13 @@ class ScanCardActivity : ComponentActivity() {
                                     vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
                                 }
                             },
-                            onSaveCard = {},
+                            onSaveCard = {
+                                if (cardName.isNotBlank() && cardCode.isNotBlank()) {
+                                    saveCardWithCover(this@ScanCardActivity, cardName, cardCode, codeTypeState.ifBlank { "barcode" }, selectedColor, if (coverAsset != null) coverAsset else null)
+                                    setResult(RESULT_OK)
+                                    finish()
+                                }
+                            },
                             onBack = { finish() },
                             onGalleryClick = { galleryLauncher.launch("image/*") },
                             coverAsset = coverAsset
@@ -382,7 +392,10 @@ fun CameraSection(
                                         .addOnSuccessListener { barcodes ->
                                             for (barcode in barcodes) {
                                                 val codeType = when (barcode.format) {
-                                                    Barcode.FORMAT_QR_CODE, Barcode.FORMAT_AZTEC, Barcode.FORMAT_DATA_MATRIX, Barcode.FORMAT_PDF417 -> "qr"
+                                                    Barcode.FORMAT_QR_CODE -> "qr"
+                                                    Barcode.FORMAT_AZTEC -> "aztec"
+                                                    Barcode.FORMAT_DATA_MATRIX -> "datamatrix"
+                                                    Barcode.FORMAT_PDF417 -> "pdf417"
                                                     Barcode.FORMAT_CODE_128 -> "code128"
                                                     Barcode.FORMAT_EAN_13 -> "ean13"
                                                     Barcode.FORMAT_UPC_A -> "upca"

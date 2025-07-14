@@ -46,6 +46,7 @@ import androidx.core.graphics.set
 import androidx.core.graphics.createBitmap
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import com.google.zxing.datamatrix.encoder.SymbolShapeHint
 
 class CardDetailActivity : ComponentActivity() {
     private var originalBrightness: Float = 0f
@@ -557,6 +558,8 @@ private fun generateBarcode(content: String, codeType: String = "code128"): Bitm
             "ean8" -> com.google.zxing.oned.EAN8Writer()
             "itf" -> com.google.zxing.oned.ITFWriter()
             "upce" -> com.google.zxing.oned.UPCEWriter()
+            "datamatrix" -> com.google.zxing.datamatrix.DataMatrixWriter()
+            "pdf417" -> com.google.zxing.pdf417.PDF417Writer()
             else -> com.google.zxing.oned.Code128Writer()
         }
         val format = when (codeType.lowercase()) {
@@ -569,15 +572,20 @@ private fun generateBarcode(content: String, codeType: String = "code128"): Bitm
             "ean8" -> BarcodeFormat.EAN_8
             "itf" -> BarcodeFormat.ITF
             "upce" -> BarcodeFormat.UPC_E
+            "datamatrix" -> BarcodeFormat.DATA_MATRIX
+            "pdf417" -> BarcodeFormat.PDF_417
             else -> BarcodeFormat.CODE_128
         }
         val hints = HashMap<EncodeHintType, Any>()
         hints[EncodeHintType.MARGIN] = 0
+        if (codeType.lowercase() == "datamatrix") {
+            hints[EncodeHintType.DATA_MATRIX_SHAPE] = SymbolShapeHint.FORCE_SQUARE
+        }
         val bitMatrix: BitMatrix = writer.encode(
             content,
             format,
-            800,
-            200,
+            if (codeType.lowercase() == "datamatrix") 600 else 800,
+            if (codeType.lowercase() == "datamatrix") 600 else 200,
             hints
         )
         val width = bitMatrix.width
