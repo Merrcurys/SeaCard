@@ -47,6 +47,46 @@ import androidx.core.graphics.createBitmap
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.google.zxing.datamatrix.encoder.SymbolShapeHint
+import android.graphics.BitmapFactory
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.imageResource
+import com.example.seacard.ui.theme.DynamicGradientBackground
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.InputStream
+import kotlin.math.pow
+import kotlin.math.sqrt
+import androidx.compose.foundation.BorderStroke
+
+suspend fun getDominantColorFromAsset(context: Context, assetPath: String): Int? = withContext(Dispatchers.IO) {
+    try {
+        val inputStream: InputStream = context.assets.open(assetPath)
+        val bitmap = BitmapFactory.decodeStream(inputStream)
+        inputStream.close()
+        val colorCount = mutableMapOf<Int, Int>()
+        val width = bitmap.width
+        val height = bitmap.height
+        val step = (width * height / 10000).coerceAtLeast(1) // ускоряем анализ
+        for (y in 0 until height step step) {
+            for (x in 0 until width step step) {
+                val color = bitmap.getPixel(x, y)
+                val alpha = (color shr 24) and 0xFF
+                if (alpha > 200) { // игнорируем прозрачные пиксели
+                    colorCount[color] = (colorCount[color] ?: 0) + 1
+                }
+            }
+        }
+        colorCount.maxByOrNull { it.value }?.key
+    } catch (e: Exception) {
+        null
+    }
+}
 
 class CardDetailActivity : ComponentActivity() {
     private var originalBrightness: Float = 0f
@@ -78,6 +118,15 @@ class CardDetailActivity : ComponentActivity() {
             var cardCodeState by remember { mutableStateOf(cardCode) }
             var codeTypeState by remember { mutableStateOf(codeType) }
             var cardColorState by remember { mutableStateOf(cardColor) }
+            val context = this@CardDetailActivity
+            var dominantColor by remember { mutableStateOf<Int?>(null) }
+
+            // Получаем доминантный цвет из coverAsset (если есть)
+            LaunchedEffect(coverAsset) {
+                if (coverAsset != null) {
+                    dominantColor = getDominantColorFromAsset(context, coverAsset)
+                }
+            }
             
             // Обновляем проверку разрешения при изменении состояния
             LaunchedEffect(Unit) {
@@ -89,7 +138,13 @@ class CardDetailActivity : ComponentActivity() {
             }
             
             SeaCardTheme(darkTheme = isDark) {
-                GradientBackground(darkTheme = isDark) {
+                val baseColor = dominantColor?.let { Color(it) } ?: Color(cardColorState)
+                val backgroundColor = MaterialTheme.colorScheme.background
+                val gradientColors = listOf(
+                    baseColor,
+                    backgroundColor
+                )
+                DynamicGradientBackground(colors = gradientColors) {
                     CardDetailScreen(
                         cardName = cardNameState,
                         cardCode = cardCodeState,
@@ -276,12 +331,19 @@ fun CardDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(colorScheme.background)
     ) {
         Column {
             if (!showEditDialog) {
                 TopAppBar(
-                    title = {},
+                    title = {
+                        Text(
+                            text = editName,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorScheme.onSurface,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
@@ -391,20 +453,16 @@ fun CardDetailScreen(
             ) {
                 // Код (QR или штрихкод)
                 if (barcodeBitmap != null) {
-                    Text(
-                        text = editName,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (editType == "qr") 350.dp else 300.dp),
+                            .padding(top = 16.dp, bottom = 8.dp)
+                            .height(if (editType == "qr") 350.dp else 300.dp)
+                            .shadow(18.dp, RoundedCornerShape(28.dp)),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-                        shape = RoundedCornerShape(20.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 18.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.25f))
                     ) {
                         Box(
                             modifier = Modifier
@@ -439,8 +497,8 @@ fun CardDetailScreen(
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
                     )
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.85f)),
+                        shape = RoundedCornerShape(20.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
@@ -451,6 +509,7 @@ fun CardDetailScreen(
                                     }
                                 )
                             }
+                            .shadow(8.dp, RoundedCornerShape(20.dp))
                     ) {
                         val formattedCode = formatBarcodeForStandard(editCode, editType)
                         Text(

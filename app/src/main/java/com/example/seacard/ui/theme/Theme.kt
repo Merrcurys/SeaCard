@@ -77,3 +77,31 @@ fun GradientBackground(darkTheme: Boolean, content: @Composable () -> Unit) {
         content()
     }
 }
+
+@Composable
+fun DynamicGradientBackground(
+    colors: List<Color>,
+    content: @Composable () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        val gradient = if (colors.size > 1) {
+            Brush.verticalGradient(colors)
+        } else {
+            null
+        }
+        if (gradient != null) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(gradient)
+            ) {}
+        } else {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(colors.firstOrNull() ?: Color.White)
+            ) {}
+        }
+        content()
+    }
+}
