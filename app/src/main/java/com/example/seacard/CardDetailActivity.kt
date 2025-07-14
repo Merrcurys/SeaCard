@@ -36,7 +36,6 @@ import android.content.Intent
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Edit
 import com.example.seacard.ui.theme.SeaCardTheme
-import com.example.seacard.ui.theme.GradientBackground
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.WriterException
@@ -49,20 +48,12 @@ import androidx.core.net.toUri
 import com.google.zxing.datamatrix.encoder.SymbolShapeHint
 import android.graphics.BitmapFactory
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.res.imageResource
 import com.example.seacard.ui.theme.DynamicGradientBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.InputStream
-import kotlin.math.pow
-import kotlin.math.sqrt
 import androidx.compose.foundation.BorderStroke
+import androidx.core.graphics.get
 
 suspend fun getDominantColorFromAsset(context: Context, assetPath: String): Int? = withContext(Dispatchers.IO) {
     try {
@@ -72,12 +63,12 @@ suspend fun getDominantColorFromAsset(context: Context, assetPath: String): Int?
         val colorCount = mutableMapOf<Int, Int>()
         val width = bitmap.width
         val height = bitmap.height
-        val step = (width * height / 10000).coerceAtLeast(1) // ускоряем анализ
+        val step = (width * height / 10000).coerceAtLeast(1)
         for (y in 0 until height step step) {
             for (x in 0 until width step step) {
-                val color = bitmap.getPixel(x, y)
+                val color = bitmap[x, y]
                 val alpha = (color shr 24) and 0xFF
-                if (alpha > 200) { // игнорируем прозрачные пиксели
+                if (alpha > 200) {
                     colorCount[color] = (colorCount[color] ?: 0) + 1
                 }
             }
@@ -121,7 +112,7 @@ class CardDetailActivity : ComponentActivity() {
             val context = this@CardDetailActivity
             var dominantColor by remember { mutableStateOf<Int?>(null) }
 
-            // Получаем доминантный цвет из coverAsset (если есть)
+            // Получаем доминантный цвет из coverAsset
             LaunchedEffect(coverAsset) {
                 if (coverAsset != null) {
                     dominantColor = getDominantColorFromAsset(context, coverAsset)
@@ -483,10 +474,10 @@ fun CardDetailScreen(
                         }
                     }
                 }
-                Divider(
-                    color = colorScheme.onSurface.copy(alpha = 0.2f),
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 32.dp),
                     thickness = 1.dp,
-                    modifier = Modifier.padding(horizontal = 32.dp)
+                    color = colorScheme.onSurface.copy(alpha = 0.2f)
                 )
                 // Код карты внизу
                 Column(
@@ -555,7 +546,7 @@ private fun generateQRCode(content: String): Bitmap? {
         val bitMatrix: BitMatrix = writer.encode(
             content,
             BarcodeFormat.QR_CODE,
-            600, // Увеличиваем размер для лучшего качества
+            600,
             600,
             hints
         )

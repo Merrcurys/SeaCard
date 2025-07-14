@@ -50,9 +50,7 @@ fun CardCoverPickerScreen(
     var sortAsc by remember { mutableStateOf(true) }
     val isDark = MaterialTheme.colorScheme.background == com.example.seacard.ui.theme.BlackBackground
     GradientBackground(darkTheme = isDark) {
-        // BackHandler должен быть внутри GradientBackground
         BackHandler(onBack = onBack)
-        // Загружаем coverList внутри градиента, чтобы всегда был актуален
         LaunchedEffect(Unit) {
             try {
                 coverList = assetManager.list("cards")?.filter { it.endsWith(".webp") } ?: emptyList()

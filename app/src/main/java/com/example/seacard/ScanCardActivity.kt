@@ -70,7 +70,7 @@ class ScanCardActivity : ComponentActivity() {
             var selectedColor by remember { mutableStateOf(0xFFFFFFFF.toInt()) }
             var scanned by remember { mutableStateOf(false) }
             var cardSaved by remember { mutableStateOf(false) }
-            var codeTypeState by remember { mutableStateOf("") } // <--- добавляем состояние типа кода
+            var codeTypeState by remember { mutableStateOf("") }
 
             val context = this@ScanCardActivity
             val coroutineScope = rememberCoroutineScope()
@@ -112,9 +112,9 @@ class ScanCardActivity : ComponentActivity() {
                                     }
                                     if (!scanned) {
                                         cardCode = barcode.rawValue ?: ""
-                                        codeTypeState = codeType // сохраняем тип кода, определённый сканером
+                                        codeTypeState = codeType
                                         scanSuccess = true
-                                        scanned = true // <-- теперь блокирует повторную вибрацию
+                                        scanned = true
                                         found = true
                                         // Вибрация при успешном сканировании
                                         val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -178,7 +178,7 @@ class ScanCardActivity : ComponentActivity() {
                             scanSuccess = scanSuccess,
                             selectedColor = selectedColor,
                             onCardNameChange = { cardName = it },
-                            onCardCodeChange = { newCode -> cardCode = newCode }, // только меняем код, тип не трогаем
+                            onCardCodeChange = { newCode -> cardCode = newCode },
                             onColorChange = { selectedColor = it },
                             onScanResult = { code, codeType ->
                                 if (!scanned) {
@@ -296,7 +296,6 @@ class ScanCardActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScanCardScreen(
     hasCameraPermission: Boolean,
