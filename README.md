@@ -25,9 +25,9 @@
       <img src="https://github.com/user-attachments/assets/3e78fd55-8a77-40be-98cb-fc16e8ac1598" alt="Demo" width="1000">      
 </p>
 
-## Как запустить
+## Как установить приложение
 
-Приложение доступно в RuStore	- [скачать](https://www.rustore.ru/catalog/app/com.example.seacard).
+Приложение доступно в RuStore	- [<img align="center" height="45" alt="logo-color-dark" src="https://github.com/user-attachments/assets/bd6014bd-a5c7-4130-bd31-80c8b57e13a2" />](https://www.rustore.ru/catalog/app/com.example.seacard)   
 
 APK-релизы можно скачать с GitHub - [скачать](https://github.com/Merrcurys/SeaCard/releases/tag/v2.1).
 
