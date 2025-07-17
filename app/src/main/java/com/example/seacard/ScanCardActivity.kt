@@ -113,6 +113,7 @@ class ScanCardActivity : ComponentActivity() {
                                     if (!scanned) {
                                         cardCode = barcode.rawValue ?: ""
                                         codeTypeState = codeType
+                                        scannedCodeType = codeType
                                         scanSuccess = true
                                         scanned = true
                                         found = true
