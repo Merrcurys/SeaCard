@@ -206,7 +206,11 @@ class MainActivity : ComponentActivity() {
                             val updatedCardSet = cardSet.filterNot { cardString ->
                                 val parts = cardString.split("|")
                                 cardsToDelete.any { card ->
-                                    parts[0] == card.name
+                                    parts.getOrNull(0) == card.name &&
+                                    parts.getOrNull(1) == card.code &&
+                                    parts.getOrNull(2) == card.type &&
+                                    (parts.size < 6 || parts.getOrNull(5)?.toIntOrNull() == card.color) &&
+                                    (parts.size < 7 || parts.getOrNull(6) == card.coverAsset)
                                 }
                             }.toSet()
                             prefs.edit { putStringSet("card_list", updatedCardSet) }
@@ -543,7 +547,7 @@ fun MainScreen(
                                             text = card.name,
                                             color = if (isColorDark(card.color)) Color.White else Color.Black,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
+                                            fontSize = 18.sp,
                                             textAlign = TextAlign.Center,
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis,

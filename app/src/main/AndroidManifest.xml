@@ -22,7 +22,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.SeaCard">
+            android:theme="@style/Theme.SeaCard"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -32,15 +33,18 @@
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:theme="@style/Theme.SeaCard" />
+            android:theme="@style/Theme.SeaCard"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".ScanCardActivity"
             android:exported="false"
-            android:theme="@style/Theme.SeaCard" />
+            android:theme="@style/Theme.SeaCard"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".CardDetailActivity"
             android:exported="false"
-            android:theme="@style/Theme.SeaCard" />
+            android:theme="@style/Theme.SeaCard"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>
