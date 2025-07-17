@@ -35,6 +35,8 @@ import android.provider.Settings
 import android.content.Intent
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Close
 import com.example.seacard.ui.theme.SeaCardTheme
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -54,6 +56,8 @@ import kotlinx.coroutines.withContext
 import java.io.InputStream
 import androidx.compose.foundation.BorderStroke
 import androidx.core.graphics.get
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.filled.TouchApp
 
 suspend fun getDominantColorFromAsset(context: Context, assetPath: String): Int? = withContext(Dispatchers.IO) {
     try {
@@ -301,6 +305,27 @@ fun CardDetailScreen(
     var editColor by remember { mutableStateOf(cardColor) }
     var editError by remember { mutableStateOf("") }
 
+    // --- Заметки ---
+    val noteKey = "note_${cardName}_${cardCode}_${codeType}"
+    var note by remember {
+        mutableStateOf(
+            context.getSharedPreferences("cards", Context.MODE_PRIVATE)
+                .getString(noteKey, "") ?: ""
+        )
+    }
+    var showNoteDialog by remember {
+        mutableStateOf(false)
+    }
+    var noteDraft by remember { mutableStateOf("") }
+    var noteError by remember { mutableStateOf("") }
+
+    // Сброс draft при открытии диалога
+    LaunchedEffect(showNoteDialog) {
+        if (showNoteDialog) {
+            noteDraft = note
+        }
+    }
+
     LaunchedEffect(editCode, editType) {
         if (isValidBarcodeWithChecksum(editCode, editType)) {
             barcodeBitmap = if (editType == "qr") {
@@ -484,40 +509,211 @@ fun CardDetailScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(
-                        text = "Код карты",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = colorScheme.onSurface.copy(alpha = 0.8f)
-                    )
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-                        shape = RoundedCornerShape(20.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = 10.dp),
+                        shape = RoundedCornerShape(22.dp),
+                        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.20f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp, horizontal = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            val formattedCode = formatBarcodeForStandard(editCode, editType)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState())
                             .pointerInput(Unit) {
                                 detectTapGestures(
                                     onLongPress = {
                                         copyToClipboard()
                                     }
                                 )
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = formattedCode,
+                                    fontSize = if (editCode.length > 20) 20.sp else 28.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                )
                             }
-                            .shadow(8.dp, RoundedCornerShape(20.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.TouchApp,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Долгое нажатие — скопировать",
+                                    fontSize = 11.sp,
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                    // Заметки и Обложка
+                    Spacer(modifier = Modifier.height(1.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val formattedCode = formatBarcodeForStandard(editCode, editType)
-                        Text(
-                            text = formattedCode,
-                            fontSize = if (editCode.length > 20) 18.sp else 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
+                        // Кнопка "Заметки"
+                        Card(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp)
-                        )
+                                .weight(1f)
+                                .height(54.dp)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = { showNoteDialog = true }
+                                    )
+                                },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.20f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Заметки",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Text(
+                                    text = "Заметки",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                if (note.isNotBlank()) {
+                        Text(
+                                        text = note,
+                                        color = Color.White.copy(alpha = 0.8f),
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        textAlign = TextAlign.End,
+                                        modifier = Modifier.weight(2f)
+                                    )
+                                }
+                            }
+                        }
+                        // Кнопка "Обложка"
+                        Card(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.20f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription = "Обложка",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Text(
+                                    text = "Обложка",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
                     }
                 }
+            }
+            // Диалог для заметки
+            if (showNoteDialog) {
+                AlertDialog(
+                    onDismissRequest = { showNoteDialog = false },
+                    title = { Text("Заметка к карте") },
+                    text = {
+                        Column {
+                            OutlinedTextField(
+                                value = noteDraft,
+                                onValueChange = {
+                                    if (it.length <= 100) {
+                                        noteDraft = it
+                                        noteError = ""
+                                    }
+                                },
+                                label = { Text("Введите заметку") },
+                                singleLine = false,
+                                maxLines = 4,
+                                modifier = Modifier.fillMaxWidth(),
+                                trailingIcon = {
+                                    if (noteDraft.isNotEmpty()) {
+                                        IconButton(onClick = { noteDraft = "" }) {
+                                            Icon(Icons.Default.Close, contentDescription = "Очистить")
+                    }
+                }
+                                }
+                            )
+                            if (noteError.isNotEmpty()) {
+                                Text(noteError, color = Color.Red, fontSize = 13.sp)
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (noteDraft.length <= 100) {
+                                    note = noteDraft
+                                    context.getSharedPreferences("cards", Context.MODE_PRIVATE)
+                                        .edit { putString(noteKey, noteDraft) }
+                                    showNoteDialog = false
+                                } else {
+                                    noteError = "Максимум 100 символов"
+                                }
+                            }
+                        ) {
+                            Text("Сохранить")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showNoteDialog = false }) {
+                            Text("Отмена")
+                        }
+                    },
+                    containerColor = colorScheme.surface,
+                    titleContentColor = colorScheme.onSurface,
+                    textContentColor = colorScheme.onSurface
+                )
             }
         }
     }
