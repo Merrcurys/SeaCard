@@ -25,13 +25,17 @@
       <img src="https://github.com/user-attachments/assets/3e78fd55-8a77-40be-98cb-fc16e8ac1598" alt="Demo" width="1000">      
 </p>
 
-## Как установить приложение
+## Установка приложения
 
-Приложение доступно в RuStore	- [<img align="center" height="45" alt="logo-color-dark" src="https://github.com/user-attachments/assets/bd6014bd-a5c7-4130-bd31-80c8b57e13a2" />](https://www.rustore.ru/catalog/app/com.example.seacard)   
+Приложение доступно в RuStore	- [<img align="center" height="45" alt="logo-color-dark" src="https://github.com/user-attachments/assets/bd6014bd-a5c7-4130-bd31-80c8b57e13a2" />](https://www.rustore.ru/catalog/app/com.example.seacard)
 
-APK-релизы можно скачать с GitHub - [скачать](https://github.com/Merrcurys/SeaCard/releases/tag/v2.1).
+APK-релизы можно скачать с GitHub -[<img align="center" height="60" alt="logo-color-dark" src="https://github.com/user-attachments/assets/1a481370-4323-40e8-94b8-0106b9fc5363" />](https://github.com/Merrcurys/SeaCard/releases)
 
-Обсуждение приложения и скачивание APK-релизов также доступно на [4PDA](https://4pda.to/forum/index.php?showtopic=1108694).
+## Поддержка и обсуждение
+
+Обсуждение приложения доступно на [4PDA](https://4pda.to/forum/index.php?showtopic=1108694).
+
+Техническая поддержка приложения в Telegram - [обратиться](https://t.me/SeacardSupportBot).
 
 ## Стек технологий
 
@@ -41,4 +45,5 @@ APK-релизы можно скачать с GitHub - [скачать](https://
 
 ## Лицензия
 
-QRBonus расспространяется под лицензией GNU GPL-3.0.
+Море карт расспространяется под лицензией GNU GPL-3.0.
+
