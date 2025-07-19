@@ -46,6 +46,7 @@ import java.util.concurrent.Executors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.core.content.edit
+import android.net.Uri
 
 class ScanCardActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
@@ -72,8 +73,32 @@ class ScanCardActivity : ComponentActivity() {
             var cardSaved by remember { mutableStateOf(false) }
             var codeTypeState by remember { mutableStateOf("") }
 
+            // Новое: состояния для Uri обложек
+            var frontCoverUri by remember { mutableStateOf<android.net.Uri?>(null) }
+            var backCoverUri by remember { mutableStateOf<android.net.Uri?>(null) }
+            // Новое: состояния для crop-диалога
+            var showFrontCropDialog by remember { mutableStateOf(false) }
+            var showBackCropDialog by remember { mutableStateOf(false) }
+            var frontCropImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
+            var backCropImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
             val context = this@ScanCardActivity
             val coroutineScope = rememberCoroutineScope()
+
+            // Launcher для выбора лицевой обложки
+            val frontCoverPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                if (uri != null) {
+                    frontCropImageUri = uri
+                    showFrontCropDialog = true
+                }
+            }
+            // Launcher для выбора тыльной обложки
+            val backCoverPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                if (uri != null) {
+                    backCropImageUri = uri
+                    showBackCropDialog = true
+                }
+            }
 
             // Launcher для запроса разрешения на камеру
             val launcher = rememberLauncherForActivityResult(
@@ -170,7 +195,8 @@ class ScanCardActivity : ComponentActivity() {
 
             SeaCardTheme(darkTheme = isDark) {
                 GradientBackground(darkTheme = isDark) {
-                    if (coverAsset != null) {
+                    if (cardCode.isBlank()) {
+                        // ВСЕГДА сначала показываем сканер, если код пустой
                         ScanCardScreen(
                             hasCameraPermission = hasCameraPermission,
                             scanned = scanned,
@@ -210,46 +236,102 @@ class ScanCardActivity : ComponentActivity() {
                             coverAsset = coverAsset
                         )
                     } else {
-                        ScanCardScreen(
-                            hasCameraPermission = hasCameraPermission,
-                            scanned = scanned,
+                        // Ручной ввод
+                        CardInputSection(
                             cardName = cardName,
                             cardCode = cardCode,
-                            scanSuccess = scanSuccess,
                             selectedColor = selectedColor,
                             onCardNameChange = { cardName = it },
-                            onCardCodeChange = { cardCode = it },
+                            onCardCodeChange = {},
                             onColorChange = { selectedColor = it },
-                            onScanResult = { code, codeType ->
-                                if (!scanned) {
-                                    cardCode = code
-                                    scannedCodeType = codeType
-                                    scanSuccess = true
-                                    scanned = true
-                                    // Вибрация при успешном сканировании
-                                    val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                        val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                                        vibratorManager.defaultVibrator
-                                    } else {
-                                        @Suppress("DEPRECATION")
-                                        getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                                    }
-                                    vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
-                                }
-                            },
                             onSaveCard = {
                                 if (cardName.isNotBlank() && cardCode.isNotBlank()) {
-                                    saveCardWithCover(this@ScanCardActivity, cardName, cardCode, scannedCodeType, selectedColor, null)
+                                    // Сохраняем обложки в webp
+                                    var frontPath: String? = null
+                                    var backPath: String? = null
+                                    frontCoverUri?.let { uri ->
+                                        val input = context.contentResolver.openInputStream(uri)
+                                        val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                        input?.close()
+                                        if (bmp != null) {
+                                            val fileName = "front_${cardName}_${cardCode}.webp"
+                                            frontPath = saveBitmapAsWebp(context, bmp, fileName)
+                                        }
+                                    }
+                                    backCoverUri?.let { uri ->
+                                        val input = context.contentResolver.openInputStream(uri)
+                                        val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                        input?.close()
+                                        if (bmp != null) {
+                                            val fileName = "back_${cardName}_${cardCode}.webp"
+                                            backPath = saveBitmapAsWebp(context, bmp, fileName)
+                                        }
+                                    }
+                                    // Сохраняем пути в SharedPreferences
+                                    val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
+                                    if (frontPath != null) {
+                                        prefs.edit { putString("cover_front_${cardName}_${cardCode}", frontPath) }
+                                    }
+                                    if (backPath != null) {
+                                        prefs.edit { putString("cover_back_${cardName}_${cardCode}", backPath) }
+                                    }
+                                    // Сохраняем карту: путь к лицевой обложке как coverAsset
+                                    saveCardWithCover(context, cardName, cardCode, codeTypeState.ifBlank { "barcode" }, selectedColor, frontPath)
                                     setResult(RESULT_OK)
                                     finish()
                                 }
                             },
+                            coverAsset = null,
                             onBack = { finish() },
-                            onGalleryClick = { galleryLauncher.launch("image/*") },
-                            coverAsset = null
+                            frontCoverUri = frontCoverUri,
+                            backCoverUri = backCoverUri,
+                            onFrontCoverPick = { frontCoverPicker.launch("image/*") },
+                            onBackCoverPick = { backCoverPicker.launch("image/*") },
+                            onFrontCoverRemove = { frontCoverUri = null },
+                            onBackCoverRemove = { backCoverUri = null }
                         )
                     }
                 }
+            }
+            // Показываем crop-диалоги если нужно
+            if (showFrontCropDialog && frontCropImageUri != null) {
+                ImageCropDialog(
+                    imageUri = frontCropImageUri!!,
+                    aspectRatio = 1.7f,
+                    onCrop = { croppedBitmap ->
+                        // Сохраняем bitmap во временный файл и обновляем frontCoverUri
+                        val file = java.io.File.createTempFile("front_crop_", ".webp", context.cacheDir)
+                        java.io.FileOutputStream(file).use { out ->
+                            croppedBitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP, 90, out)
+                        }
+                        frontCoverUri = Uri.fromFile(file)
+                        showFrontCropDialog = false
+                        frontCropImageUri = null
+                    },
+                    onDismiss = {
+                        showFrontCropDialog = false
+                        frontCropImageUri = null
+                    }
+                )
+            }
+            if (showBackCropDialog && backCropImageUri != null) {
+                ImageCropDialog(
+                    imageUri = backCropImageUri!!,
+                    aspectRatio = 1.7f,
+                    onCrop = { croppedBitmap ->
+                        val file = java.io.File.createTempFile("back_crop_", ".webp", context.cacheDir)
+                        java.io.FileOutputStream(file).use { out ->
+                            croppedBitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP, 90, out)
+                        }
+                        backCoverUri = Uri.fromFile(file)
+                        showBackCropDialog = false
+                        backCropImageUri = null
+                    },
+                    onDismiss = {
+                        showBackCropDialog = false
+                        backCropImageUri = null
+                    }
+                )
             }
         }
     }

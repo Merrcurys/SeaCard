@@ -1,5 +1,6 @@
 package com.example.seacard
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,7 +12,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -19,6 +22,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.seacard.ui.theme.GradientBackground
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +42,13 @@ fun CardInputSection(
     coverAsset: String? = null,
     onBack: () -> Unit = {},
     showTopBar: Boolean = true,
-    isEditMode: Boolean = false
+    isEditMode: Boolean = false,
+    frontCoverUri: Uri? = null,
+    backCoverUri: Uri? = null,
+    onFrontCoverPick: (() -> Unit)? = null,
+    onBackCoverPick: (() -> Unit)? = null,
+    onFrontCoverRemove: (() -> Unit)? = null,
+    onBackCoverRemove: (() -> Unit)? = null
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background == Color(0xFF111111)
@@ -195,6 +210,91 @@ fun CardInputSection(
                     }
                 }
             }
+            // Добавляем UI для загрузки обложек
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                    Text("Лицевая обложка", fontSize = 14.sp, color = colorScheme.onSurface)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1.7f)
+                            .height(70.dp)
+                            .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
+                            .clickable { onFrontCoverPick?.invoke() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (frontCoverUri != null) {
+                            val context = LocalContext.current
+                            val bitmap = remember(frontCoverUri) {
+                                val input = context.contentResolver.openInputStream(frontCoverUri)
+                                val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                input?.close()
+                                bmp
+                            }
+                            if (bitmap != null) {
+                                Image(
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(18.dp))
+                                )
+                            }
+                        } else {
+                            Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
+                        }
+                    }
+                    if (frontCoverUri != null && onFrontCoverRemove != null) {
+                        TextButton(onClick = { onFrontCoverRemove() }) {
+                            Text("Удалить")
+                        }
+                    }
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                    Text("Тыльная обложка", fontSize = 14.sp, color = colorScheme.onSurface)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1.7f)
+                            .height(70.dp)
+                            .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
+                            .clickable { onBackCoverPick?.invoke() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (backCoverUri != null) {
+                            val context = LocalContext.current
+                            val bitmap = remember(backCoverUri) {
+                                val input = context.contentResolver.openInputStream(backCoverUri)
+                                val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                input?.close()
+                                bmp
+                            }
+                            if (bitmap != null) {
+                                Image(
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(18.dp))
+                                )
+                            }
+                        } else {
+                            Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
+                        }
+                    }
+                    if (backCoverUri != null && onBackCoverRemove != null) {
+                        TextButton(onClick = { onBackCoverRemove() }) {
+                            Text("Удалить")
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             Spacer(modifier = Modifier.weight(1f))
             Button(
                 onClick = onSaveCard,

@@ -511,27 +511,36 @@ fun MainScreen(
                                             }
                                         )
                                 ) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        // Затемнение поверх цвета карточки, если выбрана
-                                        if (isSelected) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .matchParentSize()
-                                                    .background(Color.Black.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp))
-                                            )
-                                        }
-                                        if (card.coverAsset != null) {
-                                            val context = LocalContext.current
-                                            val assetManager = context.assets
-                                            val imageBitmap: ImageBitmap? = remember(card.coverAsset) {
+                                    val context = LocalContext.current
+                                    val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
+                                    val frontPath = prefs.getString("cover_front_${card.name}_${card.code}", null)
+                                    key(frontPath) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            // Затемнение поверх цвета карточки, если выбрана
+                                            if (isSelected) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .matchParentSize()
+                                                        .background(Color.Black.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp))
+                                                )
+                                            }
+                                            val imageBitmap: ImageBitmap? = remember(frontPath to card.coverAsset) {
                                                 try {
-                                                    val input = assetManager.open(card.coverAsset)
-                                                    val bmp = android.graphics.BitmapFactory.decodeStream(input)
-                                                    input.close()
-                                                    bmp?.asImageBitmap()
+                                                    frontPath?.let {
+                                                        val bmp = android.graphics.BitmapFactory.decodeFile(it)
+                                                        if (bmp != null) return@remember bmp.asImageBitmap()
+                                                    }
+                                                    card.coverAsset?.let {
+                                                        val assetManager = context.assets
+                                                        val input = assetManager.open(it)
+                                                        val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                                        input.close()
+                                                        return@remember bmp?.asImageBitmap()
+                                                    }
+                                                    null
                                                 } catch (e: Exception) { null }
                                             }
                                             if (imageBitmap != null) {
@@ -541,26 +550,26 @@ fun MainScreen(
                                                     contentScale = ContentScale.Crop,
                                                     modifier = Modifier.fillMaxSize()
                                                 )
+                                            } else {
+                                                Text(
+                                                    text = card.name,
+                                                    color = if (isColorDark(card.color)) Color.White else Color.Black,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 18.sp,
+                                                    textAlign = TextAlign.Center,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.padding(8.dp)
+                                                )
                                             }
-                                        } else {
-                                        Text(
-                                            text = card.name,
-                                            color = if (isColorDark(card.color)) Color.White else Color.Black,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 18.sp,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(8.dp)
-                                        )
-                                        }
-                                        if (isSelected) {
-                                            Icon(
-                                                Icons.Default.Check,
-                                                contentDescription = "Выбрано",
-                                                tint = colorScheme.primary,
-                                                modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)
-                                            )
+                                            if (isSelected) {
+                                                Icon(
+                                                    Icons.Default.Check,
+                                                    contentDescription = "Выбрано",
+                                                    tint = colorScheme.primary,
+                                                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
