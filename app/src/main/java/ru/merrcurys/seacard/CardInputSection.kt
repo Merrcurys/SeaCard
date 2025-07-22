@@ -1,5 +1,6 @@
-package com.example.seacard
+package ru.merrcurys.seacard
 
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,7 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.seacard.ui.theme.GradientBackground
+import ru.merrcurys.seacard.ui.theme.GradientBackground
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
@@ -175,7 +176,7 @@ fun CardInputSection(
                                             shape = CircleShape
                                         )
                                         .clickable(
-                                            interactionSource = androidx.compose.runtime.remember { MutableInteractionSource() },
+                                            interactionSource = remember { MutableInteractionSource() },
                                             indication = null
                                         ) { onColorChange(color) }
                                 )
@@ -201,7 +202,7 @@ fun CardInputSection(
                                             shape = CircleShape
                                         )
                                         .clickable(
-                                            interactionSource = androidx.compose.runtime.remember { MutableInteractionSource() },
+                                            interactionSource = remember { MutableInteractionSource() },
                                             indication = null
                                         ) { onColorChange(color) }
                                 )
@@ -232,7 +233,7 @@ fun CardInputSection(
                             val context = LocalContext.current
                             val bitmap = remember(frontCoverUri) {
                                 val input = context.contentResolver.openInputStream(frontCoverUri)
-                                val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                val bmp = BitmapFactory.decodeStream(input)
                                 input?.close()
                                 bmp
                             }
@@ -270,7 +271,7 @@ fun CardInputSection(
                             val context = LocalContext.current
                             val bitmap = remember(backCoverUri) {
                                 val input = context.contentResolver.openInputStream(backCoverUri)
-                                val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                val bmp = BitmapFactory.decodeStream(input)
                                 input?.close()
                                 bmp
                             }

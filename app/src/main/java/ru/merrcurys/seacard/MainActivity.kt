@@ -1,7 +1,8 @@
-package com.example.seacard
+package ru.merrcurys.seacard
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,8 +38,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.example.seacard.ui.theme.SeaCardTheme
-import com.example.seacard.ui.theme.BlackBackground
+import ru.merrcurys.seacard.ui.theme.SeaCardTheme
+import ru.merrcurys.seacard.ui.theme.BlackBackground
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import java.util.*
 import androidx.core.content.edit
@@ -51,7 +52,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.material3.Text
-import com.example.seacard.ui.theme.GradientBackground
+import androidx.compose.ui.text.TextStyle
+import ru.merrcurys.seacard.ui.theme.GradientBackground
 
 enum class SortType(val displayName: String) {
     ADD_TIME("По времени добавления"),
@@ -201,7 +203,7 @@ class MainActivity : ComponentActivity() {
                             loadCards()
                         },
                         onDeleteCards = { cardsToDelete ->
-                            val prefs = getSharedPreferences("cards", Context.MODE_PRIVATE)
+                            val prefs = getSharedPreferences("cards", MODE_PRIVATE)
                             val cardSet = prefs.getStringSet("card_list", setOf())?.toMutableSet() ?: mutableSetOf()
                             val updatedCardSet = cardSet.filterNot { cardString ->
                                 val parts = cardString.split("|")
@@ -330,7 +332,7 @@ fun MainScreen(
                                     unfocusedContainerColor = Color.Transparent
                                 ),
                                 singleLine = true,
-                                textStyle = androidx.compose.ui.text.TextStyle(
+                                textStyle = TextStyle(
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Medium
                                 ),
@@ -530,13 +532,13 @@ fun MainScreen(
                                             val imageBitmap: ImageBitmap? = remember(frontPath to card.coverAsset) {
                                                 try {
                                                     frontPath?.let {
-                                                        val bmp = android.graphics.BitmapFactory.decodeFile(it)
+                                                        val bmp = BitmapFactory.decodeFile(it)
                                                         if (bmp != null) return@remember bmp.asImageBitmap()
                                                     }
                                                     card.coverAsset?.let {
                                                         val assetManager = context.assets
                                                         val input = assetManager.open(it)
-                                                        val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                                        val bmp = BitmapFactory.decodeStream(input)
                                                         input.close()
                                                         return@remember bmp?.asImageBitmap()
                                                     }

@@ -1,4 +1,4 @@
-package com.example.seacard.ui.theme
+package ru.merrcurys.seacard.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

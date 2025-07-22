@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.seacard"
+    namespace = "ru.merrcurys.seacard"
     compileSdk = 35
 
     defaultConfig {

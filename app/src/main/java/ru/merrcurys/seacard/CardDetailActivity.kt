@@ -1,4 +1,4 @@
-package com.example.seacard
+package ru.merrcurys.seacard
 
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
@@ -37,7 +37,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Close
-import com.example.seacard.ui.theme.SeaCardTheme
+import ru.merrcurys.seacard.ui.theme.SeaCardTheme
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.WriterException
@@ -50,7 +50,7 @@ import androidx.core.net.toUri
 import com.google.zxing.datamatrix.encoder.SymbolShapeHint
 import android.graphics.BitmapFactory
 import androidx.compose.ui.draw.shadow
-import com.example.seacard.ui.theme.DynamicGradientBackground
+import ru.merrcurys.seacard.ui.theme.DynamicGradientBackground
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.BorderStroke
 import androidx.core.graphics.get
@@ -249,7 +249,7 @@ class CardDetailActivity : ComponentActivity() {
                             codeTypeState = newType
                             cardColorState = newColor
                             // обновить frontCoverPath на новый путь
-                            frontCoverPath = getSharedPreferences("cards", Context.MODE_PRIVATE)
+                            frontCoverPath = getSharedPreferences("cards", MODE_PRIVATE)
                                 .getString("cover_front_${newName}_${newCode}", null)
                         },
                         topBarContainerColor = Color.Transparent
@@ -260,7 +260,7 @@ class CardDetailActivity : ComponentActivity() {
                         AlertDialog(
                             onDismissRequest = { showPermissionDialog = false },
                             title = { Text("Разрешение на изменение яркости") },
-                            text = { Text("Для лучшего сканирования кодов приложению нужно разрешение на изменение яркости экрана. Перейдите в настройки и включите разрешение для QRБонус.") },
+                            text = { Text("Для лучшего сканирования кодов приложению нужно разрешение на изменение яркости экрана. Перейдите в настройки и включите разрешение для Море карт.") },
                             confirmButton = {
                                 TextButton(
                                     onClick = {
@@ -325,7 +325,7 @@ class CardDetailActivity : ComponentActivity() {
                         val fileName = "front_${cardName}_${cardCode}_$timestamp.webp"
                         val path = saveBitmapAsWebp(context, croppedBitmap, fileName)
                         if (path != null) {
-                            context.getSharedPreferences("cards", Context.MODE_PRIVATE)
+                            context.getSharedPreferences("cards", MODE_PRIVATE)
                                 .edit { putString("cover_front_${cardName}_${cardCode}", path) }
                             frontCoverPath = path
                         }

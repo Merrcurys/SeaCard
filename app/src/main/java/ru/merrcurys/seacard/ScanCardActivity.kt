@@ -1,8 +1,10 @@
-package com.example.seacard
+package ru.merrcurys.seacard
 
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -35,9 +37,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.example.seacard.ui.theme.SeaCardTheme
-import com.example.seacard.ui.theme.BlackBackground
-import com.example.seacard.ui.theme.GradientBackground
+import ru.merrcurys.seacard.ui.theme.SeaCardTheme
+import ru.merrcurys.seacard.ui.theme.BlackBackground
+import ru.merrcurys.seacard.ui.theme.GradientBackground
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
@@ -47,6 +49,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.core.content.edit
 import android.net.Uri
+import android.os.Build
+import java.io.File
+import java.io.FileOutputStream
 
 class ScanCardActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
@@ -214,12 +219,12 @@ class ScanCardActivity : ComponentActivity() {
                                     scanSuccess = true
                                     scanned = true
                                     // Вибрация при успешном сканировании
-                                    val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                        val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager
                                         vibratorManager.defaultVibrator
                                     } else {
                                         @Suppress("DEPRECATION")
-                                        getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                                        getSystemService(VIBRATOR_SERVICE) as Vibrator
                                     }
                                     vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
                                 }
@@ -251,7 +256,7 @@ class ScanCardActivity : ComponentActivity() {
                                     var backPath: String? = null
                                     frontCoverUri?.let { uri ->
                                         val input = context.contentResolver.openInputStream(uri)
-                                        val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                        val bmp = BitmapFactory.decodeStream(input)
                                         input?.close()
                                         if (bmp != null) {
                                             val fileName = "front_${cardName}_${cardCode}.webp"
@@ -260,7 +265,7 @@ class ScanCardActivity : ComponentActivity() {
                                     }
                                     backCoverUri?.let { uri ->
                                         val input = context.contentResolver.openInputStream(uri)
-                                        val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                        val bmp = BitmapFactory.decodeStream(input)
                                         input?.close()
                                         if (bmp != null) {
                                             val fileName = "back_${cardName}_${cardCode}.webp"
@@ -268,7 +273,7 @@ class ScanCardActivity : ComponentActivity() {
                                         }
                                     }
                                     // Сохраняем пути в SharedPreferences
-                                    val prefs = context.getSharedPreferences("cards", Context.MODE_PRIVATE)
+                                    val prefs = context.getSharedPreferences("cards", MODE_PRIVATE)
                                     if (frontPath != null) {
                                         prefs.edit { putString("cover_front_${cardName}_${cardCode}", frontPath) }
                                     }
@@ -300,9 +305,9 @@ class ScanCardActivity : ComponentActivity() {
                     aspectRatio = 1.7f,
                     onCrop = { croppedBitmap ->
                         // Сохраняем bitmap во временный файл и обновляем frontCoverUri
-                        val file = java.io.File.createTempFile("front_crop_", ".webp", context.cacheDir)
-                        java.io.FileOutputStream(file).use { out ->
-                            croppedBitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP, 90, out)
+                        val file = File.createTempFile("front_crop_", ".webp", context.cacheDir)
+                        FileOutputStream(file).use { out ->
+                            croppedBitmap.compress(Bitmap.CompressFormat.WEBP, 90, out)
                         }
                         frontCoverUri = Uri.fromFile(file)
                         showFrontCropDialog = false
@@ -319,9 +324,9 @@ class ScanCardActivity : ComponentActivity() {
                     imageUri = backCropImageUri!!,
                     aspectRatio = 1.7f,
                     onCrop = { croppedBitmap ->
-                        val file = java.io.File.createTempFile("back_crop_", ".webp", context.cacheDir)
-                        java.io.FileOutputStream(file).use { out ->
-                            croppedBitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP, 90, out)
+                        val file = File.createTempFile("back_crop_", ".webp", context.cacheDir)
+                        FileOutputStream(file).use { out ->
+                            croppedBitmap.compress(Bitmap.CompressFormat.WEBP, 90, out)
                         }
                         backCoverUri = Uri.fromFile(file)
                         showBackCropDialog = false

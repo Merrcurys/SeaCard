@@ -1,4 +1,4 @@
-package com.example.seacard
+package ru.merrcurys.seacard
 
 import android.content.Context
 import android.os.Bundle
@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.seacard.ui.theme.SeaCardTheme
+import ru.merrcurys.seacard.ui.theme.SeaCardTheme
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.ArrowBack
@@ -46,7 +46,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
-import com.example.seacard.ui.theme.GradientBackground
+import ru.merrcurys.seacard.ui.theme.GradientBackground
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
 import android.widget.Toast

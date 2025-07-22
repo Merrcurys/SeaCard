@@ -1,5 +1,6 @@
-package com.example.seacard
+package ru.merrcurys.seacard
 
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,7 +27,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.ui.layout.ContentScale
-import com.example.seacard.CoverNames.coverNameMap
+import ru.merrcurys.seacard.CoverNames.coverNameMap
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
@@ -34,7 +35,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
-import com.example.seacard.ui.theme.GradientBackground
+import ru.merrcurys.seacard.ui.theme.BlackBackground
+import ru.merrcurys.seacard.ui.theme.GradientBackground
 import kotlin.text.substringBeforeLast
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,7 +50,7 @@ fun CardCoverPickerScreen(
     var coverList by remember { mutableStateOf(listOf<String>()) }
     var searchQuery by remember { mutableStateOf("") }
     var sortAsc by remember { mutableStateOf(true) }
-    val isDark = MaterialTheme.colorScheme.background == com.example.seacard.ui.theme.BlackBackground
+    val isDark = MaterialTheme.colorScheme.background == BlackBackground
     GradientBackground(darkTheme = isDark) {
         BackHandler(onBack = onBack)
         LaunchedEffect(Unit) {
@@ -171,7 +173,7 @@ fun CardCoverPickerScreen(
                                     val assetPath = "cards/$coverName"
                                     val imageBitmap: ImageBitmap? = try {
                                         val input = assetManager.open(assetPath)
-                                        val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                                        val bmp = BitmapFactory.decodeStream(input)
                                         input.close()
                                         bmp?.asImageBitmap()
                                     } catch (e: Exception) { null }

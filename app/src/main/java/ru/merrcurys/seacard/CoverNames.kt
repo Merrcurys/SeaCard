@@ -1,4 +1,4 @@
-package com.example.seacard
+package ru.merrcurys.seacard
 
 object CoverNames {
     val coverNameMap = mapOf(

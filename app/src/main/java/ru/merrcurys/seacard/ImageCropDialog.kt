@@ -1,4 +1,4 @@
-package com.example.seacard
+package ru.merrcurys.seacard
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -27,9 +27,11 @@ import java.io.InputStream
 import android.widget.Toast
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.onSizeChanged
-import com.example.seacard.ui.theme.SeaCardTheme
+import ru.merrcurys.seacard.ui.theme.SeaCardTheme
 
 @Composable
 fun ImageCropDialog(
@@ -116,29 +118,29 @@ fun ImageCropDialog(
                                 drawRect(
                                     color = Color.Black.copy(alpha = 0.45f),
                                     topLeft = Offset(0f, 0f),
-                                    size = androidx.compose.ui.geometry.Size(boxW, top)
+                                    size = Size(boxW, top)
                                 )
                                 drawRect(
                                     color = Color.Black.copy(alpha = 0.45f),
                                     topLeft = Offset(0f, bottom),
-                                    size = androidx.compose.ui.geometry.Size(boxW, boxH - bottom)
+                                    size = Size(boxW, boxH - bottom)
                                 )
                                 drawRect(
                                     color = Color.Black.copy(alpha = 0.45f),
                                     topLeft = Offset(0f, top),
-                                    size = androidx.compose.ui.geometry.Size(left, frameH)
+                                    size = Size(left, frameH)
                                 )
                                 drawRect(
                                     color = Color.Black.copy(alpha = 0.45f),
                                     topLeft = Offset(right, top),
-                                    size = androidx.compose.ui.geometry.Size(boxW - right, frameH)
+                                    size = Size(boxW - right, frameH)
                                 )
                                 // Скруглённая рамка
                                 drawRoundRect(
                                     color = Color.White,
                                     topLeft = Offset(left, top),
-                                    size = androidx.compose.ui.geometry.Size(frameW, frameH),
-                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(18.dp.toPx(), 18.dp.toPx()),
+                                    size = Size(frameW, frameH),
+                                    cornerRadius = CornerRadius(18.dp.toPx(), 18.dp.toPx()),
                                     style = Stroke(width = 3.dp.toPx())
                                 )
                             }
