@@ -29,6 +29,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.layout.navigationBarsPadding
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -301,7 +302,8 @@ fun CardInputSection(
                 onClick = onSaveCard,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .navigationBarsPadding(),
                 colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
                 enabled = cardName.isNotBlank() && cardCode.isNotBlank()
             ) {

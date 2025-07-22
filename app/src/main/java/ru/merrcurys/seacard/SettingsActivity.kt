@@ -55,6 +55,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import java.io.OutputStreamWriter
 import java.io.InputStreamReader
 import java.io.BufferedReader
+import androidx.compose.foundation.layout.navigationBarsPadding
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -392,6 +393,7 @@ fun SettingsScreen(
                 color = colorScheme.onSurface.copy(alpha = 0.5f),
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 16.dp)
+                    .navigationBarsPadding()
             )
         }
         // Диалог подтверждения удаления

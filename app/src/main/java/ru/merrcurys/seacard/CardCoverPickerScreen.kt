@@ -161,7 +161,7 @@ fun CardCoverPickerScreen(
                             )
                         }
                     } else {
-                        Box(modifier = Modifier.fillMaxSize().padding(bottom = 60.dp)) {
+                        Box(modifier = Modifier.fillMaxSize().padding(bottom = 70.dp)) {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(2),
                                 contentPadding = PaddingValues(8.dp),
@@ -246,9 +246,8 @@ fun CardCoverPickerScreen(
                     onClick = { onCoverSelected(null) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
                         .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
                 ) {
                     Text("Добавить вручную")
                 }
