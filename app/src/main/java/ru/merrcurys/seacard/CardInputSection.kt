@@ -30,6 +30,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,192 +114,206 @@ fun CardInputSection(
                     Spacer(modifier = Modifier.height(32.dp))
                 }
             }
-            OutlinedTextField(
-                value = cardName,
-                onValueChange = { if (it.length <= 20) onCardNameChange(it) },
-                label = { Text("Название карты") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = colorScheme.onSurface,
-                    unfocusedTextColor = colorScheme.onSurface,
-                    focusedBorderColor = colorScheme.primary,
-                    unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.5f),
-                    focusedLabelColor = colorScheme.primary,
-                    unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            )
-            OutlinedTextField(
-                value = cardCode,
-                onValueChange = {},
-                label = { Text("Код карты") },
-                readOnly = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = colorScheme.onSurface,
-                    unfocusedTextColor = colorScheme.onSurface,
-                    focusedBorderColor = colorScheme.primary,
-                    unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.5f),
-                    focusedLabelColor = colorScheme.primary,
-                    unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            )
-            if (coverAsset == null) {
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Text(
-                        text = "Выберите цвет карты",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            cardColors.take(5).forEach { color ->
-                                val isSelected = color == selectedColor
-                                val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
-                                Box(
-                                    modifier = Modifier
-                                        .size(50.dp)
-                                        .background(
-                                            color = Color(color),
-                                            shape = CircleShape
-                                        )
-                                        .border(
-                                            width = if (isSelected) 3.dp else 1.dp,
-                                            color = borderColor,
-                                            shape = CircleShape
-                                        )
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) { onColorChange(color) }
-                                )
-                            }
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            cardColors.drop(5).forEach { color ->
-                                val isSelected = color == selectedColor
-                                val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
-                                Box(
-                                    modifier = Modifier
-                                        .size(50.dp)
-                                        .background(
-                                            color = Color(color),
-                                            shape = CircleShape
-                                        )
-                                        .border(
-                                            width = if (isSelected) 3.dp else 1.dp,
-                                            color = borderColor,
-                                            shape = CircleShape
-                                        )
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) { onColorChange(color) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            // Добавляем UI для загрузки обложек
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+
+            Box(
+                modifier = Modifier.weight(1f)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    Text("Лицевая обложка", fontSize = 14.sp, color = colorScheme.onSurface)
-                    Box(
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = cardName,
+                        onValueChange = { if (it.length <= 20) onCardNameChange(it) },
+                        label = { Text("Название карты") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(1.7f)
-                            .height(70.dp)
-                            .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
-                            .clickable { onFrontCoverPick?.invoke() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (frontCoverUri != null) {
-                            val context = LocalContext.current
-                            val bitmap = remember(frontCoverUri) {
-                                val input = context.contentResolver.openInputStream(frontCoverUri)
-                                val bmp = BitmapFactory.decodeStream(input)
-                                input?.close()
-                                bmp
-                            }
-                            if (bitmap != null) {
-                                Image(
-                                    bitmap = bitmap.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(18.dp))
-                                )
-                            }
-                        } else {
-                            Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
-                        }
-                    }
-                    if (frontCoverUri != null && onFrontCoverRemove != null) {
-                        TextButton(onClick = { onFrontCoverRemove() }) {
-                            Text("Удалить")
-                        }
-                    }
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    Text("Тыльная обложка", fontSize = 14.sp, color = colorScheme.onSurface)
-                    Box(
+                            .padding(horizontal = 16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = colorScheme.onSurface,
+                            unfocusedTextColor = colorScheme.onSurface,
+                            focusedBorderColor = colorScheme.primary,
+                            unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.5f),
+                            focusedLabelColor = colorScheme.primary,
+                            unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    )
+                    OutlinedTextField(
+                        value = cardCode,
+                        onValueChange = {},
+                        label = { Text("Код карты") },
+                        readOnly = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(1.7f)
-                            .height(70.dp)
-                            .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
-                            .clickable { onBackCoverPick?.invoke() },
-                        contentAlignment = Alignment.Center
+                            .padding(horizontal = 16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = colorScheme.onSurface,
+                            unfocusedTextColor = colorScheme.onSurface,
+                            focusedBorderColor = colorScheme.primary,
+                            unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.5f),
+                            focusedLabelColor = colorScheme.primary,
+                            unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    )
+                    if (coverAsset == null) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                            Text(
+                                text = "Выберите цвет карты",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = colorScheme.onSurface,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    cardColors.take(5).forEach { color ->
+                                        val isSelected = color == selectedColor
+                                        val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(50.dp)
+                                                .background(
+                                                    color = Color(color),
+                                                    shape = CircleShape
+                                                )
+                                                .border(
+                                                    width = if (isSelected) 3.dp else 1.dp,
+                                                    color = borderColor,
+                                                    shape = CircleShape
+                                                )
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) { onColorChange(color) }
+                                        )
+                                    }
+                                }
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    cardColors.drop(5).forEach { color ->
+                                        val isSelected = color == selectedColor
+                                        val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(50.dp)
+                                                .background(
+                                                    color = Color(color),
+                                                    shape = CircleShape
+                                                )
+                                                .border(
+                                                    width = if (isSelected) 3.dp else 1.dp,
+                                                    color = borderColor,
+                                                    shape = CircleShape
+                                                )
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) { onColorChange(color) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Добавляем UI для загрузки обложек
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        if (backCoverUri != null) {
-                            val context = LocalContext.current
-                            val bitmap = remember(backCoverUri) {
-                                val input = context.contentResolver.openInputStream(backCoverUri)
-                                val bmp = BitmapFactory.decodeStream(input)
-                                input?.close()
-                                bmp
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                            Text("Лицевая обложка", fontSize = 14.sp, color = colorScheme.onSurface)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1.7f)
+                                    .height(70.dp)
+                                    .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
+                                    .clickable { onFrontCoverPick?.invoke() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (frontCoverUri != null) {
+                                    val context = LocalContext.current
+                                    val bitmap = remember(frontCoverUri) {
+                                        val input = context.contentResolver.openInputStream(frontCoverUri)
+                                        val bmp = BitmapFactory.decodeStream(input)
+                                        input?.close()
+                                        bmp
+                                    }
+                                    if (bitmap != null) {
+                                        Image(
+                                            bitmap = bitmap.asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(18.dp))
+                                        )
+                                    }
+                                } else {
+                                    Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
+                                }
                             }
-                            if (bitmap != null) {
-                                Image(
-                                    bitmap = bitmap.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(18.dp))
-                                )
+                            if (frontCoverUri != null && onFrontCoverRemove != null) {
+                                TextButton(onClick = { onFrontCoverRemove() }) {
+                                    Text("Удалить")
+                                }
                             }
-                        } else {
-                            Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                            Text("Тыльная обложка", fontSize = 14.sp, color = colorScheme.onSurface)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1.7f)
+                                    .height(70.dp)
+                                    .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
+                                    .clickable { onBackCoverPick?.invoke() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (backCoverUri != null) {
+                                    val context = LocalContext.current
+                                    val bitmap = remember(backCoverUri) {
+                                        val input = context.contentResolver.openInputStream(backCoverUri)
+                                        val bmp = BitmapFactory.decodeStream(input)
+                                        input?.close()
+                                        bmp
+                                    }
+                                    if (bitmap != null) {
+                                        Image(
+                                            bitmap = bitmap.asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(18.dp))
+                                        )
+                                    }
+                                } else {
+                                    Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
+                                }
+                            }
+                            if (backCoverUri != null && onBackCoverRemove != null) {
+                                TextButton(onClick = { onBackCoverRemove() }) {
+                                    Text("Удалить")
+                                }
+                            }
                         }
                     }
-                    if (backCoverUri != null && onBackCoverRemove != null) {
-                        TextButton(onClick = { onBackCoverRemove() }) {
-                            Text("Удалить")
-                        }
-                    }
+                    // Отступ внизу для кнопки
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Spacer(modifier = Modifier.weight(1f))
+            
+            // Кнопка "Сохранить"
             Button(
                 onClick = onSaveCard,
                 modifier = Modifier
