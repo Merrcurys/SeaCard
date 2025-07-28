@@ -73,6 +73,13 @@ import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
 import java.io.FileInputStream
 import java.io.InputStream
+import androidx.compose.ui.graphics.luminance
+
+// Функция для вычисления контрастного цвета текста
+fun getContrastTextColor(backgroundColor: Color): Color {
+    val luminance = backgroundColor.luminance()
+    return if (luminance > 0.5f) Color.Black else Color.White
+}
 
 @Composable
 fun rememberBitmapFromUri(uri: Uri?): Bitmap? {
@@ -226,6 +233,9 @@ class CardDetailActivity : ComponentActivity() {
                     baseColor,
                     backgroundColor
                 )
+                // Вычисляем контрастный цвет для текста на основе базового цвета градиента
+                val contrastTextColor = getContrastTextColor(baseColor)
+                
                 DynamicGradientBackground(colors = gradientColors) {
                     CardDetailScreen(
                         cardName = cardNameState,
@@ -252,7 +262,8 @@ class CardDetailActivity : ComponentActivity() {
                             frontCoverPath = getSharedPreferences("cards", MODE_PRIVATE)
                                 .getString("cover_front_${newName}_${newCode}", null)
                         },
-                        topBarContainerColor = Color.Transparent
+                        topBarContainerColor = Color.Transparent,
+                        topBarTextColor = contrastTextColor
                     )
                     
                     // Диалог запроса разрешения на изменение яркости
@@ -414,7 +425,8 @@ fun CardDetailScreen(
     onBack: () -> Unit,
     onDelete: () -> Unit,
     onEdit: (String, String, String, Int) -> Unit,
-    topBarContainerColor: Color = Color.Transparent
+    topBarContainerColor: Color = Color.Transparent,
+    topBarTextColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     var barcodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
     val colorScheme = MaterialTheme.colorScheme
@@ -514,19 +526,19 @@ fun CardDetailScreen(
                             text = editName,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = colorScheme.onSurface,
+                            color = topBarTextColor,
                             modifier = Modifier.padding(start = 8.dp)
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = topBarTextColor)
                         }
                     },
                     actions = {
                         Box {
                             IconButton(onClick = { showMenu = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "Меню", tint = colorScheme.onSurface)
+                                Icon(Icons.Default.MoreVert, contentDescription = "Меню", tint = topBarTextColor)
                             }
                             DropdownMenu(
                                 expanded = showMenu,
