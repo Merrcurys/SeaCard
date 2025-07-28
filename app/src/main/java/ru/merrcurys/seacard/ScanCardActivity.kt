@@ -259,7 +259,8 @@ class ScanCardActivity : ComponentActivity() {
                                         val bmp = BitmapFactory.decodeStream(input)
                                         input?.close()
                                         if (bmp != null) {
-                                            val fileName = "front_${cardName}_${cardCode}.webp"
+                                            val timestamp = System.currentTimeMillis()
+                                            val fileName = "front_${cardName}_$timestamp.webp"
                                             frontPath = saveBitmapAsWebp(context, bmp, fileName)
                                         }
                                     }
@@ -268,7 +269,8 @@ class ScanCardActivity : ComponentActivity() {
                                         val bmp = BitmapFactory.decodeStream(input)
                                         input?.close()
                                         if (bmp != null) {
-                                            val fileName = "back_${cardName}_${cardCode}.webp"
+                                            val timestamp = System.currentTimeMillis()
+                                            val fileName = "back_${cardName}_$timestamp.webp"
                                             backPath = saveBitmapAsWebp(context, bmp, fileName)
                                         }
                                     }

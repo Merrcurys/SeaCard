@@ -322,7 +322,7 @@ class CardDetailActivity : ComponentActivity() {
                             try { File(oldPath).delete() } catch (_: Exception) {}
                         }
                         val timestamp = System.currentTimeMillis()
-                        val fileName = "front_${cardName}_${cardCode}_$timestamp.webp"
+                        val fileName = "front_${cardName}_$timestamp.webp"
                         val path = saveBitmapAsWebp(context, croppedBitmap, fileName)
                         if (path != null) {
                             context.getSharedPreferences("cards", MODE_PRIVATE)
@@ -1119,7 +1119,7 @@ fun CardDetailScreen(
                     try { File(oldPath).delete() } catch (_: Exception) {}
                 }
                 val timestamp = System.currentTimeMillis()
-                val fileName = "back_${cardName}_${cardCode}_$timestamp.webp"
+                val fileName = "back_${cardName}_$timestamp.webp"
                 val path = saveBitmapAsWebp(context, croppedBitmap, fileName)
                 if (path != null) {
                     context.getSharedPreferences("cards", Context.MODE_PRIVATE)
