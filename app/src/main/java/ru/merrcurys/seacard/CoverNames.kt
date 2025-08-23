@@ -118,7 +118,7 @@ object CoverNames {
         "hohyeshe.webp" to "Хочу ещё!",
         "htc.webp" to "HTC",
         "hm.webp" to "H&M",
-        "hyundai.webp" to "HYANDAI",
+        "hyundai.webp" to "Hyundai",
         "ildebote.webp" to "Иль Де Ботэ",
         "incanto.webp" to "Incanto",
         "invitro.webp" to "INVITRO",
