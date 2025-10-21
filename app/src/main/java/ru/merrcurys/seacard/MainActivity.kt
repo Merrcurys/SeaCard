@@ -485,7 +485,8 @@ fun MainScreen(
                                     ),
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier
-                                        .height(100.dp)
+                                        // Устанавливаем соотношение сторон 1.574 для отображения карт
+                                        .aspectRatio(1.574f)
                                         .fillMaxWidth()
                                         .then(
                                             if (isSelected) Modifier

@@ -304,7 +304,7 @@ class ScanCardActivity : ComponentActivity() {
             if (showFrontCropDialog && frontCropImageUri != null) {
                 ImageCropDialog(
                     imageUri = frontCropImageUri!!,
-                    aspectRatio = 1.7f,
+                    aspectRatio = 1.574f,
                     onCrop = { croppedBitmap ->
                         // Сохраняем bitmap во временный файл и обновляем frontCoverUri
                         val file = File.createTempFile("front_crop_", ".webp", context.cacheDir)
@@ -324,7 +324,7 @@ class ScanCardActivity : ComponentActivity() {
             if (showBackCropDialog && backCropImageUri != null) {
                 ImageCropDialog(
                     imageUri = backCropImageUri!!,
-                    aspectRatio = 1.7f,
+                    aspectRatio = 1.574f,
                     onCrop = { croppedBitmap ->
                         val file = File.createTempFile("back_crop_", ".webp", context.cacheDir)
                         FileOutputStream(file).use { out ->

@@ -36,7 +36,8 @@ import ru.merrcurys.seacard.ui.theme.SeaCardTheme
 @Composable
 fun ImageCropDialog(
     imageUri: Uri,
-    aspectRatio: Float = 1.7f,
+    // Используем соотношение сторон 1.574
+    aspectRatio: Float = 1.574f,
     onCrop: (Bitmap) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -227,4 +228,4 @@ fun ImageCropDialog(
             textContentColor = colorScheme.onSurface
         )
     }
-} 
+}

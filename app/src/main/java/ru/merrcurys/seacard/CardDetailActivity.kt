@@ -295,7 +295,7 @@ class CardDetailActivity : ComponentActivity() {
             if (showCropDialog && cropImageUri != null) {
                 ImageCropDialog(
                     imageUri = cropImageUri!!,
-                    aspectRatio = 1.7f,
+                    aspectRatio = 1.574f,
                     onCrop = { croppedBitmap ->
                         // Удаляем старый файл, если был
                         frontCoverPath?.let { oldPath ->
@@ -877,7 +877,8 @@ fun CardDetailScreen(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(80.dp)
+                                        // Устанавливаем соотношение сторон 1.574
+                                        .aspectRatio(1.574f)
                                         .clip(RoundedCornerShape(18.dp))
                                         .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
                                         .clickable {
@@ -939,7 +940,8 @@ fun CardDetailScreen(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(80.dp)
+                                        // Устанавливаем соотношение сторон 1.574
+                                        .aspectRatio(1.574f)
                                         .clip(RoundedCornerShape(18.dp))
                                         .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
                                         .clickable {
@@ -1092,7 +1094,7 @@ fun CardDetailScreen(
     if (showBackCropDialog && backCropImageUri != null) {
         ImageCropDialog(
             imageUri = backCropImageUri!!,
-            aspectRatio = 1.7f,
+            aspectRatio = 1.574f,
             onCrop = { croppedBitmap ->
                 // Удаляем старый файл, если был
                 backCoverPath?.let { oldPath ->

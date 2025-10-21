@@ -181,7 +181,8 @@ fun CardCoverPickerScreen(
                                     Card(
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier
-                                            .height(100.dp)
+                                            // Устанавливаем соотношение сторон 1.574
+                                            .aspectRatio(1.574f)
                                             .fillMaxWidth()
                                             .clickable { onCoverSelected(assetPath) },
                                         colors = CardDefaults.cardColors(containerColor = Color.Transparent)

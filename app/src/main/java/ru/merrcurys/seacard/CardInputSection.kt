@@ -236,7 +236,7 @@ fun CardInputSection(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .aspectRatio(1.7f)
+                                    .aspectRatio(1.574f)
                                     .height(70.dp)
                                     .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
                                     .clickable { onFrontCoverPick?.invoke() },
@@ -274,7 +274,7 @@ fun CardInputSection(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .aspectRatio(1.7f)
+                                    .aspectRatio(1.574f)
                                     .height(70.dp)
                                     .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
                                     .clickable { onBackCoverPick?.invoke() },
