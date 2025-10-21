@@ -85,7 +85,7 @@ fun ImageCropDialog(
                                 .fillMaxSize()
                                 .pointerInput(Unit) {
                                     detectTransformGestures { _, pan, zoom, _ ->
-                                        scale = (scale * zoom).coerceIn(1f, 5f)
+                                        scale = (scale * zoom).coerceIn(0.1f, 5f)
                                         offset += pan
                                     }
                                 },
@@ -136,13 +136,25 @@ fun ImageCropDialog(
                                     topLeft = Offset(right, top),
                                     size = Size(boxW - right, frameH)
                                 )
-                                // Скруглённая рамка
-                                drawRoundRect(
+                                drawRect(
                                     color = Color.White,
-                                    topLeft = Offset(left, top),
-                                    size = Size(frameW, frameH),
-                                    cornerRadius = CornerRadius(18.dp.toPx(), 18.dp.toPx()),
-                                    style = Stroke(width = 3.dp.toPx())
+                                    topLeft = Offset(left - 2, top - 2),
+                                    size = Size(frameW + 4, 2f)
+                                )
+                                drawRect(
+                                    color = Color.White,
+                                    topLeft = Offset(left - 2, bottom),
+                                    size = Size(frameW + 4, 2f)
+                                )
+                                drawRect(
+                                    color = Color.White,
+                                    topLeft = Offset(left - 2, top),
+                                    size = Size(2f, frameH)
+                                )
+                                drawRect(
+                                    color = Color.White,
+                                    topLeft = Offset(right, top),
+                                    size = Size(2f, frameH)
                                 )
                             }
                         }
@@ -164,44 +176,65 @@ fun ImageCropDialog(
                         val frameH = frameW / aspectRatio
                         val frameLeft = (boxW - frameW) / 2f
                         val frameTop = (boxH - frameH) / 2f
+                        val frameRight = frameLeft + frameW
+                        val frameBottom = frameTop + frameH
 
                         val bitmapW = bitmap.width.toFloat()
                         val bitmapH = bitmap.height.toFloat()
+                        
+                        // Рассчитываем, как изображение отображается на экране
+                        // Сначала изображение центрируется и масштабируется до fit
                         val fitScale = minOf(boxW / bitmapW, boxH / bitmapH)
-                        val displayedW = bitmapW * fitScale * scale
-                        val displayedH = bitmapH * fitScale * scale
-                        val imageLeft = (boxW - displayedW) / 2f + offset.x
-                        val imageTop = (boxH - displayedH) / 2f + offset.y
-
-                        val cropLeft = ((frameLeft - imageLeft) / displayedW) * bitmapW
-                        val cropTop = ((frameTop - imageTop) / displayedH) * bitmapH
-                        val cropWidth = (frameW / displayedW) * bitmapW
-                        val cropHeight = (frameH / displayedH) * bitmapH
-
-                        val cropLeftClamped = cropLeft.coerceIn(0f, bitmapW - 1)
-                        val cropTopClamped = cropTop.coerceIn(0f, bitmapH - 1)
-                        val cropWidthClamped = cropWidth.coerceAtMost(bitmapW - cropLeftClamped)
-                        val cropHeightClamped = cropHeight.coerceAtMost(bitmapH - cropTopClamped)
-
-                        val rect = Rect(
-                            cropLeftClamped.toInt(),
-                            cropTopClamped.toInt(),
-                            (cropLeftClamped + cropWidthClamped).toInt().coerceAtMost(bitmap.width),
-                            (cropTopClamped + cropHeightClamped).toInt().coerceAtMost(bitmap.height)
-                        )
-                        val croppedWidth = rect.width()
-                        val croppedHeight = rect.height()
-                        if (croppedWidth > 0 && croppedHeight > 0) {
-                            val cropped = Bitmap.createBitmap(
-                                bitmap,
-                                rect.left,
-                                rect.top,
-                                croppedWidth,
-                                croppedHeight
+                        // Затем применяется пользовательский масштаб
+                        val finalScale = fitScale * scale
+                        
+                        // Размеры изображения на экране
+                        val displayedW = bitmapW * finalScale
+                        val displayedH = bitmapH * finalScale
+                        
+                        // Позиция изображения на экране с учетом смещения
+                        val imageLeftOnScreen = (boxW - displayedW) / 2f + offset.x
+                        val imageTopOnScreen = (boxH - displayedH) / 2f + offset.y
+                        
+                        // Преобразуем координаты кадрирования из экрана в изображение
+                        val scaleX = bitmapW / displayedW
+                        val scaleY = bitmapH / displayedH
+                        
+                        // Координаты обрезки в пикселях исходного изображения
+                        val cropLeft = ((frameLeft - imageLeftOnScreen) * scaleX).coerceIn(0f, bitmapW)
+                        val cropTop = ((frameTop - imageTopOnScreen) * scaleY).coerceIn(0f, bitmapH)
+                        val cropRight = ((frameRight - imageLeftOnScreen) * scaleX).coerceIn(0f, bitmapW)
+                        val cropBottom = ((frameBottom - imageTopOnScreen) * scaleY).coerceIn(0f, bitmapH)
+                        
+                        // Убеждаемся, что координаты в правильном порядке
+                        val finalCropLeft = minOf(cropLeft, cropRight)
+                        val finalCropTop = minOf(cropTop, cropBottom)
+                        val finalCropRight = maxOf(cropLeft, cropRight)
+                        val finalCropBottom = maxOf(cropTop, cropBottom)
+                        
+                        // Проверяем, что область обрезки корректна
+                        if (finalCropRight > finalCropLeft + 1 && finalCropBottom > finalCropTop + 1) {
+                            val rect = Rect(
+                                finalCropLeft.toInt(),
+                                finalCropTop.toInt(),
+                                finalCropRight.toInt(),
+                                finalCropBottom.toInt()
                             )
-                            onCrop(cropped)
+                            
+                            try {
+                                val cropped = Bitmap.createBitmap(
+                                    bitmap,
+                                    rect.left,
+                                    rect.top,
+                                    rect.width(),
+                                    rect.height()
+                                )
+                                onCrop(cropped)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Ошибка при кадрировании: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
                         } else {
-                            Toast.makeText(context, "Некорректная область кадрирования", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Выберите большую область для кадрирования", Toast.LENGTH_LONG).show()
                         }
                     },
                     modifier = Modifier
