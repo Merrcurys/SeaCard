@@ -190,7 +190,6 @@ class CardDetailActivity : ComponentActivity() {
             ) }
             var showDeleteDialog by remember { mutableStateOf(false) }
             var isDark by remember { mutableStateOf(loadThemePref(this@CardDetailActivity)) }
-            var showPermissionDialog by remember { mutableStateOf(!hasBrightnessPermission) }
             var cardNameState by remember { mutableStateOf(cardName) }
             var cardCodeState by remember { mutableStateOf(cardCode) }
             var codeTypeState by remember { mutableStateOf(codeType) }
@@ -264,38 +263,6 @@ class CardDetailActivity : ComponentActivity() {
                         topBarContainerColor = Color.Transparent,
                         topBarTextColor = contrastTextColor
                     )
-                    
-                    // Remove the permission dialog since we don't need system-wide permission
-                    /*
-                    // Диалог запроса разрешения на изменение яркости
-                    if (showPermissionDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showPermissionDialog = false },
-                            title = { Text("Разрешение на изменение яркости") },
-                            text = { Text("Для лучшего сканирования кодов приложению нужно разрешение на изменение яркости экрана. Перейдите в настройки и включите разрешение для Море карт.") },
-                            confirmButton = {
-                                TextButton(
-                                    onClick = {
-                                        val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
-                                        intent.data = "package:$packageName".toUri()
-                                        startActivity(intent)
-                                        showPermissionDialog = false
-                                    }
-                                ) {
-                                    Text("Настройки", color = MaterialTheme.colorScheme.primary)
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showPermissionDialog = false }) {
-                                    Text("Отмена")
-                                }
-                            },
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            titleContentColor = MaterialTheme.colorScheme.onSurface,
-                            textContentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    */
                     
                     // Диалог подтверждения удаления
                     if (showDeleteDialog) {
