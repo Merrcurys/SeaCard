@@ -174,14 +174,13 @@ class CardDetailActivity : ComponentActivity() {
         val cardColor = intent.getIntExtra("card_color", 0xFFFFFFFF.toInt())
         val coverAsset = intent.getStringExtra("cover_asset")
         
-        // Проверяем разрешение на изменение яркости
-        hasBrightnessPermission = Settings.System.canWrite(this)
-        
-        // Сохраняем текущую яркость и увеличиваем её
-        if (hasBrightnessPermission) {
+        // Сохранение текущей яркости и увеличение ее.
+        originalBrightness = window.attributes.screenBrightness
+        // If screenBrightness is -1, it means it's using system brightness
+        if (originalBrightness == -1f) {
             originalBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
-            setBrightness(1.0f) // Максимальная яркость
         }
+        setBrightness(1.0f) // Максимальная яркость
         
         setContent {
             // frontCoverPath нужен для LaunchedEffect с доминантным цветом
@@ -266,6 +265,8 @@ class CardDetailActivity : ComponentActivity() {
                         topBarTextColor = contrastTextColor
                     )
                     
+                    // Remove the permission dialog since we don't need system-wide permission
+                    /*
                     // Диалог запроса разрешения на изменение яркости
                     if (showPermissionDialog) {
                         AlertDialog(
@@ -294,6 +295,7 @@ class CardDetailActivity : ComponentActivity() {
                             textContentColor = MaterialTheme.colorScheme.onSurface
                         )
                     }
+                    */
                     
                     // Диалог подтверждения удаления
                     if (showDeleteDialog) {
@@ -354,15 +356,14 @@ class CardDetailActivity : ComponentActivity() {
     
     override fun onDestroy() {
         super.onDestroy()
-        // Восстанавливаем оригинальную яркость при закрытии экрана
-        if (hasBrightnessPermission) {
-            setBrightness(originalBrightness)
-        }
+        // Restore original brightness when closing the screen
+        setBrightness(originalBrightness)
     }
     
     private fun setBrightness(brightness: Float) {
         try {
             val layoutParams = window.attributes
+            // Use coerceIn to ensure brightness is between 0.01 and 1.0
             layoutParams.screenBrightness = brightness.coerceIn(0.01f, 1.0f)
             window.attributes = layoutParams
         } catch (e: Exception) {
