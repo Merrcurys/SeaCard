@@ -35,6 +35,34 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.layout.ContentScale
 
+// Функция для загрузки bitmap из URI или asset
+@Composable
+fun loadBitmap(frontCoverUri: Uri?, coverAsset: String?): android.graphics.Bitmap? {
+    val context = LocalContext.current
+    return remember(frontCoverUri, coverAsset) {
+        try {
+            var result: android.graphics.Bitmap? = null
+            frontCoverUri?.let { uri ->
+                try {
+                    val input = context.contentResolver.openInputStream(uri)
+                    val bmp = BitmapFactory.decodeStream(input)
+                    input?.close()
+                    result = bmp
+                } catch (_: Exception) { }
+            }
+            if (result == null && coverAsset != null) {
+                try {
+                    val input = context.assets.open(coverAsset)
+                    val bmp = BitmapFactory.decodeStream(input)
+                    input.close()
+                    result = bmp
+                } catch (_: Exception) { }
+            }
+            result
+        } catch (_: Exception) { null }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardInputSection(
@@ -245,29 +273,23 @@ fun CardInputSection(
                                     .clickable { onFrontCoverPick?.invoke() },
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (frontCoverUri != null) {
-                                    val context = LocalContext.current
-                                    val bitmap = remember(frontCoverUri) {
-                                        val input = context.contentResolver.openInputStream(frontCoverUri)
-                                        val bmp = BitmapFactory.decodeStream(input)
-                                        input?.close()
-                                        bmp
-                                    }
-                                    if (bitmap != null) {
-                                        Image(
-                                            bitmap = bitmap.asImageBitmap(),
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clip(RoundedCornerShape(18.dp))
-                                        )
-                                    }
+                                // Показываем загруженную обложку или стандартную обложку
+                                val frontBitmap = loadBitmap(frontCoverUri, coverAsset)
+
+                                if (frontBitmap != null) {
+                                    Image(
+                                        bitmap = frontBitmap.asImageBitmap(),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(18.dp))
+                                    )
                                 } else {
                                     Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
                                 }
                             }
-                            if (frontCoverUri != null && onFrontCoverRemove != null) {
+                            if ((frontCoverUri != null || coverAsset != null) && onFrontCoverRemove != null) {
                                 TextButton(onClick = { onFrontCoverRemove() }) {
                                     Text("Удалить")
                                 }
@@ -286,10 +308,12 @@ fun CardInputSection(
                                 if (backCoverUri != null) {
                                     val context = LocalContext.current
                                     val bitmap = remember(backCoverUri) {
-                                        val input = context.contentResolver.openInputStream(backCoverUri)
-                                        val bmp = BitmapFactory.decodeStream(input)
-                                        input?.close()
-                                        bmp
+                                        try {
+                                            val input = context.contentResolver.openInputStream(backCoverUri)
+                                            val bmp = BitmapFactory.decodeStream(input)
+                                            input?.close()
+                                            bmp
+                                        } catch (_: Exception) { null }
                                     }
                                     if (bitmap != null) {
                                         Image(

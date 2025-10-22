@@ -174,7 +174,6 @@ class CardDetailActivity : ComponentActivity() {
         
         // Сохранение текущей яркости и увеличение ее.
         originalBrightness = window.attributes.screenBrightness
-        // If screenBrightness is -1, it means it's using system brightness
         if (originalBrightness == -1f) {
             originalBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
         }
@@ -438,7 +437,7 @@ fun CardDetailScreen(
     val frontCoverUri = frontCoverPath?.let { android.net.Uri.fromFile(java.io.File(it)) }
     val backCoverUri = backCoverPath?.let { android.net.Uri.fromFile(java.io.File(it)) }
     // Показываем frontCoverPath (webp) если есть, иначе coverAsset (assets/cards)
-    val coverBitmap: ImageBitmap? = remember(frontCoverPath to coverAsset) {
+    val coverBitmap: ImageBitmap? = remember(frontCoverPath, coverAsset) {
         try {
             var result: ImageBitmap? = null
             frontCoverPath?.let { path ->
@@ -890,49 +889,49 @@ fun CardDetailScreen(
                                                 }
                                             }
                                         },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    val frontBitmap = frontCoverPath?.let { path ->
-                                        try {
-                                            BitmapFactory.decodeFile(path)
-                                        } catch (_: Exception) { null }
-                                    } ?: frontImageUri?.let { rememberBitmapFromUri(it) }
-                                    if (frontBitmap != null) {
-                                        Image(
-                                            bitmap = frontBitmap.asImageBitmap(),
-                                            contentDescription = "Лицевая сторона",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    } else if (coverBitmap != null) {
-                                        Image(
-                                            bitmap = coverBitmap,
-                                            contentDescription = "Лицевая сторона",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.Image,
-                                            contentDescription = null,
-                                            tint = colorScheme.primary,
-                                            modifier = Modifier.size(40.dp)
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .fillMaxWidth()
-                                            .background(Color.Black.copy(alpha = 0.3f))
-                                    ) {
-                                        Text(
-                                            text = "Лицевая сторона",
-                                            color = Color.White,
-                                            fontSize = 13.sp,
-                                            modifier = Modifier.align(Alignment.Center)
-                                        )
-                                    }
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val frontBitmap = frontCoverPath?.let { path ->
+                                    try {
+                                        BitmapFactory.decodeFile(path)
+                                    } catch (_: Exception) { null }
+                                } ?: frontImageUri?.let { rememberBitmapFromUri(it) } ?: coverBitmap?.let { null }
+                                if (frontBitmap != null) {
+                                    Image(
+                                        bitmap = frontBitmap.asImageBitmap(),
+                                        contentDescription = "Лицевая сторона",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else if (coverBitmap != null) {
+                                    Image(
+                                        bitmap = coverBitmap,
+                                        contentDescription = "Лицевая сторона",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Image,
+                                        contentDescription = null,
+                                        tint = colorScheme.primary,
+                                        modifier = Modifier.size(40.dp)
+                                    )
                                 }
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .fillMaxWidth()
+                                        .background(Color.Black.copy(alpha = 0.3f))
+                                ) {
+                                    Text(
+                                        text = "Лицевая сторона",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.align(Alignment.Center)
+                                    )
+                                }
+                            }
                                 // Тыльная сторона
                                 Box(
                                     modifier = Modifier
@@ -1147,21 +1146,14 @@ private fun generateQRCode(content: String): Bitmap? {
         val height = bitMatrix.height
         val bitmap = createBitmap(width, height)
         
-        // Создаем красивый QR-код с закругленными углами
+        // Создаем простой черно-белый QR-код
         for (x in 0 until width) {
             for (y in 0 until height) {
                 val isBlack = bitMatrix[x, y]
                 
-                // Определяем, находимся ли мы в угловых маркерах (3 больших квадрата)
-                val isCornerMarker = isInCornerMarker(x, y, width, height)
-                
                 if (isBlack) {
-                    if (isCornerMarker) {
-                        // Темно-синий цвет для угловых маркеров
-                        bitmap[x, y] = AndroidColor.rgb(25, 118, 210)
-                    } else
-                        // Черный цвет для остальных элементов
-                        bitmap[x, y] = AndroidColor.BLACK
+                    // Черный цвет
+                    bitmap[x, y] = AndroidColor.BLACK
                 } else {
                     // Белый фон
                     bitmap[x, y] = AndroidColor.WHITE
