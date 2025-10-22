@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -237,7 +238,6 @@ fun CardInputSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(1.574f)
-                                    .height(70.dp)
                                     .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
                                     .clickable { onFrontCoverPick?.invoke() },
                                 contentAlignment = Alignment.Center
@@ -254,6 +254,7 @@ fun CardInputSection(
                                         Image(
                                             bitmap = bitmap.asImageBitmap(),
                                             contentDescription = null,
+                                            contentScale = ContentScale.Crop,
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .clip(RoundedCornerShape(18.dp))
@@ -275,7 +276,6 @@ fun CardInputSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(1.574f)
-                                    .height(70.dp)
                                     .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
                                     .clickable { onBackCoverPick?.invoke() },
                                 contentAlignment = Alignment.Center
@@ -292,6 +292,7 @@ fun CardInputSection(
                                         Image(
                                             bitmap = bitmap.asImageBitmap(),
                                             contentDescription = null,
+                                            contentScale = ContentScale.Crop,
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .clip(RoundedCornerShape(18.dp))
