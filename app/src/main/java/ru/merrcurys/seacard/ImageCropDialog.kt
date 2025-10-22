@@ -27,7 +27,6 @@ import java.io.InputStream
 import android.widget.Toast
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.onSizeChanged
@@ -156,6 +155,28 @@ fun ImageCropDialog(
                                     topLeft = Offset(right, top),
                                     size = Size(2f, frameH)
                                 )
+                                
+                                // Сетка, для лучшего центрирования
+                                val gridLines = 2
+                                val gridStroke = Stroke(1f)
+                                for (i in 1..gridLines) {
+                                    // Vertical lines
+                                    val vX = left + (frameW / (gridLines + 1)) * i
+                                    drawLine(
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        start = Offset(vX, top),
+                                        end = Offset(vX, bottom),
+                                        strokeWidth = gridStroke.width
+                                    )
+                                    
+                                    val hY = top + (frameH / (gridLines + 1)) * i
+                                    drawLine(
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        start = Offset(left, hY),
+                                        end = Offset(right, hY),
+                                        strokeWidth = gridStroke.width
+                                    )
+                                }
                             }
                         }
                     }
