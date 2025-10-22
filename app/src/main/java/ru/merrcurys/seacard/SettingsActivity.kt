@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -22,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import ru.merrcurys.seacard.ui.theme.SeaCardTheme
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.getValue
@@ -39,11 +39,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import ru.merrcurys.seacard.ui.theme.GradientBackground
@@ -56,6 +51,9 @@ import java.io.OutputStreamWriter
 import java.io.InputStreamReader
 import java.io.BufferedReader
 import androidx.compose.foundation.layout.navigationBarsPadding
+import ru.merrcurys.seacard.ui.theme.BerlinAzure
+import ru.merrcurys.seacard.ui.theme.GradientColorOption
+import ru.merrcurys.seacard.ui.theme.rememberGradientState
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -148,21 +146,19 @@ class SettingsActivity : ComponentActivity() {
         importCards = { importLauncher.launch("text/plain") }
         setContent {
             val context = this
-            var isDark by remember { mutableStateOf(loadThemePref(context)) }
-            LaunchedEffect(isDark) {
-                val window = this@SettingsActivity.window
-                WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !isDark
-            }
+            // Always use dark theme
+            val gradientState = rememberGradientState(context)
             LaunchedEffect(Unit) {
-                isDark = loadThemePref(context)
+                val window = this@SettingsActivity.window
+                WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
             }
-            SeaCardTheme(darkTheme = isDark) {
-                GradientBackground(darkTheme = isDark) {
+            SeaCardTheme {
+                GradientBackground(gradientColor = gradientState.gradientColor) {
                     SettingsScreen(
-                        isDarkTheme = isDark,
-                        onThemeChange = { dark ->
-                            isDark = dark
-                            saveThemePref(context, dark)
+                        gradientColor = gradientState.gradientColor,
+                        onGradientColorChange = { color ->
+                            gradientState.updateGradientColor(color)
+                            saveGradientColorPref(context, color)
                         },
                         onBack = { finish() },
                         topBarContainerColor = Color.Transparent,
@@ -174,22 +170,17 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    private fun loadThemePref(context: Context): Boolean {
+    private fun saveGradientColorPref(context: Context, color: Color) {
         val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-        return prefs.getBoolean("dark_theme", true)
-    }
-
-    private fun saveThemePref(context: Context, dark: Boolean) {
-        val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-        prefs.edit { putBoolean("dark_theme", dark) }
+        prefs.edit { putInt("gradient_color", color.hashCode()) }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    isDarkTheme: Boolean,
-    onThemeChange: (Boolean) -> Unit,
+    gradientColor: Color,
+    onGradientColorChange: (Color) -> Unit,
     onBack: () -> Unit,
     topBarContainerColor: Color = Color.Transparent,
     onExport: () -> Unit = {},
@@ -213,94 +204,62 @@ fun SettingsScreen(
                 title = { Text("Настройки", color = colorScheme.onSurface, fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
             Spacer(modifier = Modifier.height(32.dp))
-            // Тумблер смены темы
+            
+            // Выбор градиентного цвета
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
-                color = if (isDarkTheme) colorScheme.onPrimary else colorScheme.primary,
+                color = colorScheme.onPrimary,
                 modifier = Modifier
                     .padding(horizontal = 32.dp)
                     .fillMaxWidth()
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(20.dp)
                 ) {
                     Text(
-                        text = "Тема приложения",
-                        color = if (isDarkTheme) colorScheme.onSurface else colorScheme.onPrimary,
+                        text = "Градиентный цвет",
+                        color = colorScheme.onSurface,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 18.sp
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
                     )
-                    // Кастомный тумблер
-                    val switchWidth = 64.dp
-                    val switchHeight = 36.dp
-                    val thumbSize = 32.dp
-                    val padding = 2.dp
-                    val thumbOffset by animateDpAsState(
-                        targetValue = if (isDarkTheme) switchWidth - thumbSize - padding else padding,
-                        animationSpec = tween(durationMillis = 300), label = "thumbOffset"
-                    )
-                    val trackColor by animateColorAsState(
-                        targetValue = colorScheme.surfaceVariant,
-                        animationSpec = tween(durationMillis = 300), label = "trackColor"
-                    )
-                    val iconColor = if (isDarkTheme) Color.White else Color(0xFF222222)
-                    Box(
-                        modifier = Modifier
-                            .width(switchWidth)
-                            .height(switchHeight)
-                            .background(trackColor, shape = RoundedCornerShape(18.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { onThemeChange(!isDarkTheme) },
-                        contentAlignment = Alignment.CenterStart
+                    
+                    // Цветовые варианты
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Солнце
-                        Icon(
-                            imageVector = Icons.Filled.LightMode,
-                            contentDescription = "Светлая тема",
-                            tint = iconColor,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .align(Alignment.CenterStart)
-                                .padding(start = 6.dp)
-                        )
-                        // Луна
-                        Icon(
-                            imageVector = Icons.Filled.DarkMode,
-                            contentDescription = "Темная тема",
-                            tint = iconColor,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 6.dp)
-                        )
-                        // Кружок
-                        Box(
-                            modifier = Modifier
-                                .offset(x = thumbOffset)
-                                .size(thumbSize)
-                                .background(
-                                    if (isDarkTheme) colorScheme.primary else colorScheme.onPrimary,
-                                    shape = CircleShape
-                                )
-                                .border(1.dp, colorScheme.onSurface.copy(alpha = 0.1f), CircleShape)
-                        )
+                        GradientColorOption.values().forEach { option ->
+                            val isSelected = gradientColor == option.color
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        color = option.color,
+                                        shape = CircleShape
+                                    )
+                                    .border(
+                                        width = if (isSelected) 3.dp else 0.dp,
+                                        color = Color.White,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { onGradientColorChange(option.color) }
+                            )
+                        }
                     }
                 }
             }
+            
             Spacer(modifier = Modifier.height(24.dp))
             // Кнопка Telegram
             Button(
@@ -310,8 +269,8 @@ fun SettingsScreen(
                 },
                 shape = RoundedCornerShape(14.dp),
                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = if (isDarkTheme) colorScheme.onPrimary else colorScheme.primary,
-                    contentColor = if (isDarkTheme) colorScheme.onSurface else colorScheme.onPrimary
+                    containerColor = colorScheme.onPrimary,
+                    contentColor = colorScheme.onSurface
                 ),
                 elevation = null,
                 modifier = Modifier
@@ -332,8 +291,8 @@ fun SettingsScreen(
                     onClick = onExport,
                     shape = RoundedCornerShape(14.dp),
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = if (isDarkTheme) colorScheme.onPrimary else colorScheme.primary,
-                        contentColor = if (isDarkTheme) colorScheme.onSurface else colorScheme.onPrimary
+                        containerColor = colorScheme.onPrimary,
+                        contentColor = colorScheme.onSurface
                     ),
                     elevation = null,
                     modifier = Modifier.weight(1f)
@@ -341,7 +300,7 @@ fun SettingsScreen(
                     Icon(
                         imageVector = Icons.Filled.ArrowUpward,
                         contentDescription = null,
-                        tint = if (isDarkTheme) colorScheme.onSurface else colorScheme.onPrimary,
+                        tint = colorScheme.onSurface,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -351,8 +310,8 @@ fun SettingsScreen(
                     onClick = onImport,
                     shape = RoundedCornerShape(14.dp),
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = if (isDarkTheme) colorScheme.onPrimary else colorScheme.primary,
-                        contentColor = if (isDarkTheme) colorScheme.onSurface else colorScheme.onPrimary
+                        containerColor = colorScheme.onPrimary,
+                        contentColor = colorScheme.onSurface
                     ),
                     elevation = null,
                     modifier = Modifier.weight(1f)
@@ -360,7 +319,7 @@ fun SettingsScreen(
                     Icon(
                         imageVector = Icons.Filled.ArrowDownward,
                         contentDescription = null,
-                        tint = if (isDarkTheme) colorScheme.onSurface else colorScheme.onPrimary,
+                        tint = colorScheme.onSurface,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -439,12 +398,12 @@ fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = composed {
 @Preview(showBackground = true)
 @Composable
 fun SettingsScreenPreview() {
-    SeaCardTheme(darkTheme = true) {
+    SeaCardTheme {
         SettingsScreen(
-            isDarkTheme = true,
-            onThemeChange = {},
+            gradientColor = BerlinAzure,
+            onGradientColorChange = {},
             onBack = {},
             topBarContainerColor = Color.Transparent
         )
     }
-} 
+}

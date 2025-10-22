@@ -2,7 +2,6 @@ package ru.merrcurys.seacard.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
@@ -22,58 +21,44 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = Color(0xFFFFFFFF),
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF444444),
-    onPrimary = Color(0xFFF5F5F5),
-    secondary = Color(0xFFE0E0E0),
-    onSecondary = Color(0xFF232323),
-    background = Color(0xFFF5F5F5),
-    onBackground = Color(0xFF232323),
-    surface = Color(0xFFEAEAEA),
-    onSurface = Color(0xFF232323),
-)
+// Градиенты
+enum class GradientColorOption(val color: Color) {
+    BLUE(BerlinAzure),
+    GREEN(GreenGradient),
+    PURPLE(PurpleGradient),
+    RED(RedGradient),
+    ORANGE(OrangeGradient)
+}
 
 @Composable
 fun SeaCardTheme(
-    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = DarkColorScheme,
         typography = Typography,
         content = content
     )
 }
 
 @Composable
-fun GradientBackground(darkTheme: Boolean, content: @Composable () -> Unit) {
+fun GradientBackground(
+    gradientColor: Color = BerlinAzure,
+    content: @Composable () -> Unit
+) {
     Box(modifier = Modifier.fillMaxSize()) {
-        val gradient = if (darkTheme) {
-            Brush.verticalGradient(
-                colorStops = arrayOf(
-                    0.0f to BerlinAzure,
-                    0.6f to BlackBackground,
-                    1.0f to BlackBackground
-                )
+        val gradient = Brush.verticalGradient(
+            colorStops = arrayOf(
+                0.0f to gradientColor,
+                0.6f to BlackBackground,
+                1.0f to BlackBackground
             )
-        } else {
-            // Просто белый фон без градиента
-            null
-        }
-        if (gradient != null) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(gradient)
-            ) {}
-        } else {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(LightColorScheme.background)
-            ) {}
-        }
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(gradient)
+        ) {}
         content()
     }
 }

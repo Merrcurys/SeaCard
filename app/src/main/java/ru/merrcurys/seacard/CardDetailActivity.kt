@@ -13,7 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,7 +32,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import android.provider.Settings
-import android.content.Intent
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
@@ -46,7 +45,6 @@ import com.google.zxing.qrcode.QRCodeWriter
 import androidx.core.graphics.set
 import androidx.core.graphics.createBitmap
 import androidx.core.content.edit
-import androidx.core.net.toUri
 import com.google.zxing.datamatrix.encoder.SymbolShapeHint
 import android.graphics.BitmapFactory
 import androidx.compose.ui.draw.shadow
@@ -224,7 +222,7 @@ class CardDetailActivity : ComponentActivity() {
                 }
             }
             
-            SeaCardTheme(darkTheme = isDark) {
+            SeaCardTheme {
                 val baseColor = dominantColor?.let { Color(it) } ?: Color(cardColorState)
                 val backgroundColor = MaterialTheme.colorScheme.background
                 val gradientColors = listOf(
@@ -323,14 +321,12 @@ class CardDetailActivity : ComponentActivity() {
     
     override fun onDestroy() {
         super.onDestroy()
-        // Restore original brightness when closing the screen
         setBrightness(originalBrightness)
     }
     
     private fun setBrightness(brightness: Float) {
         try {
             val layoutParams = window.attributes
-            // Use coerceIn to ensure brightness is between 0.01 and 1.0
             layoutParams.screenBrightness = brightness.coerceIn(0.01f, 1.0f)
             window.attributes = layoutParams
         } catch (e: Exception) {
@@ -500,7 +496,7 @@ fun CardDetailScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = topBarTextColor)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = topBarTextColor)
                         }
                     },
                     actions = {

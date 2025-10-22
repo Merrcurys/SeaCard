@@ -40,6 +40,7 @@ import androidx.core.content.ContextCompat
 import ru.merrcurys.seacard.ui.theme.SeaCardTheme
 import ru.merrcurys.seacard.ui.theme.BlackBackground
 import ru.merrcurys.seacard.ui.theme.GradientBackground
+import ru.merrcurys.seacard.ui.theme.GradientUtils
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
@@ -55,7 +56,6 @@ import java.io.FileOutputStream
 
 class ScanCardActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
-    private var scannedCode: String? = null
     private var scannedCodeType: String = "barcode"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,7 +72,6 @@ class ScanCardActivity : ComponentActivity() {
             var cardName by remember { mutableStateOf(initialCardName) }
             var cardCode by remember { mutableStateOf("") }
             var scanSuccess by remember { mutableStateOf(false) }
-            var isDark by remember { mutableStateOf(loadThemePref(this@ScanCardActivity)) }
             var selectedColor by remember { mutableStateOf(0xFFFFFFFF.toInt()) }
             var scanned by remember { mutableStateOf(false) }
             var cardSaved by remember { mutableStateOf(false) }
@@ -202,10 +201,10 @@ class ScanCardActivity : ComponentActivity() {
                 }
             }
 
-            SeaCardTheme(darkTheme = isDark) {
-                GradientBackground(darkTheme = isDark) {
+            SeaCardTheme {
+                val gradientColor = GradientUtils.loadGradientColorPref(this)
+                GradientBackground(gradientColor = gradientColor) {
                     if (cardCode.isBlank()) {
-                        // ВСЕГДА сначала показываем сканер, если код пустой
                         ScanCardScreen(
                             hasCameraPermission = hasCameraPermission,
                             scanned = scanned,
@@ -370,11 +369,6 @@ class ScanCardActivity : ComponentActivity() {
             cards.add("$name|$code|$codeType|$currentTime|0|$color")
         }
         prefs.edit { putStringSet("card_list", cards) }
-    }
-    
-    private fun loadThemePref(context: Context): Boolean {
-        val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-        return prefs.getBoolean("dark_theme", true)
     }
 
     companion object {

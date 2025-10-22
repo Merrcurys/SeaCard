@@ -12,7 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.merrcurys.seacard.ui.theme.GradientBackground
+import ru.merrcurys.seacard.ui.theme.GradientUtils
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
@@ -55,8 +56,9 @@ fun CardInputSection(
     onFrontCoverRemove: (() -> Unit)? = null,
     onBackCoverRemove: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
-    val isDark = colorScheme.background == Color(0xFF111111)
+    val gradientColor = GradientUtils.loadGradientColorPref(context)
     val cardColors = listOf(
         0xFFFFFFFF.toInt(), // Белый
         0xFFFF4444.toInt(), // Красный
@@ -69,7 +71,8 @@ fun CardInputSection(
         0xFF000000.toInt(), // Черный
         0xFF9E9E9E.toInt()  // Серый
     )
-    GradientBackground(darkTheme = isDark) {
+
+    GradientBackground(gradientColor = gradientColor) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -87,7 +90,7 @@ fun CardInputSection(
                         },
                         navigationIcon = {
                             IconButton(onClick = onBack) {
-                                Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -105,7 +108,7 @@ fun CardInputSection(
                         },
                         navigationIcon = {
                             IconButton(onClick = onBack) {
-                                Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -328,4 +331,4 @@ fun CardInputSection(
             }
         }
     }
-} 
+}

@@ -10,7 +10,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
 import ru.merrcurys.seacard.ui.theme.BlackBackground
 import ru.merrcurys.seacard.ui.theme.GradientBackground
+import ru.merrcurys.seacard.ui.theme.GradientUtils
 import kotlin.text.substringBeforeLast
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,8 +51,8 @@ fun CardCoverPickerScreen(
     var coverList by remember { mutableStateOf(listOf<String>()) }
     var searchQuery by remember { mutableStateOf("") }
     var sortAsc by remember { mutableStateOf(true) }
-    val isDark = MaterialTheme.colorScheme.background == BlackBackground
-    GradientBackground(darkTheme = isDark) {
+    val gradientColor = GradientUtils.loadGradientColorPref(context)
+    GradientBackground(gradientColor = gradientColor) {
         BackHandler(onBack = onBack)
         LaunchedEffect(Unit) {
             try {
@@ -96,7 +97,7 @@ fun CardCoverPickerScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = MaterialTheme.colorScheme.onSurface)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = MaterialTheme.colorScheme.onSurface)
                         }
                     },
                     actions = {
@@ -255,4 +256,4 @@ fun CardCoverPickerScreen(
             }
         }
     }
-} 
+}

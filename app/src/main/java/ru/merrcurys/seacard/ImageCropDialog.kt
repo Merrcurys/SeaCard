@@ -57,9 +57,6 @@ fun ImageCropDialog(
         var offset by remember { mutableStateOf(Offset.Zero) }
         var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
-        val frameWidthPx = remember { 320f }
-        val frameHeightPx = remember { frameWidthPx / aspectRatio }
-
         val colorScheme = MaterialTheme.colorScheme
         val isDark = colorScheme.background == Color(0xFF111111) || colorScheme.background == Color(0xFF232323)
         AlertDialog(

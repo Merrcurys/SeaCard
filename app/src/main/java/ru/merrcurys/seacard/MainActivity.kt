@@ -39,12 +39,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import ru.merrcurys.seacard.ui.theme.SeaCardTheme
-import ru.merrcurys.seacard.ui.theme.BlackBackground
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import ru.merrcurys.seacard.ui.theme.GradientBackground
+import ru.merrcurys.seacard.ui.theme.GradientUtils
 import java.util.*
 import androidx.core.content.edit
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
@@ -53,7 +54,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.TextStyle
-import ru.merrcurys.seacard.ui.theme.GradientBackground
 
 enum class SortType(val displayName: String) {
     ADD_TIME("По времени добавления"),
@@ -79,7 +79,6 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             val context = this
-            var isDark by remember { mutableStateOf(loadThemePref(context)) }
             var cards by remember { mutableStateOf<List<Card>>(emptyList()) }
             var currentSortType by remember { mutableStateOf(loadSortTypePref(context)) }
             var showCoverPicker by remember { mutableStateOf(false) }
@@ -94,8 +93,8 @@ class MainActivity : ComponentActivity() {
                     when (parts.size) {
                         2 -> Card(parts[0], parts[1], "barcode")
                         3 -> Card(parts[0], parts[1], parts[2])
-                        5 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0) // Формат с временем и частотой
-                        6 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0, parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt()) // Формат с цветом
+                        5 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0)
+                        6 -> Card(parts[0], parts[1], parts[2], parts[3].toLongOrNull() ?: System.currentTimeMillis(), parts[4].toIntOrNull() ?: 0, parts[5].toIntOrNull() ?: 0xFFFFFFFF.toInt())
                         7 -> Card(
                             parts[0],
                             parts[1],
@@ -122,8 +121,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-                isDark = loadThemePref(context)
+            val settingsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                // Обновляем градиент при возвращении из настроек
                 loadCards()
             }
             
@@ -152,17 +151,13 @@ class MainActivity : ComponentActivity() {
                 loadCards()
             }
             
-            LaunchedEffect(isDark) {
-                val window = this@MainActivity.window
-                WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !isDark
-            }
-            
             LaunchedEffect(Unit) {
-                isDark = loadThemePref(context)
+                val window = this@MainActivity.window
+                WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
                 loadCards()
             }
             
-            SeaCardTheme(darkTheme = isDark) {
+            SeaCardTheme {
                 if (showCoverPicker) {
                     CardCoverPickerScreen(
                         onCoverSelected = { coverAsset: String? ->
@@ -195,7 +190,7 @@ class MainActivity : ComponentActivity() {
                             cardDetailLauncher.launch(intent)
                         },
                         onSettingsClick = {
-                            launcher.launch(Intent(context, SettingsActivity::class.java))
+                            settingsLauncher.launch(Intent(context, SettingsActivity::class.java))
                         },
                         onSortTypeChange = { newSortType ->
                             currentSortType = newSortType
@@ -222,11 +217,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-    
-    private fun loadThemePref(context: Context): Boolean {
-        val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-        return prefs.getBoolean("dark_theme", true)
     }
     
     private fun loadSortTypePref(context: Context): SortType {
@@ -265,10 +255,11 @@ fun MainScreen(
     onSortTypeChange: (SortType) -> Unit,
     onDeleteCards: (List<Card>) -> Unit
 ) {
+    val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
-    val isDark = colorScheme.background == BlackBackground
-    GradientBackground(darkTheme = isDark) {
-        val topBarColor = if (isDark) BlackBackground else Color(0xFFF5F5F5)
+    // Загружаем градиентный цвет при каждом перерисовке для обновления при возвращении из настроек
+    val gradientColor = GradientUtils.loadGradientColorPref(context)
+    GradientBackground(gradientColor = gradientColor) {
         var searchQuery by remember { mutableStateOf("") }
         var showSearch by remember { mutableStateOf(false) }
         var showFilterMenu by remember { mutableStateOf(false) }
@@ -429,7 +420,8 @@ fun MainScreen(
                         .fillMaxSize()
                         .padding(innerPadding)
                         .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
+                            interactionSource = remember { 
+                                MutableInteractionSource() },
                             indication = null
                         ) { 
                             if (showSearch) {
