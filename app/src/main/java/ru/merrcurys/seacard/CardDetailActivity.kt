@@ -392,7 +392,18 @@ fun CardDetailScreen(
     topBarContainerColor: Color = Color.Transparent,
     topBarTextColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    var barcodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    // Используем remember с ключом, чтобы избежать повторной генерации при перекомпоновке
+    val barcodeBitmap = remember(cardCode, codeType) {
+        if (isValidBarcodeWithChecksum(cardCode, codeType)) {
+            if (codeType == "qr") {
+                generateQRCode(cardCode)
+            } else {
+                generateBarcode(cardCode, codeType)
+            }
+        } else {
+            null
+        }
+    }
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
@@ -457,16 +468,6 @@ fun CardDetailScreen(
     LaunchedEffect(showNoteDialog) {
         if (showNoteDialog) {
             noteDraft = note
-        }
-    }
-
-    LaunchedEffect(editCode, editType) {
-        if (isValidBarcodeWithChecksum(editCode, editType)) {
-            barcodeBitmap = if (editType == "qr") {
-                generateQRCode(editCode)
-            } else {
-                generateBarcode(editCode, editType)
-            }
         }
     }
 
