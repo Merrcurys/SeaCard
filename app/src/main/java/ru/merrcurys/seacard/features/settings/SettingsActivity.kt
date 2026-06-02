@@ -453,6 +453,32 @@ fun SettingsScreen(
                                     context.startActivity(intent)
                                 }
                         )
+                        Divider(color = colorScheme.onSurface.copy(alpha = 0.08f))
+                        ListItem(
+                            headlineContent = { Text("Следить за приложением") },
+                            supportingContent = {
+                                Text(
+                                    text = "Telegram-канал разработчика",
+                                    fontSize = 12.sp,
+                                    color = colorScheme.onSurface.copy(alpha = 0.62f)
+                                )
+                            },
+                            colors = listItemColors,
+                            leadingContent = { Icon(Icons.Outlined.Chat, contentDescription = null, tint = colorScheme.primary) },
+                            trailingContent = {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .noRippleClickable {
+                                    val intent = Intent(Intent.ACTION_VIEW, "https://t.me/merrcurys_software".toUri())
+                                    context.startActivity(intent)
+                                }
+                        )
                     }
                 }
             }
