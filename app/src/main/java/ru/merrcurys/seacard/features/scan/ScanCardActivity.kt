@@ -3,10 +3,7 @@ package ru.merrcurys.seacard.features.scan
 import android.app.Application
 import android.Manifest
 import ru.merrcurys.seacard.features.crop.ImageCropDialog
-import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -51,16 +48,12 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.merrcurys.seacard.core.utils.createImagePickerChooserIntent
 import android.net.Uri
 import android.os.Build
-import java.io.File
-import java.io.FileOutputStream
 
 class ScanCardActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
