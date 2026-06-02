@@ -43,9 +43,9 @@ android {
 }
 
 dependencies {
-    implementation(platform("ru.rustore.sdk:bom:2026.03.01"))
-    implementation("ru.rustore.sdk:appupdate")
-    implementation("ru.rustore.sdk:review")
+    implementation(platform(libs.rustore.bom))
+    implementation(libs.rustore.appupdate)
+    implementation(libs.rustore.review)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -59,19 +59,20 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.material.icons.extended)
-    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation(libs.androidx.compose.runtime.retain)
+    implementation(libs.coil.compose)
     
     // CameraX
-    implementation("androidx.camera:camera-core:1.4.2")
-    implementation("androidx.camera:camera-camera2:1.4.2")
-    implementation("androidx.camera:camera-lifecycle:1.4.2")
-    implementation("androidx.camera:camera-view:1.4.2")
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
     
     // ML Kit Barcode Scanning
-    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    implementation(libs.barcode.scanning)
     
     // ZXing
-    implementation("com.google.zxing:core:3.5.2")
+    implementation(libs.zxing.core)
 
     // Room
     implementation(libs.androidx.room.runtime)

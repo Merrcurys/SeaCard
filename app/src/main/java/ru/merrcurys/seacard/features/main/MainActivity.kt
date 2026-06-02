@@ -1,12 +1,10 @@
 package ru.merrcurys.seacard.features.main
 
 import android.content.Intent
-import ru.merrcurys.seacard.features.scan.ScanCardActivity
-import ru.merrcurys.seacard.features.detail.CardDetailActivity
-import ru.merrcurys.seacard.features.settings.SettingsActivity
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,27 +13,74 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Wallet
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.FilterAlt
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Wallet
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.retain.retain
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,31 +89,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.flow.first
-import ru.merrcurys.seacard.core.rustore.RuStoreInAppUpdateController
-import ru.merrcurys.seacard.core.rustore.RuStoreReviewHelper
-import ru.merrcurys.seacard.core.utils.SortType
-import ru.merrcurys.seacard.core.design.SeaCardTheme
-import ru.merrcurys.seacard.core.design.GradientBackground
-import ru.merrcurys.seacard.core.design.GradientUtils
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
-import java.io.File
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.material3.Text
-import androidx.compose.ui.text.TextStyle
-import ru.merrcurys.seacard.domain.entity.Card as CardModel
+import kotlinx.coroutines.flow.first
+import ru.merrcurys.seacard.core.design.GradientBackground
+import ru.merrcurys.seacard.core.design.SeaCardTheme
 import ru.merrcurys.seacard.core.design.applySeaCardSystemBarColors
+import ru.merrcurys.seacard.core.rustore.RuStoreInAppUpdateController
+import ru.merrcurys.seacard.core.rustore.RuStoreReviewHelper
+import ru.merrcurys.seacard.core.utils.SortType
+import ru.merrcurys.seacard.features.detail.CardDetailActivity
+import ru.merrcurys.seacard.features.scan.ScanCardActivity
+import ru.merrcurys.seacard.features.settings.SettingsActivity
+import java.io.File
+import ru.merrcurys.seacard.domain.entity.Card as CardModel
 
 private const val RU_STORE_REVIEW_LOG_TAG = "RuStoreReview"
 
-/** Лицевая обложка в сетке: каталог (`cards/…`) или файл в хранилище приложения. */
 private fun mainGridCoverModel(frontPath: String): Any =
     if (frontPath.startsWith("cards/")) "file:///android_asset/$frontPath"
     else File(frontPath)
@@ -99,7 +138,6 @@ class MainActivity : ComponentActivity() {
                 onDispose { ruStoreUpdate.dispose() }
             }
 
-            // RuStore: оценка/отзыв — когда на главном экране и карт ≥ 5 (см. тег RuStoreReview в logcat)
             LaunchedEffect(Unit) {
                 Log.i(RU_STORE_REVIEW_LOG_TAG, "Ожидание: главный экран (!picker) и карт >= 5, сейчас карт=${cards.size}")
                 snapshotFlow { !showCoverPicker && cards.size >= 5 }
@@ -155,16 +193,15 @@ fun MainScreen(
     onSortTypeChange: (SortType) -> Unit,
     onDeleteCards: (List<CardModel>) -> Unit
 ) {
-    val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     GradientBackground(gradientColor = gradientColor) {
-        var searchQuery by remember { mutableStateOf("") }
-        var showSearch by remember { mutableStateOf(false) }
-        var showFilterMenu by remember { mutableStateOf(false) }
-        var selectedCards by remember { mutableStateOf<Set<CardModel>>(emptySet()) }
-        var selectionMode by remember { mutableStateOf(false) }
-    
-        // Функция для определения темного цвета
+        val searchQueryState = rememberSaveable(saver = TextFieldState.Saver) { TextFieldState() }
+        var showSearch by rememberSaveable { mutableStateOf(false) }
+        var showFilterMenu by rememberSaveable { mutableStateOf(false) }
+        var selectionMode by rememberSaveable { mutableStateOf(false) }
+        var selectedCards by retain { mutableStateOf<Set<CardModel>>(emptySet()) }
+        val focusRequester = retain { FocusRequester() }
+
         fun isColorDark(color: Int): Boolean {
             val red = (color shr 16) and 0xFF
             val green = (color shr 8) and 0xFF
@@ -172,8 +209,8 @@ fun MainScreen(
             val brightness = (red * 299 + green * 587 + blue * 114) / 1000
             return brightness < 128
         }
-    
-        val filteredCards = remember(cards, searchQuery) {
+
+        val filteredCards = remember(cards, searchQueryState.text) {
             fun normalize(text: String): String {
                 return text
                     .replace("'", "")
@@ -183,22 +220,27 @@ fun MainScreen(
                     .replace("Ё", "Е", ignoreCase = true)
                     .lowercase()
             }
-            if (searchQuery.isBlank()) {
+            val query = searchQueryState.text.toString()
+            if (query.isBlank()) {
                 cards
             } else {
-                val normQuery = normalize(searchQuery)
+                val normQuery = normalize(query)
                 cards.filter { card ->
                     normalize(card.name).contains(normQuery)
                 }
             }
         }
-    
-        // Обработка системной кнопки "назад" для сброса выбора
+
         BackHandler(enabled = selectionMode) {
             selectionMode = false
             selectedCards = emptySet()
         }
-    
+
+        BackHandler(enabled = showSearch) {
+            searchQueryState.clearText()
+            showSearch = false
+        }
+
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
@@ -207,32 +249,62 @@ fun MainScreen(
                         if (selectionMode) {
                             Text("Выбрано: ${selectedCards.size}", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                         } else if (showSearch) {
-                            OutlinedTextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                placeholder = { Text("Поиск карт...") },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = colorScheme.onSurface,
-                                    unfocusedTextColor = colorScheme.onSurface,
-                                    focusedBorderColor = Color.Transparent,
-                                    unfocusedBorderColor = Color.Transparent,
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent
-                                ),
-                                singleLine = true,
-                                textStyle = TextStyle(
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                trailingIcon = {
-                                    if (searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { searchQuery = "" }) {
-                                            Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = colorScheme.onSurface.copy(alpha = 0.7f))
+                            LaunchedEffect(Unit) {
+                                focusRequester.requestFocus()
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        searchQueryState.clearText()
+                                        showSearch = false
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Закрыть поиск",
+                                        tint = colorScheme.onSurface
+                                    )
+                                }
+
+                                OutlinedTextField(
+                                    state = searchQueryState,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(end = 16.dp)
+                                        .focusRequester(focusRequester),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = colorScheme.onSurface,
+                                        unfocusedTextColor = colorScheme.onSurface,
+                                        focusedBorderColor = colorScheme.primary,
+                                        unfocusedBorderColor = Color.Transparent,
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent
+                                    ),
+                                    placeholder = {
+                                        Text("Поиск карт...")
+                                    },
+                                    shape = RoundedCornerShape(100.dp),
+                                    lineLimits = TextFieldLineLimits.SingleLine,
+                                    contentPadding = OutlinedTextFieldDefaults.contentPadding(
+                                        start = 24.dp,
+                                        end = 8.dp
+                                    ),
+                                    textStyle = TextStyle(
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    trailingIcon = {
+                                        if (searchQueryState.text.isNotEmpty()) {
+                                            IconButton(onClick = { searchQueryState.clearText() }) {
+                                                Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = colorScheme.onSurface.copy(alpha = 0.7f))
+                                            }
                                         }
                                     }
-                                }
-                            )
+                                )
+                            }
                         } else {
                             Text("Карты", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 24.sp)
                         }
@@ -245,49 +317,69 @@ fun MainScreen(
                                 selectedCards = emptySet()
                                 selectionMode = false
                             }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = colorScheme.onSurface)
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Удалить",
+                                    tint = colorScheme.onSurface
+                                )
                             }
                         } else {
-                            IconButton(onClick = { showSearch = !showSearch }) {
-                                Icon(Icons.Default.Search, contentDescription = "Поиск", tint = colorScheme.onSurface)
-                            }
-                            Box {
-                                IconButton(onClick = { showFilterMenu = true }) {
-                                    Icon(Icons.Default.FilterAlt, contentDescription = "Фильтр", tint = colorScheme.onSurface)
-                                }
-                                DropdownMenu(
-                                    expanded = showFilterMenu,
-                                    onDismissRequest = { showFilterMenu = false },
-                                    modifier = Modifier.background(colorScheme.surface)
+                            if (!showSearch) {
+                                IconButton(
+                                    onClick = { showSearch = !showSearch }
                                 ) {
-                                    SortType.entries.forEach { sortType ->
-                                        DropdownMenuItem(
-                                            text = { 
-                                                Text(
-                                                    text = sortType.displayName,
-                                                    color = if (currentSortType == sortType) colorScheme.primary else colorScheme.onSurface
-                                                ) 
-                                            },
-                                            onClick = {
-                                                onSortTypeChange(sortType)
-                                                showFilterMenu = false
-                                            },
-                                            leadingIcon = {
-                                                if (currentSortType == sortType) {
-                                                    Icon(
-                                                        Icons.Default.Check,
-                                                        contentDescription = "Выбрано",
-                                                        tint = colorScheme.primary
-                                                    )
-                                                }
-                                            }
-                                        )
-                                    }
+                                    Icon(
+                                        Icons.Default.Search,
+                                        contentDescription = "Поиск",
+                                        tint = colorScheme.onSurface
+                                    )
                                 }
                             }
-                            IconButton(onClick = onSettingsClick) {
-                                Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = colorScheme.onSurface)
+                        }
+                        Box {
+                            IconButton(onClick = { showFilterMenu = true }) {
+                                Icon(
+                                    Icons.Default.FilterAlt,
+                                    contentDescription = "Фильтр",
+                                    tint = colorScheme.onSurface
+                                )
                             }
+                            DropdownMenu(
+                                expanded = showFilterMenu,
+                                onDismissRequest = { showFilterMenu = false },
+                                modifier = Modifier.background(colorScheme.surface)
+                            ) {
+                                SortType.entries.forEach { sortType ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = sortType.displayName,
+                                                color = if (currentSortType == sortType) colorScheme.primary else colorScheme.onSurface
+                                            )
+                                        },
+                                        onClick = {
+                                            onSortTypeChange(sortType)
+                                            showFilterMenu = false
+                                        },
+                                        leadingIcon = {
+                                            if (currentSortType == sortType) {
+                                                Icon(
+                                                    Icons.Default.Check,
+                                                    contentDescription = "Выбрано",
+                                                    tint = colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = "Настройки",
+                                tint = colorScheme.onSurface
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -336,13 +428,12 @@ fun MainScreen(
                         .fillMaxSize()
                         .padding(innerPadding)
                         .clickable(
-                            interactionSource = remember { 
-                                MutableInteractionSource() },
+                            interactionSource = remember { MutableInteractionSource() },
                             indication = null
-                        ) { 
+                        ) {
                             if (showSearch) {
                                 showSearch = false
-                                searchQuery = ""
+                                searchQueryState.clearText()
                             }
                             if (selectionMode) {
                                 selectionMode = false
@@ -388,7 +479,7 @@ fun MainScreen(
                             )
                             Spacer(modifier = Modifier.height(20.dp))
                             Text(
-                                text = if (searchQuery.isBlank()) {
+                                text = if (searchQueryState.text.isBlank()) {
                                     "Вы еще не добавили\nни одной карты"
                                 } else {
                                     "Карты не найдены"
@@ -419,7 +510,6 @@ fun MainScreen(
                                     ),
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier
-                                        // Устанавливаем соотношение сторон 1.574 для отображения карт
                                         .aspectRatio(1.574f)
                                         .fillMaxWidth()
                                         .then(
@@ -448,7 +538,7 @@ fun MainScreen(
                                             }
                                         )
                                 ) {
-                                    val context = LocalContext.current
+                                    val currentContext = LocalContext.current
                                     val frontPath = card.frontCoverPath
                                     key(frontPath) {
                                         Box(
@@ -464,7 +554,7 @@ fun MainScreen(
                                             }
                                             if (frontPath != null) {
                                                 SubcomposeAsyncImage(
-                                                    model = ImageRequest.Builder(context)
+                                                    model = ImageRequest.Builder(currentContext)
                                                         .data(mainGridCoverModel(frontPath))
                                                         .crossfade(false)
                                                         .build(),
@@ -473,8 +563,7 @@ fun MainScreen(
                                                     modifier = Modifier.fillMaxSize()
                                                 ) {
                                                     when (painter.state) {
-                                                        is AsyncImagePainter.State.Success ->
-                                                            SubcomposeAsyncImageContent()
+                                                        is AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
                                                         is AsyncImagePainter.State.Loading,
                                                         is AsyncImagePainter.State.Empty -> Unit
                                                         is AsyncImagePainter.State.Error -> Text(

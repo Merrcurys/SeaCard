@@ -1,7 +1,10 @@
 [versions]
-accompanistGesture = "0.32.0"
-accompanistPhotoview = "0.34.0"
 agp = "8.10.0"
+barcodeScanning = "17.3.0"
+rustore-bom = "2026.03.01"
+camerax = "1.4.2"
+coilCompose = "2.7.0"
+zxingCore = "3.5.2"
 kotlin = "2.0.21"
 ksp = "2.0.21-1.0.28"
 room = "2.6.1"
@@ -12,13 +15,16 @@ espressoCore = "3.6.1"
 lifecycleRuntimeKtx = "2.9.1"
 lifecycleRuntimeCompose = "2.9.1"
 activityCompose = "1.10.1"
-composeBom = "2024.09.00"
+composeBom = "2026.05.00"
 
 [libraries]
-accompanist-gesture = { module = "com.google.accompanist:accompanist-gesture", version.ref = "accompanistGesture" }
-accompanist-photoview = { module = "com.google.accompanist:accompanist-photoview", version.ref = "accompanistPhotoview" }
+androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-cropper = { module = "com.canhub.cropper:cropper" }
+barcode-scanning = { module = "com.google.mlkit:barcode-scanning", version.ref = "barcodeScanning" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -35,10 +41,16 @@ androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-man
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+androidx-compose-runtime-retain = { group = "androidx.compose.runtime", name = "runtime-retain" }
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+rustore-appupdate = { module = "ru.rustore.sdk:appupdate" }
+rustore-bom = { module = "ru.rustore.sdk:bom", version.ref = "rustore-bom" }
+rustore-review = { module = "ru.rustore.sdk:review" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxingCore" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
