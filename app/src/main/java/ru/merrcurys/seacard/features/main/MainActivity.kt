@@ -273,6 +273,7 @@ fun MainScreen(
                                     state = searchQueryState,
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .height(48.dp)
                                         .padding(end = 16.dp)
                                         .focusRequester(focusRequester),
                                     colors = OutlinedTextFieldDefaults.colors(
@@ -284,16 +285,22 @@ fun MainScreen(
                                         unfocusedContainerColor = Color.Transparent
                                     ),
                                     placeholder = {
-                                        Text("Поиск карт...")
+                                        Text(
+                                            text = "Поиск карт...",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
                                     },
                                     shape = RoundedCornerShape(100.dp),
                                     lineLimits = TextFieldLineLimits.SingleLine,
                                     contentPadding = OutlinedTextFieldDefaults.contentPadding(
                                         start = 24.dp,
-                                        end = 8.dp
+                                        end = 8.dp,
+                                        top = 8.dp,
+                                        bottom = 8.dp
                                     ),
                                     textStyle = TextStyle(
-                                        fontSize = 20.sp,
+                                        fontSize = 16.sp,
                                         fontWeight = FontWeight.Medium
                                     ),
                                     trailingIcon = {
