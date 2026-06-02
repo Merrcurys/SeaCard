@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,40 +7,43 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-android {
-    namespace = "ru.merrcurys.seacard"
-    compileSdk = 35
+        android {
+            namespace = "ru.merrcurys.seacard"
+            compileSdk = 36
 
-    defaultConfig {
-        applicationId = "com.example.seacard"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 14
-        versionName = "3.0"
+            defaultConfig {
+                applicationId = "com.example.seacard"
+                minSdk = 26
+                targetSdk = 35
+                versionCode = 14
+                versionName = "3.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
+                testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+            }
 
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            buildTypes {
+                release {
+                    isMinifyEnabled = true
+                    isShrinkResources = true
+                    proguardFiles(
+                        getDefaultProguardFile("proguard-android-optimize.txt"),
+                        "proguard-rules.pro"
+                    )
+                }
+            }
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_11
+                targetCompatibility = JavaVersion.VERSION_11
+            }
+            buildFeatures {
+                compose = true
+                buildConfig = true
+            }
         }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
-        buildConfig = true
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 
@@ -61,16 +66,16 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.compose.runtime.retain)
     implementation(libs.coil.compose)
-    
+
     // CameraX
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
-    
+
     // ML Kit Barcode Scanning
     implementation(libs.barcode.scanning)
-    
+
     // ZXing
     implementation(libs.zxing.core)
 
