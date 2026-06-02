@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,15 +23,19 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.sp
 import java.io.IOException
+import java.text.Collator
+import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.ui.layout.ContentScale
 import ru.merrcurys.seacard.core.utils.CoverNames.coverNameMap
+import ru.merrcurys.seacard.core.utils.SortType
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
@@ -53,7 +58,17 @@ fun CardCoverPickerScreen(
     val assetManager = context.assets
     var coverList by remember { mutableStateOf(listOf<String>()) }
     var searchQuery by remember { mutableStateOf("") }
-    var sortAsc by remember { mutableStateOf(true) }
+    var currentSortType by remember { mutableStateOf(SortType.NAME_ASC) }
+    var showFilterMenu by remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
+    val availableSortTypes = remember {
+        listOf(
+            SortType.NAME_ASC,
+            SortType.NAME_DESC,
+            SortType.NAME_ASC_LATIN,
+            SortType.NAME_DESC_LATIN
+        )
+    }
     val gradientColor = GradientUtils.loadGradientColorPref(context)
     GradientBackground(gradientColor = gradientColor) {
         BackHandler(onBack = onBack)
@@ -64,7 +79,9 @@ fun CardCoverPickerScreen(
                 coverList = emptyList()
             }
         }
-        val filteredCovers = remember(coverList, searchQuery, sortAsc) {
+        val ruCollator = Collator.getInstance(Locale("ru")).apply { strength = Collator.PRIMARY }
+        val enCollator = Collator.getInstance(Locale.ENGLISH).apply { strength = Collator.PRIMARY }
+        val filteredCovers = remember(coverList, searchQuery, currentSortType) {
             fun normalize(text: String): String {
                 return text
                     .replace("'", "")
@@ -80,12 +97,22 @@ fun CardCoverPickerScreen(
                     val name = coverNameMap[file] ?: file.substringBeforeLast('.')
                     normalize(name).contains(normQuery)
                 }
-                .sortedWith(
-                    if (sortAsc)
-                        compareBy(String.CASE_INSENSITIVE_ORDER) { coverNameMap[it] ?: it.substringBeforeLast('.') }
-                    else
-                        compareBy(String.CASE_INSENSITIVE_ORDER.reversed()) { coverNameMap[it] ?: it.substringBeforeLast('.') }
-                )
+                .sortedWith { a, b ->
+                    val left = coverNameMap[a] ?: a.substringBeforeLast('.')
+                    val right = coverNameMap[b] ?: b.substringBeforeLast('.')
+                    when (currentSortType) {
+                        SortType.NAME_ASC -> ruCollator.compare(left, right)
+                        SortType.NAME_DESC -> ruCollator.compare(right, left)
+                        SortType.NAME_ASC_LATIN -> enCollator.compare(left, right)
+                        SortType.NAME_DESC_LATIN -> enCollator.compare(right, left)
+                        else -> ruCollator.compare(left, right)
+                    }
+                }
+        }
+        LaunchedEffect(currentSortType, filteredCovers) {
+            if (filteredCovers.isNotEmpty()) {
+                gridState.scrollToItem(0, 0)
+            }
         }
         Scaffold(
             topBar = {
@@ -105,12 +132,46 @@ fun CardCoverPickerScreen(
                     },
                     actions = {
                         Box {
-                            IconButton(onClick = { sortAsc = !sortAsc }) {
+                            IconButton(onClick = { showFilterMenu = true }) {
                                 Icon(
-                                    imageVector = if (sortAsc) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                                    contentDescription = if (sortAsc) "Сортировать А-Я" else "Сортировать Я-А",
+                                    imageVector = Icons.Default.FilterAlt,
+                                    contentDescription = "Фильтр",
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
+                            }
+                            DropdownMenu(
+                                expanded = showFilterMenu,
+                                onDismissRequest = { showFilterMenu = false },
+                                offset = DpOffset(x = (-8).dp, y = 0.dp),
+                                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                            ) {
+                                availableSortTypes.forEach { sortType ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = sortType.displayName,
+                                                color = if (currentSortType == sortType) {
+                                                    MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurface
+                                                }
+                                            )
+                                        },
+                                        onClick = {
+                                            currentSortType = sortType
+                                            showFilterMenu = false
+                                        },
+                                        leadingIcon = {
+                                            if (currentSortType == sortType) {
+                                                Icon(
+                                                    Icons.Default.Check,
+                                                    contentDescription = "Выбрано",
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
                     },
@@ -166,8 +227,9 @@ fun CardCoverPickerScreen(
                         }
                     } else {
                         LazyVerticalGrid(
+                            state = gridState,
                             columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(8.dp),
+                            contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 92.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             flingBehavior = ScrollableDefaults.flingBehavior(),
