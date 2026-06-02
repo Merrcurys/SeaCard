@@ -2,13 +2,14 @@
 <!-- Высота ячейки для обложки карты (прокручиваемая сетка 2 в ряд) -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="100dp"
+    android:layout_height="wrap_content"
     android:padding="2dp">
 
     <ImageView
         android:id="@+id/widget_card_cover"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
         android:scaleType="centerCrop"
         android:contentDescription="@null" />
 

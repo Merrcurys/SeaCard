@@ -3,6 +3,11 @@ package ru.merrcurys.seacard.widget
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
 import android.util.TypedValue
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
@@ -19,6 +24,14 @@ class SeaCardRemoteViewsFactory(
 ) : RemoteViewsService.RemoteViewsFactory {
 
     private var cards: List<Card> = emptyList()
+    private val widgetCoverAspectRatio = 1.574f
+    private val cornerRadiusPx: Float by lazy {
+        TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            12f,
+            context.resources.displayMetrics
+        )
+    }
 
     /** Макс. сторона превью в px: мало для ячейки ~100dp, зато укладываемся в лимит Binder на элемент RemoteViews. */
     private val thumbnailMaxSidePx: Int by lazy {
@@ -78,6 +91,41 @@ class SeaCardRemoteViewsFactory(
         return inSampleSize.coerceAtLeast(1)
     }
 
+    private fun roundCorners(source: Bitmap, cornerRadius: Float): Bitmap {
+        val output = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = BitmapShader(source, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        }
+        canvas.drawRoundRect(
+            RectF(0f, 0f, source.width.toFloat(), source.height.toFloat()),
+            cornerRadius,
+            cornerRadius,
+            paint
+        )
+        return output
+    }
+
+    private fun centerCropToAspectRatio(source: Bitmap, targetAspectRatio: Float): Bitmap {
+        if (targetAspectRatio <= 0f) return source
+        val sourceWidth = source.width
+        val sourceHeight = source.height
+        if (sourceWidth <= 0 || sourceHeight <= 0) return source
+
+        val currentAspectRatio = sourceWidth.toFloat() / sourceHeight.toFloat()
+        if (kotlin.math.abs(currentAspectRatio - targetAspectRatio) < 0.001f) return source
+
+        return if (currentAspectRatio > targetAspectRatio) {
+            val targetWidth = (sourceHeight * targetAspectRatio).toInt().coerceAtLeast(1)
+            val left = ((sourceWidth - targetWidth) / 2).coerceAtLeast(0)
+            Bitmap.createBitmap(source, left, 0, targetWidth.coerceAtMost(sourceWidth - left), sourceHeight)
+        } else {
+            val targetHeight = (sourceWidth / targetAspectRatio).toInt().coerceAtLeast(1)
+            val top = ((sourceHeight - targetHeight) / 2).coerceAtLeast(0)
+            Bitmap.createBitmap(source, 0, top, sourceWidth, targetHeight.coerceAtMost(sourceHeight - top))
+        }
+    }
+
     override fun onDestroy() {
         cards = emptyList()
     }
@@ -90,7 +138,8 @@ class SeaCardRemoteViewsFactory(
         val views = RemoteViews(context.packageName, R.layout.widget_seacard_item)
         val bitmap = decodeCoverThumbnail(card)
         if (bitmap != null) {
-            views.setImageViewBitmap(R.id.widget_card_cover, bitmap)
+            val normalized = centerCropToAspectRatio(bitmap, widgetCoverAspectRatio)
+            views.setImageViewBitmap(R.id.widget_card_cover, roundCorners(normalized, cornerRadiusPx))
         } else {
             views.setImageViewResource(R.id.widget_card_cover, R.drawable.widget_card_placeholder)
         }
