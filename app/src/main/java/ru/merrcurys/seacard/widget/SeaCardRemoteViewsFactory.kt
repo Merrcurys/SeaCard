@@ -28,7 +28,7 @@ class SeaCardRemoteViewsFactory(
     private val cornerRadiusPx: Float by lazy {
         TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
-            12f,
+            8f,
             context.resources.displayMetrics
         )
     }
