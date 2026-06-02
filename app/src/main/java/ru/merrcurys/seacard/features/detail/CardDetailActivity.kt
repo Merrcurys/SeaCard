@@ -84,6 +84,13 @@ import java.io.FileInputStream
 import java.io.InputStream
 import androidx.compose.ui.graphics.luminance
 
+private fun normalizeCardName(name: String): String =
+    name
+        .lines()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .joinToString("\n")
+
 // Функция для вычисления контрастного цвета текста
 fun getContrastTextColor(backgroundColor: Color): Color {
     val luminance = backgroundColor.luminance()
@@ -551,12 +558,14 @@ fun CardDetailScreen(
                         onCardCodeChange = {}, // поле не изменяется
                         onColorChange = { color -> editColor = color },
                         onSaveCard = {
-                            if (editName.isBlank()) {
+                            val normalizedName = normalizeCardName(editName)
+                            if (normalizedName.isBlank()) {
                                 editError = "Заполните имя карты"
                             } else {
                                 showEditDialog = false
                                 editError = ""
-                                onEdit(editName, editCode, editType, editColor)
+                                editName = normalizedName
+                                onEdit(normalizedName, editCode, editType, editColor)
                             }
                         },
                         coverAsset = coverAsset,

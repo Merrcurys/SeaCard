@@ -95,6 +95,13 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
     private fun saveBitmapAsWebp(bitmap: Bitmap, fileName: String): String? =
         CoverBitmapStorage.saveBitmapAsWebpToCovers(app.filesDir, bitmap, fileName)
 
+    private fun normalizeCardName(name: String): String =
+        name
+            .lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n")
+
     suspend fun saveCardWithCover(
         name: String,
         code: String,
@@ -103,8 +110,9 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
         frontPath: String?,
         backPath: String?
     ) = withContext(Dispatchers.IO) {
+        val normalizedName = normalizeCardName(name)
         dao.insert(CardEntity(
-            name = name,
+            name = normalizedName,
             code = code,
             type = codeType,
             addTime = System.currentTimeMillis(),
@@ -124,6 +132,8 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
         codeType: String,
         color: Int
     ): Boolean = withContext(Dispatchers.IO) {
+        val normalizedName = normalizeCardName(name)
+        if (normalizedName.isBlank()) return@withContext false
         var frontPath: String? = null
         var backPath: String? = null
         val timestamp = System.currentTimeMillis()
@@ -131,23 +141,23 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
             try {
                 app.contentResolver.openInputStream(uri)?.use { input ->
                     val bmp = android.graphics.BitmapFactory.decodeStream(input)
-                    if (bmp != null) frontPath = saveBitmapAsWebp(bmp, "front_${name}_$timestamp.webp")
+                    if (bmp != null) frontPath = saveBitmapAsWebp(bmp, "front_${normalizedName}_$timestamp.webp")
                 }
             } catch (_: Exception) { }
         }
         if (frontPath == null && coverAsset == null) {
-            val safeName = name.replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\-_]"), "_").take(50).ifBlank { "card" }
-            frontPath = ColorCoverGenerator.generateAndSaveAsWebp(app, name, color, "front_${safeName}_$timestamp.webp")
+            val safeName = normalizedName.replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\-_]"), "_").take(50).ifBlank { "card" }
+            frontPath = ColorCoverGenerator.generateAndSaveAsWebp(app, normalizedName, color, "front_${safeName}_$timestamp.webp")
         }
         backCoverUri.value?.let { uri ->
             try {
                 app.contentResolver.openInputStream(uri)?.use { input ->
                     val bmp = android.graphics.BitmapFactory.decodeStream(input)
-                    if (bmp != null) backPath = saveBitmapAsWebp(bmp, "back_${name}_$timestamp.webp")
+                    if (bmp != null) backPath = saveBitmapAsWebp(bmp, "back_${normalizedName}_$timestamp.webp")
                 }
             } catch (_: Exception) { }
         }
-        saveCardWithCover(name, code, codeType, color, frontPath, backPath)
+        saveCardWithCover(normalizedName, code, codeType, color, frontPath, backPath)
         cardSaved.value = true
         true
     }
@@ -155,7 +165,7 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
     /** Для сценария с coverAsset: сохранить и вернуть true один раз. */
     suspend fun saveIfCoverAssetReady(): Boolean {
         val asset = coverAsset ?: return false
-        val name = cardName.value
+        val name = normalizeCardName(cardName.value)
         val code = cardCode.value
         val codeType = codeTypeState.value.ifBlank { "barcode" }
         val color = selectedColor.value
