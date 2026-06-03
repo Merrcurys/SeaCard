@@ -1,17 +1,12 @@
 package ru.merrcurys.seacard.widget
 
 import android.app.PendingIntent
-import android.app.WallpaperManager
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.graphics.Color
 import android.view.View
-import android.view.ContextThemeWrapper
-import androidx.core.graphics.ColorUtils
 import android.widget.RemoteViews
 import kotlinx.coroutines.runBlocking
 import ru.merrcurys.seacard.R
@@ -30,55 +25,12 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    private fun getSystemAccentColor(context: Context): Int {
-        return try {
-            // Android 12+ (Monet): берем системный акцент из палитры обоев.
-            val baseAccent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.getColor(android.R.color.system_accent1_600)
-            } else {
-                // До Android 12 берем базовый цвет из текущих обоев.
-                val wallpaperColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                    val wm = context.getSystemService(WallpaperManager::class.java)
-                    wm?.getWallpaperColors(WallpaperManager.FLAG_SYSTEM)?.primaryColor?.toArgb()
-                } else {
-                    null
-                }
-                wallpaperColor ?: run {
-                    val systemTheme = ContextThemeWrapper(context, android.R.style.Theme_DeviceDefault_DayNight)
-                    val attrs = intArrayOf(
-                        android.R.attr.colorPrimary,
-                        android.R.attr.colorAccent
-                    )
-                    val ta = systemTheme.theme.obtainStyledAttributes(attrs)
-                    val primary = ta.getColor(0, Color.GRAY).takeIf { it != 0 } ?: ta.getColor(1, Color.GRAY)
-                    ta.recycle()
-                    primary
-                }
-            }
-
-            val hsl = FloatArray(3)
-            ColorUtils.colorToHSL(baseAccent, hsl)
-            // Ограничиваем в допустимый диапазон (защита от «битых» тем)
-            hsl[0] = hsl[0].coerceIn(0f, 360f)
-            hsl[1] = hsl[1].coerceIn(0f, 1f)
-            hsl[2] = hsl[2].coerceIn(0f, 1f)
-            // Делаем фон умеренно насыщенным, чтобы оттенок был мягче.
-            hsl[1] = (hsl[1] * 0.75f).coerceIn(0f, 0.45f)
-            hsl[2] = 0.20f
-            ColorUtils.HSLToColor(hsl)
-        } catch (e: Exception) {
-            // Запасной цвет при любой ошибке (светло-серый)
-            ColorUtils.blendARGB(Color.GRAY, Color.BLACK, 0.6f)
-        }
-    }
-
     private fun updateAppWidget(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int
     ) {
         val views = RemoteViews(context.packageName, R.layout.widget_seacard)
-        views.setInt(R.id.widget_root, "setBackgroundColor", getSystemAccentColor(context))
 
         val cardCount = runBlocking {
             DatabaseProvider.get(context).cardDao().getAll().size
