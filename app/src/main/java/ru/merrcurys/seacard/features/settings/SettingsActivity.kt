@@ -56,9 +56,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import android.content.Intent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -788,33 +788,43 @@ private fun AboutBottomSheetContent(
             }
         }
         Spacer(modifier = Modifier.height(20.dp))
+        val sectionCardColor = Color(0xFF141414)
+        val sectionShape = RoundedCornerShape(26.dp)
+        val sectionBorderColor = Color.White.copy(alpha = 0.06f)
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = colorScheme.primary.copy(alpha = 0.12f),
-            border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.2f)),
+            shape = sectionShape,
+            color = sectionCardColor,
+            tonalElevation = 2.dp,
+            shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
+                .border(1.dp, sectionBorderColor, sectionShape)
                 .noRippleClickable(onPrivacyPolicyClick)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
             ) {
                 Icon(
                     imageVector = Icons.Outlined.PrivacyTip,
                     contentDescription = null,
                     tint = colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(16.dp))
                 Text(
                     text = "Политика конфиденциальности",
-                    color = colorScheme.primary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                    color = colorScheme.onSurface,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colorScheme.onSurface.copy(alpha = 0.6f),
                 )
             }
         }
