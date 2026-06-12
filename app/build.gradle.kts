@@ -14,7 +14,7 @@ plugins {
             defaultConfig {
                 applicationId = "ru.merrcurys.seacard"
                 minSdk = 26
-                targetSdk = 35
+                targetSdk = 36
                 versionCode = 16
                 versionName = "3.2"
 
