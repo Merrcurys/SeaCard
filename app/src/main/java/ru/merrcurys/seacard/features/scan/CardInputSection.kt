@@ -40,7 +40,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.layout.ContentScale
 import ru.merrcurys.seacard.core.barcode.BARCODE_ENCODINGS
 import ru.merrcurys.seacard.core.barcode.BARCODE_TYPE_OPTIONS
+import ru.merrcurys.seacard.core.barcode.effectiveBarcodeEncoding
 import ru.merrcurys.seacard.core.barcode.generateBarcodeBitmap
+import ru.merrcurys.seacard.core.barcode.isEncodingIndependentBarcodeType
 import ru.merrcurys.seacard.core.barcode.validateBarcodeCode
 
 // Функция для загрузки bitmap из URI или asset
@@ -171,17 +173,20 @@ fun CardInputSection(
         0xFF9E9E9E.toInt()
     )
 
-    val codeError by remember(cardCode, codeType, codeEncoding, showBarcodeFields) {
+    val encodingApplies = showBarcodeFields && !isEncodingIndependentBarcodeType(codeType) && codeType != "none"
+    val effectiveEncoding = effectiveBarcodeEncoding(codeType, codeEncoding)
+
+    val codeError by remember(cardCode, codeType, effectiveEncoding, showBarcodeFields) {
         derivedStateOf {
             if (!showBarcodeFields || codeType == "none") null
-            else validateBarcodeCode(cardCode, codeType, codeEncoding)
+            else validateBarcodeCode(cardCode, codeType, effectiveEncoding)
         }
     }
 
-    val barcodeBitmap by remember(cardCode, codeType, codeEncoding, showBarcodeFields) {
+    val barcodeBitmap by remember(cardCode, codeType, effectiveEncoding, showBarcodeFields, codeError) {
         derivedStateOf {
             if (!showBarcodeFields || codeType == "none" || codeError != null) null
-            else generateBarcodeBitmap(cardCode, codeType, codeEncoding)
+            else generateBarcodeBitmap(cardCode, codeType, effectiveEncoding)
         }
     }
 
@@ -306,10 +311,10 @@ fun CardInputSection(
                     if (showBarcodeFields && onCodeEncodingChange != null) {
                         BarcodeDropdownField(
                             label = "Кодировка штрих-кода",
-                            value = codeEncoding,
+                            value = if (encodingApplies) codeEncoding else "Не применяется",
                             options = BARCODE_ENCODINGS.map { it to it },
                             onValueChange = onCodeEncodingChange,
-                            enabled = codeType != "none",
+                            enabled = encodingApplies,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)

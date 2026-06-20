@@ -111,6 +111,7 @@ class ScanCardActivity : ComponentActivity() {
             var pendingCoverPick by remember { mutableStateOf<String?>(null) }
             var showOptionsSheet by remember { mutableStateOf(false) }
             var showManualInputWarning by remember { mutableStateOf(false) }
+            var showManualBarcodeSelection by remember { mutableStateOf(false) }
             val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasCameraPermission = it }
             val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
                 if (uri != null) {
@@ -186,7 +187,17 @@ class ScanCardActivity : ComponentActivity() {
 
             SeaCardTheme {
                 GradientBackground(gradientColor = GradientUtils.loadGradientColorPref(context)) {
-                    if (scanned) {
+                    when {
+                        showManualBarcodeSelection -> {
+                            ManualBarcodeSelectionScreen(
+                                onBack = { showManualBarcodeSelection = false },
+                                onBarcodeSelected = { code, type, encoding ->
+                                    showManualBarcodeSelection = false
+                                    viewModel.enterManualMode(code, type, encoding)
+                                }
+                            )
+                        }
+                        scanned -> {
                         CardInputSection(
                             cardName = cardName,
                             cardCode = cardCode,
@@ -239,7 +250,8 @@ class ScanCardActivity : ComponentActivity() {
                             onCodeEncodingChange = { viewModel.setCodeEncoding(it) },
                             showBarcodeFields = true
                         )
-                    } else {
+                        }
+                        else -> {
                         ScanCardScreen(
                             hasCameraPermission = hasCameraPermission,
                             scanned = scanned,
@@ -247,6 +259,7 @@ class ScanCardActivity : ComponentActivity() {
                             onScanResult = viewModel::onScanResult,
                             onOptionsClick = { showOptionsSheet = true }
                         )
+                        }
                     }
                 }
             }
@@ -291,7 +304,7 @@ class ScanCardActivity : ComponentActivity() {
                 ManualInputWarningDialog(
                     onContinue = {
                         showManualInputWarning = false
-                        viewModel.enterManualMode()
+                        showManualBarcodeSelection = true
                     },
                     onDismiss = { showManualInputWarning = false }
                 )

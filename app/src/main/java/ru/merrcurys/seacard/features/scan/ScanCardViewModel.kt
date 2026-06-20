@@ -51,13 +51,14 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
     fun setCodeEncoding(encoding: String) { codeEncoding.value = encoding }
 
     /** Открывает форму «Добавить карту» для ручного ввода. */
-    fun enterManualMode(code: String = "", codeType: String = "") {
+    fun enterManualMode(code: String = "", codeType: String = "", encoding: String = "UTF-8") {
         cardCode.value = code
         codeTypeState.value = when {
             codeType.isNotBlank() -> codeType
             code.isNotBlank() -> detectCodeType(code)
             else -> "code128"
         }
+        codeEncoding.value = encoding
         scanned.value = true
         scanSuccess.value = false
         manualMode.value = true

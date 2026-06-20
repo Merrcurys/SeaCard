@@ -34,6 +34,37 @@ val BARCODE_TYPE_OPTIONS = listOf(
 
 val BARCODE_ENCODINGS = listOf("ISO-8859-1", "UTF-8")
 
+/** Типы штрих-кодов, для которых кодировка не влияет на результат. */
+val ENCODING_INDEPENDENT_BARCODE_TYPE_KEYS = setOf(
+    "code39", "code93", "codabar", "itf", "ean8", "ean13", "upca", "upce"
+)
+
+fun isEncodingIndependentBarcodeType(type: String): Boolean =
+    type.lowercase() in ENCODING_INDEPENDENT_BARCODE_TYPE_KEYS
+
+fun effectiveBarcodeEncoding(type: String, encoding: String): String =
+    if (isEncodingIndependentBarcodeType(type)) "UTF-8" else encoding
+
+/** Типы штрих-кодов для экрана ручного выбора (без «Нет штрих-кода»). */
+val MANUAL_BARCODE_PREVIEW_TYPES = BARCODE_TYPE_OPTIONS.filter { it.key != "none" }
+
+val MANUAL_BARCODE_ENCODING_DEPENDENT_TYPES =
+    MANUAL_BARCODE_PREVIEW_TYPES.filter { !isEncodingIndependentBarcodeType(it.key) }
+
+val MANUAL_BARCODE_ENCODING_INDEPENDENT_TYPES =
+    MANUAL_BARCODE_PREVIEW_TYPES.filter { isEncodingIndependentBarcodeType(it.key) }
+
+fun barcodePreviewCacheKey(typeKey: String, encoding: String): String = "$typeKey|$encoding"
+
+fun barcodeIndependentPreviewCacheKey(typeKey: String): String = "${typeKey}|single"
+
+/** Можно ли сгенерировать предпросмотр для данного номера, типа и кодировки. */
+fun canGenerateBarcodePreview(code: String, type: String, encoding: String): Boolean {
+    if (code.isBlank() || type == "none") return false
+    if (!isEncodableInCharset(code, encoding)) return false
+    return generateBarcodePreviewBitmap(code, type, encoding) != null
+}
+
 fun barcodeTypeLabel(key: String): String =
     BARCODE_TYPE_OPTIONS.firstOrNull { it.key == key }?.label ?: key
 
@@ -137,27 +168,42 @@ private fun tryGenerateError(code: String, type: String, encoding: String): Stri
 fun generateBarcodeBitmap(content: String, codeType: String, encoding: String = "UTF-8"): Bitmap? {
     if (codeType == "none" || content.isBlank()) return null
     return if (codeType == "qr") {
-        generateQRCode(content, encoding)
+        generateQRCode(content, encoding, 600, 600)
     } else {
-        generateLinearOr2DBarcode(content, codeType, encoding)
+        generateLinearOr2DBarcode(content, codeType, encoding, fullSize = true)
     }
 }
 
-private fun generateQRCode(content: String, encoding: String): Bitmap? {
+/** Компактный bitmap для экрана выбора штрих-кода (меньше нагрузка на UI). */
+fun generateBarcodePreviewBitmap(content: String, codeType: String, encoding: String): Bitmap? {
+    if (codeType == "none" || content.isBlank()) return null
+    return if (codeType == "qr") {
+        generateQRCode(content, encoding, 180, 180)
+    } else {
+        generateLinearOr2DBarcode(content, codeType, encoding, fullSize = false)
+    }
+}
+
+private fun generateQRCode(content: String, encoding: String, width: Int, height: Int): Bitmap? {
     return try {
         val writer = QRCodeWriter()
         val hints = HashMap<EncodeHintType, Any>()
         hints[EncodeHintType.MARGIN] = 0
         hints[EncodeHintType.ERROR_CORRECTION] = ErrorCorrectionLevel.M
         hints[EncodeHintType.CHARACTER_SET] = encoding
-        val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, 600, 600, hints)
+        val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, width, height, hints)
         bitMatrixToBitmap(bitMatrix)
-    } catch (e: WriterException) {
+    } catch (_: Exception) {
         null
     }
 }
 
-private fun generateLinearOr2DBarcode(content: String, codeType: String, encoding: String): Bitmap? {
+private fun generateLinearOr2DBarcode(
+    content: String,
+    codeType: String,
+    encoding: String,
+    fullSize: Boolean
+): Bitmap? {
     return try {
         val writer = when (codeType.lowercase()) {
             "ean13" -> com.google.zxing.oned.EAN13Writer()
@@ -196,15 +242,27 @@ private fun generateLinearOr2DBarcode(content: String, codeType: String, encodin
             hints[EncodeHintType.DATA_MATRIX_SHAPE] = SymbolShapeHint.FORCE_SQUARE
         }
         val isSquare = codeType.lowercase() in listOf("datamatrix", "aztec", "pdf417")
+        val encodeWidth = when {
+            fullSize && isSquare -> 600
+            fullSize -> 800
+            isSquare -> 180
+            else -> 320
+        }
+        val encodeHeight = when {
+            fullSize && isSquare -> 600
+            fullSize -> 200
+            isSquare -> 180
+            else -> 100
+        }
         val bitMatrix = writer.encode(
             content,
             format,
-            if (isSquare) 600 else 800,
-            if (isSquare) 600 else 200,
+            encodeWidth,
+            encodeHeight,
             hints
         )
         bitMatrixToBitmap(bitMatrix)
-    } catch (_: WriterException) {
+    } catch (_: Exception) {
         null
     }
 }
