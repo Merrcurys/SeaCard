@@ -342,51 +342,51 @@ fun MainScreen(
                                     )
                                 }
                             }
-                        }
-                        Box {
-                            IconButton(onClick = { showFilterMenu = true }) {
+                            Box {
+                                IconButton(onClick = { showFilterMenu = true }) {
+                                    Icon(
+                                        Icons.Default.FilterAlt,
+                                        contentDescription = "Фильтр",
+                                        tint = colorScheme.onSurface
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showFilterMenu,
+                                    onDismissRequest = { showFilterMenu = false },
+                                    modifier = Modifier.background(colorScheme.surface)
+                                ) {
+                                    SortType.entries.forEach { sortType ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    text = sortType.displayName,
+                                                    color = if (currentSortType == sortType) colorScheme.primary else colorScheme.onSurface
+                                                )
+                                            },
+                                            onClick = {
+                                                onSortTypeChange(sortType)
+                                                showFilterMenu = false
+                                            },
+                                            leadingIcon = {
+                                                if (currentSortType == sortType) {
+                                                    Icon(
+                                                        Icons.Default.Check,
+                                                        contentDescription = "Выбрано",
+                                                        tint = colorScheme.primary
+                                                    )
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            IconButton(onClick = onSettingsClick) {
                                 Icon(
-                                    Icons.Default.FilterAlt,
-                                    contentDescription = "Фильтр",
+                                    Icons.Filled.Settings,
+                                    contentDescription = "Настройки",
                                     tint = colorScheme.onSurface
                                 )
                             }
-                            DropdownMenu(
-                                expanded = showFilterMenu,
-                                onDismissRequest = { showFilterMenu = false },
-                                modifier = Modifier.background(colorScheme.surface)
-                            ) {
-                                SortType.entries.forEach { sortType ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                text = sortType.displayName,
-                                                color = if (currentSortType == sortType) colorScheme.primary else colorScheme.onSurface
-                                            )
-                                        },
-                                        onClick = {
-                                            onSortTypeChange(sortType)
-                                            showFilterMenu = false
-                                        },
-                                        leadingIcon = {
-                                            if (currentSortType == sortType) {
-                                                Icon(
-                                                    Icons.Default.Check,
-                                                    contentDescription = "Выбрано",
-                                                    tint = colorScheme.primary
-                                                )
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                        IconButton(onClick = onSettingsClick) {
-                            Icon(
-                                Icons.Filled.Settings,
-                                contentDescription = "Настройки",
-                                tint = colorScheme.onSurface
-                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)

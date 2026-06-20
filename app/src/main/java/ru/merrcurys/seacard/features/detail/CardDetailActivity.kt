@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import ru.merrcurys.seacard.features.crop.ImageCropDialog
 import ru.merrcurys.seacard.features.scan.CardInputSection
 import android.os.Bundle
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -30,6 +31,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.content.ClipData
@@ -85,6 +87,20 @@ private fun normalizeCardName(name: String): String =
         .map { it.trim() }
         .filter { it.isNotEmpty() }
         .joinToString("\n")
+
+private fun plainCodeDisplayFontSize(code: String): TextUnit {
+    val length = code.length
+    return when {
+        length <= 4 -> 48.sp
+        length <= 8 -> 40.sp
+        length <= 12 -> 32.sp
+        length <= 16 -> 26.sp
+        length <= 22 -> 22.sp
+        length <= 30 -> 18.sp
+        length <= 40 -> 16.sp
+        else -> 14.sp
+    }
+}
 
 // Функция для вычисления контрастного цвета текста
 fun getContrastTextColor(backgroundColor: Color): Color {
@@ -546,7 +562,10 @@ fun CardDetailScreen(
         val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("Код карты", cardCode)
         clipboardManager.setPrimaryClip(clip)
-        Toast.makeText(context, "Код скопирован в буфер обмена", Toast.LENGTH_SHORT).show()
+        // Android 13+ показывает системное «Скопировано» — не дублируем своим Toast.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            Toast.makeText(context, "Код скопирован в буфер обмена", Toast.LENGTH_SHORT).show()
+        }
     }
 
     BackHandler(
@@ -788,42 +807,21 @@ fun CardDetailScreen(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = cardCode,
-                                        fontSize = if (cardCode.length > 20) 20.sp else 28.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.Black,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.padding(vertical = 4.dp)
-                                    )
-                                }
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.TouchApp,
-                                        contentDescription = null,
-                                        tint = Color.Gray.copy(alpha = 0.7f),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "Долгое нажатие — скопировать",
-                                        fontSize = 11.sp,
-                                        color = Color.Gray.copy(alpha = 0.7f)
-                                    )
-                                }
+                                Text(
+                                    text = cardCode,
+                                    fontSize = plainCodeDisplayFontSize(cardCode),
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = plainCodeDisplayFontSize(cardCode) * 1.15f,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
                             }
                         }
                     }
