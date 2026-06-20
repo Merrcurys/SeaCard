@@ -200,11 +200,11 @@ fun CardInputSection(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when {
-                showTopBar -> {
+                isEditMode -> {
                     TopAppBar(
                         title = {
                             Text(
-                                "Добавить карту",
+                                "Изменить карту",
                                 color = colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Start
@@ -218,11 +218,11 @@ fun CardInputSection(
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                     )
                 }
-                isEditMode -> {
+                showTopBar -> {
                     TopAppBar(
                         title = {
                             Text(
-                                "Изменение карты",
+                                "Добавить карту",
                                 color = colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Start

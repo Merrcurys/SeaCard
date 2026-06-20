@@ -285,7 +285,20 @@ class CardDetailActivity : ComponentActivity() {
                             permissionLauncher = permissionLauncher,
                             onBack = { finish() },
                             onDelete = { viewModel.deleteCard { setResult(RESULT_OK); finish() } },
-                            onEdit = { newName, newCode, newType, newColor -> viewModel.updateCardFields(newName, newCode, newType, newColor) },
+                            onEdit = { newName, newCode, newType, newColor, frontUri, backUri, frontRemoved, backRemoved, frontDirty, backDirty ->
+                                viewModel.updateCardFromEdit(
+                                    newName,
+                                    newCode,
+                                    newType,
+                                    newColor,
+                                    frontUri,
+                                    backUri,
+                                    frontRemoved,
+                                    backRemoved,
+                                    frontDirty,
+                                    backDirty
+                                )
+                            },
                             topBarContainerColor = Color.Transparent,
                             topBarTextColor = contrastTextColor
                         )
@@ -357,14 +370,28 @@ fun CardDetailScreen(
     permissionLauncher: androidx.activity.result.ActivityResultLauncher<String>? = null,
     onBack: () -> Unit,
     onDelete: () -> Unit,
-    onEdit: (String, String, String, Int) -> Unit,
+    onEdit: (
+        name: String,
+        code: String,
+        type: String,
+        color: Int,
+        frontUri: Uri?,
+        backUri: Uri?,
+        frontRemoved: Boolean,
+        backRemoved: Boolean,
+        frontDirty: Boolean,
+        backDirty: Boolean
+    ) -> Unit,
     topBarContainerColor: Color = Color.Transparent,
     topBarTextColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    // Используем remember с ключом, чтобы избежать повторной генерации при перекомпоновке
-    val barcodeBitmap = remember(cardCode, codeType) {
-        if (isValidBarcodeWithChecksum(cardCode, codeType) && codeType != "none") {
-            generateBarcodeBitmap(cardCode, codeType)
+    val displayCodeType = when (codeType) {
+        "barcode", "" -> "code128"
+        else -> codeType
+    }
+    val barcodeBitmap = remember(cardCode, displayCodeType) {
+        if (isValidBarcodeWithChecksum(cardCode, displayCodeType) && displayCodeType != "none") {
+            generateBarcodeBitmap(cardCode, displayCodeType)
         } else {
             null
         }
@@ -378,7 +405,21 @@ fun CardDetailScreen(
     var editCode by remember { mutableStateOf(cardCode) }
     var editType by remember { mutableStateOf(codeType) }
     var editColor by remember { mutableStateOf(cardColor) }
+    var editEncoding by remember { mutableStateOf("UTF-8") }
     var editError by remember { mutableStateOf("") }
+    var editFrontCoverUri by remember { mutableStateOf<Uri?>(null) }
+    var editBackCoverUri by remember { mutableStateOf<Uri?>(null) }
+    var editFrontCoverRemoved by remember { mutableStateOf(false) }
+    var editBackCoverRemoved by remember { mutableStateOf(false) }
+    var initialEditFrontUri by remember { mutableStateOf<Uri?>(null) }
+    var initialEditBackUri by remember { mutableStateOf<Uri?>(null) }
+    var editFrontCropUri by remember { mutableStateOf<Uri?>(null) }
+    var editBackCropUri by remember { mutableStateOf<Uri?>(null) }
+    var showEditFrontCrop by remember { mutableStateOf(false) }
+    var showEditBackCrop by remember { mutableStateOf(false) }
+    var pendingEditFrontCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingEditBackCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingEditCoverPick by remember { mutableStateOf<String?>(null) }
 
     var showNoteDialog by remember { mutableStateOf(false) }
     var showCoverDialog by remember { mutableStateOf(false) }
@@ -389,6 +430,64 @@ fun CardDetailScreen(
     val context2 = LocalContext.current
     val frontCoverUri = frontCoverPath?.takeIf { !it.startsWith("cards/") }?.let { android.net.Uri.fromFile(java.io.File(it)) }
     val backCoverUri = backCoverPath?.let { android.net.Uri.fromFile(java.io.File(it)) }
+
+    fun resetEditDraft() {
+        editName = cardName
+        editCode = cardCode
+        editType = displayCodeType
+        editColor = cardColor
+        editEncoding = "UTF-8"
+        editError = ""
+        editFrontCoverUri = frontCoverUri
+        editBackCoverUri = backCoverUri
+        editFrontCoverRemoved = false
+        editBackCoverRemoved = false
+        initialEditFrontUri = frontCoverUri
+        initialEditBackUri = backCoverUri
+    }
+
+    LaunchedEffect(showEditDialog) {
+        if (showEditDialog) {
+            resetEditDraft()
+        }
+    }
+
+    val editFrontPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val uri = result.data?.data ?: pendingEditFrontCameraUri
+            pendingEditFrontCameraUri = null
+            if (uri != null) {
+                editFrontCropUri = uri
+                showEditFrontCrop = true
+            }
+        }
+    }
+    val editBackPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val uri = result.data?.data ?: pendingEditBackCameraUri
+            pendingEditBackCameraUri = null
+            if (uri != null) {
+                editBackCropUri = uri
+                showEditBackCrop = true
+            }
+        }
+    }
+    LaunchedEffect(hasCameraPermission, pendingEditCoverPick) {
+        if (!hasCameraPermission || pendingEditCoverPick == null) return@LaunchedEffect
+        when (pendingEditCoverPick) {
+            "edit_front" -> {
+                val (intent, cameraUri) = createImagePickerChooserIntent(context2)
+                pendingEditFrontCameraUri = cameraUri
+                editFrontPicker.launch(intent)
+            }
+            "edit_back" -> {
+                val (intent, cameraUri) = createImagePickerChooserIntent(context2)
+                pendingEditBackCameraUri = cameraUri
+                editBackPicker.launch(intent)
+            }
+        }
+        pendingEditCoverPick = null
+    }
     // Показываем frontCoverPath (webp) если есть, иначе coverAsset (assets/cards)
     val coverBitmap: ImageBitmap? = remember(frontCoverPath, coverAsset) {
         try {
@@ -446,7 +545,7 @@ fun CardDetailScreen(
     // Функция копирования в буфер обмена
     fun copyToClipboard() {
         val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Код карты", editCode)
+        val clip = ClipData.newPlainText("Код карты", cardCode)
         clipboardManager.setPrimaryClip(clip)
         Toast.makeText(context, "Код скопирован в буфер обмена", Toast.LENGTH_SHORT).show()
     }
@@ -460,7 +559,7 @@ fun CardDetailScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = editName,
+                            text = cardName,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = topBarTextColor,
@@ -536,40 +635,83 @@ fun CardDetailScreen(
             }
             // Диалог редактирования
             if (showEditDialog) {
-                Surface(
-                    color = colorScheme.background,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    CardInputSection(
-                        cardName = editName,
-                        cardCode = editCode,
-                        selectedColor = editColor,
-                        onCardNameChange = { value -> editName = value },
-                        onCardCodeChange = {}, // поле не изменяется
-                        onColorChange = { color -> editColor = color },
-                        onSaveCard = {
-                            val normalizedName = normalizeCardName(editName)
-                            if (normalizedName.isBlank()) {
-                                editError = "Заполните имя карты"
-                            } else {
-                                showEditDialog = false
-                                editError = ""
-                                editName = normalizedName
-                                onEdit(normalizedName, editCode, editType, editColor)
-                            }
-                        },
-                        coverAsset = coverAsset,
-                        showTopBar = false, // убираем TopAppBar при редактировании
-                        isEditMode = true, // показываем TopAppBar с заголовком 'Изменение карты'
-                        onBack = onBack,
-                        frontCoverUri = frontCoverUri,
-                        backCoverUri = backCoverUri
-                    )
-                    if (editError.isNotEmpty()) {
-                        Text(editError, color = Color.Red, fontSize = 13.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
-                    }
-                }
+                CardInputSection(
+                    cardName = editName,
+                    cardCode = editCode,
+                    selectedColor = editColor,
+                    onCardNameChange = { value -> editName = value },
+                    onCardCodeChange = { editCode = it },
+                    onColorChange = { color -> editColor = color },
+                    onSaveCard = {
+                        val normalizedName = normalizeCardName(editName)
+                        if (normalizedName.isBlank()) {
+                            editError = "Заполните имя карты"
+                        } else {
+                            val type = editType.ifBlank { if (editCode.isBlank()) "none" else "code128" }
+                            val code = if (type == "none") "" else editCode
+                            val frontDirty = editFrontCoverRemoved || editFrontCoverUri != initialEditFrontUri
+                            val backDirty = editBackCoverRemoved || editBackCoverUri != initialEditBackUri
+                            showEditDialog = false
+                            editError = ""
+                            onEdit(
+                                normalizedName,
+                                code,
+                                type,
+                                editColor,
+                                editFrontCoverUri,
+                                editBackCoverUri,
+                                editFrontCoverRemoved,
+                                editBackCoverRemoved,
+                                frontDirty,
+                                backDirty
+                            )
+                        }
+                    },
+                    coverAsset = if (editFrontCoverRemoved) null else coverAsset,
+                    isEditMode = true,
+                    showTopBar = false,
+                    onBack = {
+                        resetEditDraft()
+                        showEditDialog = false
+                    },
+                    frontCoverUri = if (editFrontCoverRemoved) null else editFrontCoverUri,
+                    backCoverUri = if (editBackCoverRemoved) null else editBackCoverUri,
+                    onFrontCoverPick = {
+                        if (hasCameraPermission) {
+                            val (intent, cameraUri) = createImagePickerChooserIntent(context2)
+                            pendingEditFrontCameraUri = cameraUri
+                            editFrontPicker.launch(intent)
+                        } else {
+                            pendingEditCoverPick = "edit_front"
+                            permissionLauncher?.launch(Manifest.permission.CAMERA)
+                        }
+                    },
+                    onBackCoverPick = {
+                        if (hasCameraPermission) {
+                            val (intent, cameraUri) = createImagePickerChooserIntent(context2)
+                            pendingEditBackCameraUri = cameraUri
+                            editBackPicker.launch(intent)
+                        } else {
+                            pendingEditCoverPick = "edit_back"
+                            permissionLauncher?.launch(Manifest.permission.CAMERA)
+                        }
+                    },
+                    onFrontCoverRemove = {
+                        editFrontCoverUri = null
+                        editFrontCoverRemoved = true
+                    },
+                    onBackCoverRemove = {
+                        editBackCoverUri = null
+                        editBackCoverRemoved = true
+                    },
+                    codeType = editType.ifBlank { "code128" },
+                    onCodeTypeChange = { editType = it },
+                    codeEncoding = editEncoding,
+                    onCodeEncodingChange = { editEncoding = it },
+                    showBarcodeFields = true
+                )
             }
+            if (!showEditDialog) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -579,10 +721,10 @@ fun CardDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 // Код (QR или штрихкод) — не показываем для карт без штрих-кода
-                if (barcodeBitmap != null && editCode.isNotBlank() && editType != "none") {
-                    val isSquareCode = editType == "qr" || editType == "datamatrix"
+                if (barcodeBitmap != null && cardCode.isNotBlank() && displayCodeType != "none") {
+                    val isSquareCode = displayCodeType == "qr" || displayCodeType == "datamatrix"
                     val cardHeight = if (isSquareCode) 350.dp else 300.dp
-                    val imageHeight = if (editType == "qr" || editType == "datamatrix") 230.dp else 230.dp
+                    val imageHeight = if (displayCodeType == "qr" || displayCodeType == "datamatrix") 230.dp else 230.dp
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -602,7 +744,7 @@ fun CardDetailScreen(
                         ) {
                             Image(
                                 bitmap = barcodeBitmap!!.asImageBitmap(),
-                                contentDescription = editName,
+                                contentDescription = cardName,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(imageHeight)
@@ -621,7 +763,7 @@ fun CardDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Текст кода карты — скрыт для карт без штрих-кода
-                    if (editCode.isNotBlank() && editType != "none") {
+                    if (cardCode.isNotBlank() && displayCodeType != "none") {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -636,7 +778,7 @@ fun CardDetailScreen(
                                 .padding(vertical = 12.dp, horizontal = 12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            val formattedCode = formatBarcodeForStandard(editCode, editType)
+                            val formattedCode = formatBarcodeForStandard(cardCode, displayCodeType)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -652,7 +794,7 @@ fun CardDetailScreen(
                             ) {
                                 Text(
                                     text = formattedCode,
-                                    fontSize = if (editCode.length > 20) 20.sp else 28.sp,
+                                    fontSize = if (cardCode.length > 20) 20.sp else 28.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
                                     textAlign = TextAlign.Center,
@@ -796,6 +938,7 @@ fun CardDetailScreen(
                         }
                     }
                 }
+            }
             }
             // Диалог для заметки
             if (showNoteDialog) {
@@ -1111,6 +1254,42 @@ fun CardDetailScreen(
             onDismiss = {
                 showBackCropDialog = false
                 backCropImageUri = null
+            }
+        )
+    }
+    if (showEditFrontCrop && editFrontCropUri != null) {
+        ImageCropDialog(
+            imageUri = editFrontCropUri!!,
+            aspectRatio = 1.574f,
+            onCrop = { croppedBitmap ->
+                val file = File.createTempFile("front_crop_", ".webp", context2.cacheDir)
+                ru.merrcurys.seacard.core.utils.CoverBitmapStorage.saveBitmapAsWebpFile(file, croppedBitmap)
+                editFrontCoverUri = Uri.fromFile(file)
+                editFrontCoverRemoved = false
+                showEditFrontCrop = false
+                editFrontCropUri = null
+            },
+            onDismiss = {
+                showEditFrontCrop = false
+                editFrontCropUri = null
+            }
+        )
+    }
+    if (showEditBackCrop && editBackCropUri != null) {
+        ImageCropDialog(
+            imageUri = editBackCropUri!!,
+            aspectRatio = 1.574f,
+            onCrop = { croppedBitmap ->
+                val file = File.createTempFile("back_crop_", ".webp", context2.cacheDir)
+                ru.merrcurys.seacard.core.utils.CoverBitmapStorage.saveBitmapAsWebpFile(file, croppedBitmap)
+                editBackCoverUri = Uri.fromFile(file)
+                editBackCoverRemoved = false
+                showEditBackCrop = false
+                editBackCropUri = null
+            },
+            onDismiss = {
+                showEditBackCrop = false
+                editBackCropUri = null
             }
         )
     }
