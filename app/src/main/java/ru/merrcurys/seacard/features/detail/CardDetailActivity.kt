@@ -204,36 +204,13 @@ class CardDetailActivity : ComponentActivity() {
             val context = this@CardDetailActivity
             var dominantColor by remember { mutableStateOf<Int?>(null) }
             var frontImageUri by remember { mutableStateOf<Uri?>(null) }
-            var showCropDialog by remember { mutableStateOf(false) }
-            var cropImageUri by remember { mutableStateOf<Uri?>(null) }
-            var pendingFrontCameraUri by remember { mutableStateOf<Uri?>(null) }
             var hasCameraPermission by remember {
                 mutableStateOf(ContextCompat.checkSelfPermission(this@CardDetailActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
             }
-            var pendingCoverPick by remember { mutableStateOf<String?>(null) }
             val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
                 hasCameraPermission = granted
             }
             val scope = rememberCoroutineScope()
-            val frontImagePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
-                if (result.resultCode == android.app.Activity.RESULT_OK) {
-                    val uri = result.data?.data ?: pendingFrontCameraUri
-                    pendingFrontCameraUri = null
-                    if (uri != null) {
-                        cropImageUri = uri
-                        showCropDialog = true
-                    }
-                }
-            }
-            LaunchedEffect(hasCameraPermission, pendingCoverPick) {
-                if (!hasCameraPermission || pendingCoverPick == null) return@LaunchedEffect
-                if (pendingCoverPick == "front") {
-                    val (intent, cameraUri) = createImagePickerChooserIntent(this@CardDetailActivity)
-                    pendingFrontCameraUri = cameraUri
-                    frontImagePicker.launch(intent)
-                }
-                pendingCoverPick = null
-            }
             LaunchedEffect(card?.frontCoverPath) {
                 val c = card
                 if (c != null && c.frontCoverPath != null) {
@@ -287,17 +264,6 @@ class CardDetailActivity : ComponentActivity() {
                             note = card?.note ?: "",
                             backCoverPath = card?.backCoverPath,
                             onSaveNote = { viewModel.updateNote(it) },
-                            onSaveBackCover = { path -> path?.let { viewModel.updateBackCover(it) } },
-                            onFrontCoverPick = {
-                                if (hasCameraPermission) {
-                                    val (intent, cameraUri) = createImagePickerChooserIntent(this@CardDetailActivity)
-                                    pendingFrontCameraUri = cameraUri
-                                    frontImagePicker.launch(intent)
-                                } else {
-                                    pendingCoverPick = "front"
-                                    permissionLauncher.launch(Manifest.permission.CAMERA)
-                                }
-                            },
                             hasCameraPermission = hasCameraPermission,
                             permissionLauncher = permissionLauncher,
                             onBack = { finish() },
@@ -321,28 +287,6 @@ class CardDetailActivity : ComponentActivity() {
                         )
                     }
                 }
-            }
-            // Показываем crop-диалог если нужно
-            if (showCropDialog && cropImageUri != null) {
-                ImageCropDialog(
-                    imageUri = cropImageUri!!,
-                    aspectRatio = 1.574f,
-                    onCrop = { croppedBitmap ->
-                        card?.frontCoverPath?.let { oldPath ->
-                            if (!oldPath.startsWith("cards/")) try { File(oldPath).delete() } catch (_: Exception) {}
-                        }
-                        val timestamp = System.currentTimeMillis()
-                        val fileName = "front_${card?.name}_$timestamp.webp"
-                        val path = saveBitmapAsWebp(context, croppedBitmap, fileName)
-                        if (path != null) viewModel.updateFrontCover(path)
-                        showCropDialog = false
-                        cropImageUri = null
-                    },
-                    onDismiss = {
-                        showCropDialog = false
-                        cropImageUri = null
-                    }
-                )
             }
         }
     }
@@ -381,8 +325,6 @@ fun CardDetailScreen(
     note: String = "",
     backCoverPath: String? = null,
     onSaveNote: (String) -> Unit = {},
-    onSaveBackCover: (String?) -> Unit = {},
-    onFrontCoverPick: () -> Unit = {},
     hasCameraPermission: Boolean = true,
     permissionLauncher: androidx.activity.result.ActivityResultLauncher<String>? = null,
     onBack: () -> Unit,
@@ -441,8 +383,6 @@ fun CardDetailScreen(
     var showCoverDialog by remember { mutableStateOf(false) }
     var backImageUri by remember { mutableStateOf<Uri?>(null) }
     var showFullScreenImage by remember { mutableStateOf<Pair<Boolean, Uri?>>(false to null) }
-    var backCropImageUri by remember { mutableStateOf<Uri?>(null) }
-    var showBackCropDialog by remember { mutableStateOf(false) }
     val context2 = LocalContext.current
     val frontCoverUri = frontCoverPath?.takeIf { !it.startsWith("cards/") }?.let { android.net.Uri.fromFile(java.io.File(it)) }
     val backCoverUri = backCoverPath?.let { android.net.Uri.fromFile(java.io.File(it)) }
@@ -526,26 +466,6 @@ fun CardDetailScreen(
             }
             result
         } catch (_: Exception) { null }
-    }
-    var pendingBackCameraUri by remember { mutableStateOf<Uri?>(null) }
-    var pendingBackPick by remember { mutableStateOf(false) }
-    val backImagePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val uri = result.data?.data ?: pendingBackCameraUri
-            pendingBackCameraUri = null
-            if (uri != null) {
-                backCropImageUri = uri
-                showBackCropDialog = true
-            }
-        }
-    }
-    LaunchedEffect(hasCameraPermission, pendingBackPick) {
-        if (hasCameraPermission && pendingBackPick) {
-            pendingBackPick = false
-            val (intent, cameraUri) = createImagePickerChooserIntent(context2)
-            pendingBackCameraUri = cameraUri
-            backImagePicker.launch(intent)
-        }
     }
     var noteDraft by remember { mutableStateOf("") }
     var noteError by remember { mutableStateOf("") }
@@ -930,50 +850,20 @@ fun CardDetailScreen(
                                     .fillMaxSize()
                                     .padding(horizontal = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = if (note.isNotBlank()) {
-                                    Arrangement.spacedBy(12.dp)
-                                } else {
-                                    Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
-                                }
+                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
                             ) {
-                                if (note.isNotBlank()) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Заметки",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                    Text(
-                                        text = "Заметки",
-                                        color = Color.White,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Text(
-                                        text = note,
-                                        color = Color.White.copy(alpha = 0.8f),
-                                        fontSize = 13.sp,
-                                        maxLines = 1,
-                                        textAlign = TextAlign.End,
-                                        modifier = Modifier.weight(2f)
-                                    )
-                                } else {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Заметки",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                    Text(
-                                        text = "Заметки",
-                                        color = Color.White,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Spacer(modifier = Modifier.weight(1f))
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Заметки",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Text(
+                                    text = "Заметки",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
                         // Кнопка "Обложка"
@@ -1078,172 +968,96 @@ fun CardDetailScreen(
                     text = {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(18.dp)
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally)
-                            ) {
-                                // Лицевая сторона
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        // Устанавливаем соотношение сторон 1.574
-                                        .aspectRatio(1.574f)
-                                        .clip(RoundedCornerShape(18.dp))
-                                        .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
-                                        .clickable {
-                                            // Только просмотр. Для asset (cards/...) Uri нет — полноэкран покажет coverBitmap
-                                            when {
-                                                frontCoverPath != null && !frontCoverPath!!.startsWith("cards/") ->
-                                                    showFullScreenImage = true to Uri.fromFile(File(frontCoverPath!!))
-                                                frontImageUri != null -> showFullScreenImage = true to frontImageUri
-                                                coverBitmap != null -> showFullScreenImage = true to null
-                                            }
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    val frontBitmap = frontCoverPath?.let { path ->
-                                        if (path.startsWith("cards/")) null
-                                        else try { BitmapFactory.decodeFile(path) } catch (_: Exception) { null }
-                                    } ?: frontImageUri?.let { rememberBitmapFromUri(it) } ?: coverBitmap?.let { null }
-                                    if (frontBitmap != null) {
-                                        Image(
-                                            bitmap = frontBitmap.asImageBitmap(),
-                                            contentDescription = "Лицевая сторона",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    } else if (coverBitmap != null) {
-                                        Image(
-                                            bitmap = coverBitmap,
-                                            contentDescription = "Лицевая сторона",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.Image,
-                                            contentDescription = null,
-                                            tint = colorScheme.primary,
-                                            modifier = Modifier.size(40.dp)
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .fillMaxWidth()
-                                            .background(Color.Black.copy(alpha = 0.3f))
-                                    ) {
-                                        Text(
-                                            text = "Лицевая сторона",
-                                            color = Color.White,
-                                            fontSize = 13.sp,
-                                            modifier = Modifier.align(Alignment.Center)
-                                        )
-                                    }
-                                }
-                                // Тыльная сторона
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        // Устанавливаем соотношение сторон 1.574
-                                        .aspectRatio(1.574f)
-                                        .clip(RoundedCornerShape(18.dp))
-                                        .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
-                                        .clickable {
-                                            // Только просмотр
-                                            backCoverPath?.let { path ->
-                                                showFullScreenImage = true to Uri.fromFile(File(path))
-                                            } ?: run {
-                                                if (backImageUri != null) {
-                                                    showFullScreenImage = true to backImageUri
-                                                }
-                                            }
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    val backBitmap = if (backCoverPath != null) {
-                                        try {
-                                            BitmapFactory.decodeFile(backCoverPath)
-                                        } catch (_: Exception) { null }
-                                    } else rememberBitmapFromUri(backImageUri)
-                                    if (backBitmap != null) {
-                                        Image(
-                                            bitmap = backBitmap.asImageBitmap(),
-                                            contentDescription = "Тыльная сторона",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.Image,
-                                            contentDescription = null,
-                                            tint = colorScheme.primary,
-                                            modifier = Modifier.size(40.dp)
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .fillMaxWidth()
-                                            .background(Color.Black.copy(alpha = 0.3f))
-                                    ) {
-                                        Text(
-                                            text = "Тыльная сторона",
-                                            color = Color.White,
-                                            fontSize = 13.sp,
-                                            modifier = Modifier.align(Alignment.Center)
-                                        )
-                                    }
-                                }
-                            }
-                            // Кнопки загрузки под карточками
-                            Row(
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally)
-                            ) {
-                                Button(
-                                    onClick = onFrontCoverPick,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(44.dp),
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = colorScheme.surfaceVariant,
-                                        contentColor = colorScheme.onSurface
-                                    ),
-                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-                                ) {
-                                    Text("Загрузить", color = colorScheme.onSurface, fontWeight = FontWeight.Medium)
-                                }
-                                Button(
-                                    onClick = {
-                                        if (hasCameraPermission) {
-                                            val (intent, cameraUri) = createImagePickerChooserIntent(context)
-                                            pendingBackCameraUri = cameraUri
-                                            backImagePicker.launch(intent)
-                                        } else {
-                                            pendingBackPick = true
-                                            permissionLauncher?.launch(Manifest.permission.CAMERA)
+                                    .aspectRatio(1.574f)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                                    .clickable {
+                                        when {
+                                            frontCoverPath != null && !frontCoverPath!!.startsWith("cards/") ->
+                                                showFullScreenImage = true to Uri.fromFile(File(frontCoverPath!!))
+                                            frontImageUri != null -> showFullScreenImage = true to frontImageUri
+                                            coverBitmap != null -> showFullScreenImage = true to null
                                         }
                                     },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(44.dp),
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = colorScheme.surfaceVariant,
-                                        contentColor = colorScheme.onSurface
-                                    ),
-                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-                                ) {
-                                    Text("Загрузить", color = colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val frontBitmap = frontCoverPath?.let { path ->
+                                    if (path.startsWith("cards/")) null
+                                    else try { BitmapFactory.decodeFile(path) } catch (_: Exception) { null }
+                                } ?: frontImageUri?.let { rememberBitmapFromUri(it) } ?: coverBitmap?.let { null }
+                                if (frontBitmap != null) {
+                                    Image(
+                                        bitmap = frontBitmap.asImageBitmap(),
+                                        contentDescription = "Лицевая обложка",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else if (coverBitmap != null) {
+                                    Image(
+                                        bitmap = coverBitmap,
+                                        contentDescription = "Лицевая обложка",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Image,
+                                        contentDescription = null,
+                                        tint = colorScheme.primary,
+                                        modifier = Modifier.size(48.dp)
+                                    )
                                 }
                             }
-                            Text("Нажмите на карточку, чтобы просмотреть изображение", fontSize = 13.sp, color = colorScheme.onSurfaceVariant)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1.574f)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                                    .clickable {
+                                        backCoverPath?.let { path ->
+                                            showFullScreenImage = true to Uri.fromFile(File(path))
+                                        } ?: run {
+                                            if (backImageUri != null) {
+                                                showFullScreenImage = true to backImageUri
+                                            }
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val backBitmap = if (backCoverPath != null) {
+                                    try {
+                                        BitmapFactory.decodeFile(backCoverPath)
+                                    } catch (_: Exception) { null }
+                                } else rememberBitmapFromUri(backImageUri)
+                                if (backBitmap != null) {
+                                    Image(
+                                        bitmap = backBitmap.asImageBitmap(),
+                                        contentDescription = "Тыльная обложка",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Image,
+                                        contentDescription = null,
+                                        tint = colorScheme.primary,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "Нажмите на обложку, чтобы увеличить изображение. А изменить обложку, можно в меню изменения карты.",
+                                fontSize = 13.sp,
+                                color = colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     },
                     confirmButton = {
@@ -1305,31 +1119,6 @@ fun CardDetailScreen(
                 }
             }
         }
-    }
-    // Показываем crop-диалог если нужно (back cover)
-    if (showBackCropDialog && backCropImageUri != null) {
-        ImageCropDialog(
-            imageUri = backCropImageUri!!,
-            aspectRatio = 1.574f,
-            onCrop = { croppedBitmap ->
-                // Удаляем старый файл, если был
-                backCoverPath?.let { oldPath ->
-                    try { File(oldPath).delete() } catch (_: Exception) {}
-                }
-                val timestamp = System.currentTimeMillis()
-                val fileName = "back_${cardName}_$timestamp.webp"
-                val path = saveBitmapAsWebp(context, croppedBitmap, fileName)
-                if (path != null) {
-                    onSaveBackCover(path)
-                }
-                showBackCropDialog = false
-                backCropImageUri = null
-            },
-            onDismiss = {
-                showBackCropDialog = false
-                backCropImageUri = null
-            }
-        )
     }
     if (showEditFrontCrop && editFrontCropUri != null) {
         ImageCropDialog(
