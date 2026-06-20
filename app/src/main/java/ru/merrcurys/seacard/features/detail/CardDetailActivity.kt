@@ -123,55 +123,6 @@ fun rememberBitmapFromUri(uri: Uri?): Bitmap? {
     }
 }
 
-suspend fun getDominantColorFromAsset(context: Context, assetPath: String): Int? = withContext(Dispatchers.IO) {
-    try {
-        val inputStream: InputStream = context.assets.open(assetPath)
-        val bitmap = BitmapFactory.decodeStream(inputStream)
-        inputStream.close()
-        val colorCount = mutableMapOf<Int, Int>()
-        val width = bitmap.width
-        val height = bitmap.height
-        val step = (width * height / 10000).coerceAtLeast(1)
-        for (y in 0 until height step step) {
-            for (x in 0 until width step step) {
-                val color = bitmap[x, y]
-                val alpha = (color shr 24) and 0xFF
-                if (alpha > 200) {
-                    colorCount[color] = (colorCount[color] ?: 0) + 1
-                }
-            }
-        }
-        colorCount.maxByOrNull { it.value }?.key
-    } catch (e: Exception) {
-        null
-    }
-}
-
-// Получить доминантный цвет из локального файла
-suspend fun getDominantColorFromFile(filePath: String): Int? = withContext(Dispatchers.IO) {
-    try {
-        val inputStream: InputStream = FileInputStream(filePath)
-        val bitmap = BitmapFactory.decodeStream(inputStream)
-        inputStream.close()
-        val colorCount = mutableMapOf<Int, Int>()
-        val width = bitmap.width
-        val height = bitmap.height
-        val step = (width * height / 10000).coerceAtLeast(1)
-        for (y in 0 until height step step) {
-            for (x in 0 until width step step) {
-                val color = bitmap[x, y]
-                val alpha = (color shr 24) and 0xFF
-                if (alpha > 200) {
-                    colorCount[color] = (colorCount[color] ?: 0) + 1
-                }
-            }
-        }
-        colorCount.maxByOrNull { it.value }?.key
-    } catch (e: Exception) {
-        null
-    }
-}
-
 // Функция для сохранения Bitmap в webp-файл (размер как у цветных обложек, см. CoverBitmapStorage)
 fun saveBitmapAsWebp(context: Context, bitmap: Bitmap, fileName: String): String? =
     CoverBitmapStorage.saveBitmapAsWebpToCovers(context, bitmap, fileName)
@@ -202,7 +153,6 @@ class CardDetailActivity : ComponentActivity() {
             val card by viewModel.card.collectAsState()
             var isDark by remember { mutableStateOf(loadThemePref(this@CardDetailActivity)) }
             val context = this@CardDetailActivity
-            var dominantColor by remember { mutableStateOf<Int?>(null) }
             var frontImageUri by remember { mutableStateOf<Uri?>(null) }
             var hasCameraPermission by remember {
                 mutableStateOf(ContextCompat.checkSelfPermission(this@CardDetailActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
@@ -211,16 +161,6 @@ class CardDetailActivity : ComponentActivity() {
                 hasCameraPermission = granted
             }
             val scope = rememberCoroutineScope()
-            LaunchedEffect(card?.frontCoverPath) {
-                val c = card
-                if (c != null && c.frontCoverPath != null) {
-                    dominantColor = if (c.frontCoverPath!!.startsWith("cards/")) {
-                        getDominantColorFromAsset(context, c.frontCoverPath!!)
-                    } else {
-                        getDominantColorFromFile(c.frontCoverPath!!)
-                    }
-                }
-            }
 
             // Обновляем проверку разрешения при изменении состояния
             LaunchedEffect(Unit) {
@@ -238,7 +178,7 @@ class CardDetailActivity : ComponentActivity() {
             val frontCoverPath = card?.frontCoverPath
 
             SeaCardTheme {
-                val baseColor = dominantColor?.let { Color(it) } ?: Color(cardColorState)
+                val baseColor = Color(cardColorState)
                 val backgroundColor = MaterialTheme.colorScheme.background
                 val gradientColors = listOf(
                     baseColor,
@@ -401,12 +341,6 @@ fun CardDetailScreen(
         initialEditBackUri = backCoverUri
     }
 
-    LaunchedEffect(showEditDialog) {
-        if (showEditDialog) {
-            resetEditDraft()
-        }
-    }
-
     val editFrontPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val uri = result.data?.data ?: pendingEditFrontCameraUri
@@ -542,6 +476,7 @@ fun CardDetailScreen(
                                     text = { Text("Изменить карту") },
                                     onClick = {
                                         showMenu = false
+                                        resetEditDraft()
                                         showEditDialog = true
                                     },
                                     leadingIcon = {
@@ -631,7 +566,7 @@ fun CardDetailScreen(
                         resetEditDraft()
                         showEditDialog = false
                     },
-                    frontCoverUri = if (editFrontCoverRemoved) null else editFrontCoverUri,
+                    frontCoverUri = if (editFrontCoverRemoved) null else (editFrontCoverUri ?: frontCoverUri),
                     backCoverUri = if (editBackCoverRemoved) null else editBackCoverUri,
                     onFrontCoverPick = {
                         if (hasCameraPermission) {

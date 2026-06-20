@@ -13,8 +13,20 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import android.graphics.Color as AndroidColor
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,11 +37,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.merrcurys.seacard.core.design.GradientBackground
 import ru.merrcurys.seacard.core.design.GradientUtils
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
 import androidx.compose.ui.draw.clip
@@ -41,6 +55,7 @@ import androidx.compose.ui.layout.ContentScale
 import ru.merrcurys.seacard.core.barcode.BARCODE_TYPE_OPTIONS
 import ru.merrcurys.seacard.core.barcode.generateBarcodeBitmap
 import ru.merrcurys.seacard.core.barcode.validateBarcodeCode
+import ru.merrcurys.seacard.core.utils.DominantColorExtractor
 
 // Функция для загрузки bitmap из URI или asset
 @Composable
@@ -128,6 +143,266 @@ private fun BarcodeDropdownField(
     }
 }
 
+private fun colorIntToHsv(color: Int): FloatArray =
+    FloatArray(3).also { AndroidColor.colorToHSV(color and 0xFFFFFF or 0xFF000000.toInt(), it) }
+
+private fun hsvToOpaqueColorInt(hue: Float, saturation: Float, value: Float): Int =
+    AndroidColor.HSVToColor(floatArrayOf(hue, saturation.coerceIn(0f, 1f), value.coerceIn(0f, 1f)))
+
+private fun hsvToComposeColor(hue: Float, saturation: Float, value: Float): Color =
+    Color(hsvToOpaqueColorInt(hue, saturation, value))
+
+@Composable
+private fun CardColorPreviewRow(
+    selectedColor: Int,
+    onPickColor: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val previewColor = Color(selectedColor)
+    val borderColor = colorScheme.onSurface.copy(alpha = 0.25f)
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Цвет карты",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = colorScheme.onSurface
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(previewColor)
+                    .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onPickColor
+                    )
+            )
+            FilledIconButton(
+                onClick = onPickColor,
+                modifier = Modifier.size(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = colorScheme.surfaceVariant,
+                    contentColor = colorScheme.onSurface
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Colorize,
+                    contentDescription = "Выбрать цвет"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardRgbColorDialog(
+    initialColor: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val initialHsv = remember(initialColor) { colorIntToHsv(initialColor) }
+    var hue by remember(initialColor) { mutableStateOf(initialHsv[0]) }
+    var saturation by remember(initialColor) { mutableStateOf(initialHsv[1]) }
+    var value by remember(initialColor) { mutableStateOf(initialHsv[2]) }
+    val previewColor = hsvToComposeColor(hue, saturation, value)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Выберите цвет") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SaturationValuePicker(
+                    hue = hue,
+                    saturation = saturation,
+                    value = value,
+                    onSaturationValueChange = { s, v ->
+                        saturation = s
+                        value = v
+                    }
+                )
+                HuePickerBar(
+                    hue = hue,
+                    onHueChange = { hue = it }
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(previewColor)
+                        .border(1.dp, colorScheme.onSurface.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(hsvToOpaqueColorInt(hue, saturation, value)) }) {
+                Text("Готово")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        },
+        containerColor = colorScheme.surface,
+        titleContentColor = colorScheme.onSurface,
+        textContentColor = colorScheme.onSurface
+    )
+}
+
+@Composable
+private fun SaturationValuePicker(
+    hue: Float,
+    saturation: Float,
+    value: Float,
+    onSaturationValueChange: (Float, Float) -> Unit
+) {
+    var areaSize by remember { mutableStateOf(IntSize.Zero) }
+
+    fun updateFromOffset(offset: Offset) {
+        if (areaSize.width == 0 || areaSize.height == 0) return
+        onSaturationValueChange(
+            (offset.x / areaSize.width).coerceIn(0f, 1f),
+            (1f - offset.y / areaSize.height).coerceIn(0f, 1f)
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .onSizeChanged { areaSize = it }
+    ) {
+        Box(Modifier.fillMaxSize().background(hsvToComposeColor(hue, 1f, 1f)))
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.horizontalGradient(listOf(Color.White, Color.Transparent))
+            )
+        )
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(listOf(Color.Transparent, Color.Black))
+            )
+        )
+        if (areaSize.width > 0 && areaSize.height > 0) {
+            ColorPickerHandle(
+                centerX = saturation * areaSize.width,
+                centerY = (1f - value) * areaSize.height
+            )
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .pointerInput(areaSize) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        updateFromOffset(down.position)
+                        drag(down.id) { change ->
+                            updateFromOffset(change.position)
+                            change.consume()
+                        }
+                    }
+                }
+        )
+    }
+}
+
+@Composable
+private fun HuePickerBar(
+    hue: Float,
+    onHueChange: (Float) -> Unit
+) {
+    var barSize by remember { mutableStateOf(IntSize.Zero) }
+
+    fun updateFromOffset(offset: Offset) {
+        if (barSize.width == 0) return
+        onHueChange((offset.x / barSize.width).coerceIn(0f, 1f) * 360f)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(28.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .onSizeChanged { barSize = it }
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFFFF0000),
+                            Color(0xFFFFFF00),
+                            Color(0xFF00FF00),
+                            Color(0xFF00FFFF),
+                            Color(0xFF0000FF),
+                            Color(0xFFFF00FF),
+                            Color(0xFFFF0000)
+                        )
+                    )
+                )
+        )
+        if (barSize.width > 0) {
+            ColorPickerHandle(
+                centerX = (hue / 360f) * barSize.width,
+                centerY = barSize.height / 2f,
+                size = 22.dp
+            )
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .pointerInput(barSize) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        updateFromOffset(down.position)
+                        drag(down.id) { change ->
+                            updateFromOffset(change.position)
+                            change.consume()
+                        }
+                    }
+                }
+        )
+    }
+}
+
+@Composable
+private fun ColorPickerHandle(
+    centerX: Float,
+    centerY: Float,
+    size: Dp = 24.dp
+) {
+    val radiusPx = with(LocalDensity.current) { (size / 2).toPx() }
+    Box(
+        modifier = Modifier.offset {
+            IntOffset(
+                (centerX - radiusPx).toInt(),
+                (centerY - radiusPx).toInt()
+            )
+        }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .border(2.dp, Color.White, CircleShape)
+                .border(1.dp, Color.Black.copy(alpha = 0.35f), CircleShape)
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardInputSection(
@@ -155,18 +430,25 @@ fun CardInputSection(
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val gradientColor = GradientUtils.loadGradientColorPref(context)
-    val cardColors = listOf(
-        0xFFFFFFFF.toInt(),
-        0xFFFF4444.toInt(),
-        0xFF4CAF50.toInt(),
-        0xFF2196F3.toInt(),
-        0xFFFF9800.toInt(),
-        0xFFFFEB3B.toInt(),
-        0xFFE91E63.toInt(),
-        0xFF9C27B0.toInt(),
-        0xFF000000.toInt(),
-        0xFF9E9E9E.toInt()
-    )
+    var showRgbColorDialog by remember { mutableStateOf(false) }
+    var colorManuallyOverridden by remember { mutableStateOf(false) }
+    val coverColorKey = frontCoverUri?.toString() ?: coverAsset
+    val initialCoverKey = remember { coverColorKey }
+
+    LaunchedEffect(coverColorKey) {
+        val key = coverColorKey ?: return@LaunchedEffect
+        if (key == initialCoverKey) return@LaunchedEffect
+
+        colorManuallyOverridden = false
+        val accentColor = when {
+            frontCoverUri != null -> DominantColorExtractor.fromUri(context, frontCoverUri)
+            coverAsset != null -> DominantColorExtractor.fromAsset(context, coverAsset)
+            else -> null
+        }
+        if (accentColor != null && !colorManuallyOverridden) {
+            onColorChange(accentColor)
+        }
+    }
 
     val codeError by remember(cardCode, codeType, showBarcodeFields) {
         derivedStateOf {
@@ -321,71 +603,21 @@ fun CardInputSection(
                         }
                     }
 
-                    if (coverAsset == null) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                            Text(
-                                text = "Выберите цвет карты",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = colorScheme.onSurface,
-                                modifier = Modifier.padding(bottom = 12.dp)
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        CardColorPreviewRow(
+                            selectedColor = selectedColor,
+                            onPickColor = { showRgbColorDialog = true }
+                        )
+                        if (showRgbColorDialog) {
+                            CardRgbColorDialog(
+                                initialColor = selectedColor,
+                                onDismiss = { showRgbColorDialog = false },
+                                onConfirm = { color ->
+                                    colorManuallyOverridden = true
+                                    onColorChange(color)
+                                    showRgbColorDialog = false
+                                }
                             )
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    cardColors.take(5).forEach { color ->
-                                        val isSelected = color == selectedColor
-                                        val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
-                                        Box(
-                                            modifier = Modifier
-                                                .size(50.dp)
-                                                .background(
-                                                    color = Color(color),
-                                                    shape = CircleShape
-                                                )
-                                                .border(
-                                                    width = if (isSelected) 3.dp else 1.dp,
-                                                    color = borderColor,
-                                                    shape = CircleShape
-                                                )
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null
-                                                ) { onColorChange(color) }
-                                        )
-                                    }
-                                }
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    cardColors.drop(5).forEach { color ->
-                                        val isSelected = color == selectedColor
-                                        val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
-                                        Box(
-                                            modifier = Modifier
-                                                .size(50.dp)
-                                                .background(
-                                                    color = Color(color),
-                                                    shape = CircleShape
-                                                )
-                                                .border(
-                                                    width = if (isSelected) 3.dp else 1.dp,
-                                                    color = borderColor,
-                                                    shape = CircleShape
-                                                )
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null
-                                                ) { onColorChange(color) }
-                                        )
-                                    }
-                                }
-                            }
                         }
                     }
                     Row(

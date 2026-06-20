@@ -209,10 +209,11 @@ class ScanCardActivity : ComponentActivity() {
                                 coroutineScope.launch {
                                     val type = codeTypeState.ifBlank { if (cardCode.isBlank()) "none" else "code128" }
                                     val code = cardCode
+                                    val color = viewModel.selectedColor.value
                                     if (viewModel.coverAsset != null) {
-                                        viewModel.saveCardWithCover(cardName, code, type, selectedColor, viewModel.coverAsset, null)
+                                        viewModel.saveCardWithCover(cardName, code, type, color, viewModel.coverAsset, null)
                                     } else {
-                                        viewModel.saveCardWithCoverUris(cardName, code, type, selectedColor)
+                                        viewModel.saveCardWithCoverUris(cardName, code, type, color)
                                     }
                                     setResult(RESULT_OK)
                                     finish()

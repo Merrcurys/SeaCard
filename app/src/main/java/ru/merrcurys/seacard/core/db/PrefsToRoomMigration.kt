@@ -2,6 +2,7 @@ package ru.merrcurys.seacard.core.db
 
 import android.content.Context
 import ru.merrcurys.seacard.core.utils.ColorCoverGenerator
+import ru.merrcurys.seacard.core.utils.DominantColorExtractor
 
 /**
  * Однократная миграция данных из SharedPreferences в Room.
@@ -13,6 +14,7 @@ object PrefsToRoomMigration {
     private const val KEY_CARD_LIST = "card_list"
     private const val KEY_MIGRATED = "migrated_to_room"
     private const val KEY_COLOR_COVERS_MIGRATED = "color_covers_migrated_to_webp"
+    private const val KEY_COVER_ACCENT_COLORS_MIGRATED = "cover_accent_colors_migrated"
     private const val PREFIX_COVER_FRONT = "cover_front_"
     private const val PREFIX_COVER_BACK = "cover_back_"
     private const val PREFIX_NOTE = "note_"
@@ -23,6 +25,7 @@ object PrefsToRoomMigration {
      */
     suspend fun migrateIfNeeded(context: Context) {
         migrateColorCoversToWebp(context)
+        migrateCoverAccentColors(context)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (prefs.getBoolean(KEY_MIGRATED, false)) return
 
@@ -140,6 +143,35 @@ object PrefsToRoomMigration {
         }
 
         prefs.edit().putBoolean(KEY_COLOR_COVERS_MIGRATED, true).apply()
+        ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(context)
+    }
+
+    /**
+     * Для старых карт с лицевой обложкой: если в БД остался дефолтный белый цвет,
+     * записывает акцентный цвет из обложки (раньше он вычислялся только при показе).
+     */
+    private suspend fun migrateCoverAccentColors(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_COVER_ACCENT_COLORS_MIGRATED, false)) return
+
+        val dao = DatabaseProvider.get(context).cardDao()
+        val defaultWhite = 0xFFFFFFFF.toInt()
+
+        for (card in dao.getAll()) {
+            val coverPath = card.frontCoverPath ?: continue
+            if (card.color != defaultWhite) continue
+
+            val accentColor = if (coverPath.startsWith("cards/")) {
+                DominantColorExtractor.fromAsset(context, coverPath)
+            } else {
+                DominantColorExtractor.fromFile(coverPath)
+            } ?: continue
+
+            if (accentColor == defaultWhite) continue
+            dao.update(card.copy(color = accentColor))
+        }
+
+        prefs.edit().putBoolean(KEY_COVER_ACCENT_COLORS_MIGRATED, true).apply()
         ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(context)
     }
 }
