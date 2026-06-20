@@ -10,6 +10,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -336,8 +337,10 @@ private fun AddCardOptionsSheet(
         containerColor = sectionCardColor,
         contentColor = Color.White,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.3f)) }
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.3f)) },
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false)
     ) {
+        BackHandler(onBack = onDismiss)
         AddCardOptionsContent(
             onPickGallery = onPickGallery,
             onManualInput = onManualInput,

@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -48,6 +49,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -629,8 +631,10 @@ fun SettingsScreen(
             sheetState = sheetState,
             containerColor = sectionCardColor,
             shape = aboutSheetShape,
-            dragHandle = { BottomSheetDefaults.DragHandle() }
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false)
         ) {
+            BackHandler(onBack = { showAboutSheet = false })
             AboutBottomSheetContent(
                 appVersion = appVersion,
                 sheetHeight = sheetHeight,

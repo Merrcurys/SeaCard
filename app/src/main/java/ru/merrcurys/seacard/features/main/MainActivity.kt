@@ -279,8 +279,9 @@ fun MainScreen(
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedTextColor = colorScheme.onSurface,
                                         unfocusedTextColor = colorScheme.onSurface,
-                                        focusedBorderColor = colorScheme.primary,
+                                        focusedBorderColor = Color.Transparent,
                                         unfocusedBorderColor = Color.Transparent,
+                                        disabledBorderColor = Color.Transparent,
                                         focusedContainerColor = Color.Transparent,
                                         unfocusedContainerColor = Color.Transparent
                                     ),
@@ -291,10 +292,9 @@ fun MainScreen(
                                             fontWeight = FontWeight.Medium
                                         )
                                     },
-                                    shape = RoundedCornerShape(100.dp),
                                     lineLimits = TextFieldLineLimits.SingleLine,
                                     contentPadding = OutlinedTextFieldDefaults.contentPadding(
-                                        start = 24.dp,
+                                        start = 8.dp,
                                         end = 8.dp,
                                         top = 8.dp,
                                         bottom = 8.dp
