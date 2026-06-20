@@ -80,7 +80,6 @@ class ScanCardActivity : ComponentActivity() {
             val scanned by viewModel.scanned.collectAsState()
             val scanSuccess by viewModel.scanSuccess.collectAsState()
             val codeTypeState by viewModel.codeTypeState.collectAsState()
-            val codeEncoding by viewModel.codeEncoding.collectAsState()
             val frontCoverUri by viewModel.frontCoverUri.collectAsState()
             val backCoverUri by viewModel.backCoverUri.collectAsState()
             val showFrontCropDialog by viewModel.showFrontCropDialog.collectAsState()
@@ -191,9 +190,9 @@ class ScanCardActivity : ComponentActivity() {
                         showManualBarcodeSelection -> {
                             ManualBarcodeSelectionScreen(
                                 onBack = { showManualBarcodeSelection = false },
-                                onBarcodeSelected = { code, type, encoding ->
+                                onBarcodeSelected = { code, type ->
                                     showManualBarcodeSelection = false
-                                    viewModel.enterManualMode(code, type, encoding)
+                                    viewModel.enterManualMode(code, type)
                                 }
                             )
                         }
@@ -208,7 +207,7 @@ class ScanCardActivity : ComponentActivity() {
                             onSaveCard = {
                                 coroutineScope.launch {
                                     val type = codeTypeState.ifBlank { if (cardCode.isBlank()) "none" else "code128" }
-                                    val code = if (type == "none") "" else cardCode
+                                    val code = cardCode
                                     if (viewModel.coverAsset != null) {
                                         viewModel.saveCardWithCover(cardName, code, type, selectedColor, viewModel.coverAsset, null)
                                     } else {
@@ -246,8 +245,6 @@ class ScanCardActivity : ComponentActivity() {
                             onBackCoverRemove = { viewModel.setBackCoverUri(null) },
                             codeType = codeTypeState.ifBlank { "code128" },
                             onCodeTypeChange = { viewModel.setCodeType(it) },
-                            codeEncoding = codeEncoding,
-                            onCodeEncodingChange = { viewModel.setCodeEncoding(it) },
                             showBarcodeFields = true
                         )
                         }

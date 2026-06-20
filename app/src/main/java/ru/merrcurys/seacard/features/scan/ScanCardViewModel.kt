@@ -30,7 +30,6 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
     val scanned = MutableStateFlow(false)
     val scanSuccess = MutableStateFlow(false)
     val codeTypeState = MutableStateFlow("")
-    val codeEncoding = MutableStateFlow("UTF-8")
     val cardSaved = MutableStateFlow(false)
     // true — форма «Добавить карту» открыта (любой способ добавления)
     val manualMode = MutableStateFlow(false)
@@ -48,17 +47,15 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
     fun setScanned(value: Boolean) { scanned.value = value }
     fun setScanSuccess(value: Boolean) { scanSuccess.value = value }
     fun setCodeType(type: String) { codeTypeState.value = type }
-    fun setCodeEncoding(encoding: String) { codeEncoding.value = encoding }
 
     /** Открывает форму «Добавить карту» для ручного ввода. */
-    fun enterManualMode(code: String = "", codeType: String = "", encoding: String = "UTF-8") {
+    fun enterManualMode(code: String = "", codeType: String = "") {
         cardCode.value = code
         codeTypeState.value = when {
             codeType.isNotBlank() -> codeType
             code.isNotBlank() -> detectCodeType(code)
             else -> "code128"
         }
-        codeEncoding.value = encoding
         scanned.value = true
         scanSuccess.value = false
         manualMode.value = true

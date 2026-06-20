@@ -60,6 +60,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.core.content.ContextCompat
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -405,7 +406,6 @@ fun CardDetailScreen(
     var editCode by remember { mutableStateOf(cardCode) }
     var editType by remember { mutableStateOf(codeType) }
     var editColor by remember { mutableStateOf(cardColor) }
-    var editEncoding by remember { mutableStateOf("UTF-8") }
     var editError by remember { mutableStateOf("") }
     var editFrontCoverUri by remember { mutableStateOf<Uri?>(null) }
     var editBackCoverUri by remember { mutableStateOf<Uri?>(null) }
@@ -436,7 +436,6 @@ fun CardDetailScreen(
         editCode = cardCode
         editType = displayCodeType
         editColor = cardColor
-        editEncoding = "UTF-8"
         editError = ""
         editFrontCoverUri = frontCoverUri
         editBackCoverUri = backCoverUri
@@ -550,6 +549,25 @@ fun CardDetailScreen(
         Toast.makeText(context, "Код скопирован в буфер обмена", Toast.LENGTH_SHORT).show()
     }
 
+    BackHandler(
+        enabled = showEditDialog || showEditFrontCrop || showEditBackCrop
+    ) {
+        when {
+            showEditFrontCrop -> {
+                showEditFrontCrop = false
+                editFrontCropUri = null
+            }
+            showEditBackCrop -> {
+                showEditBackCrop = false
+                editBackCropUri = null
+            }
+            showEditDialog -> {
+                resetEditDraft()
+                showEditDialog = false
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -648,7 +666,7 @@ fun CardDetailScreen(
                             editError = "Заполните имя карты"
                         } else {
                             val type = editType.ifBlank { if (editCode.isBlank()) "none" else "code128" }
-                            val code = if (type == "none") "" else editCode
+                            val code = editCode
                             val frontDirty = editFrontCoverRemoved || editFrontCoverUri != initialEditFrontUri
                             val backDirty = editBackCoverRemoved || editBackCoverUri != initialEditBackUri
                             showEditDialog = false
@@ -706,8 +724,6 @@ fun CardDetailScreen(
                     },
                     codeType = editType.ifBlank { "code128" },
                     onCodeTypeChange = { editType = it },
-                    codeEncoding = editEncoding,
-                    onCodeEncodingChange = { editEncoding = it },
                     showBarcodeFields = true
                 )
             }
@@ -720,7 +736,7 @@ fun CardDetailScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // Код (QR или штрихкод) — не показываем для карт без штрих-кода
+                // Штрих-код или текстовый код (для карт без штрих-кода)
                 if (barcodeBitmap != null && cardCode.isNotBlank() && displayCodeType != "none") {
                     val isSquareCode = displayCodeType == "qr" || displayCodeType == "datamatrix"
                     val cardHeight = if (isSquareCode) 350.dp else 300.dp
@@ -749,6 +765,66 @@ fun CardDetailScreen(
                                     .fillMaxWidth()
                                     .height(imageHeight)
                             )
+                        }
+                    }
+                } else if (displayCodeType == "none" && cardCode.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 8.dp)
+                            .height(300.dp)
+                            .shadow(18.dp, RoundedCornerShape(28.dp)),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 18.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.25f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(20.dp)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(onLongPress = { copyToClipboard() })
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = cardCode,
+                                        fontSize = if (cardCode.length > 20) 20.sp else 28.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.TouchApp,
+                                        contentDescription = null,
+                                        tint = Color.Gray.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Долгое нажатие — скопировать",
+                                        fontSize = 11.sp,
+                                        color = Color.Gray.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

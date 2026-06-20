@@ -38,11 +38,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.layout.ContentScale
-import ru.merrcurys.seacard.core.barcode.BARCODE_ENCODINGS
 import ru.merrcurys.seacard.core.barcode.BARCODE_TYPE_OPTIONS
-import ru.merrcurys.seacard.core.barcode.effectiveBarcodeEncoding
 import ru.merrcurys.seacard.core.barcode.generateBarcodeBitmap
-import ru.merrcurys.seacard.core.barcode.isEncodingIndependentBarcodeType
 import ru.merrcurys.seacard.core.barcode.validateBarcodeCode
 
 // Функция для загрузки bitmap из URI или asset
@@ -153,8 +150,6 @@ fun CardInputSection(
     onBackCoverRemove: (() -> Unit)? = null,
     codeType: String = "code128",
     onCodeTypeChange: ((String) -> Unit)? = null,
-    codeEncoding: String = "UTF-8",
-    onCodeEncodingChange: ((String) -> Unit)? = null,
     showBarcodeFields: Boolean = false
 ) {
     val context = LocalContext.current
@@ -173,20 +168,17 @@ fun CardInputSection(
         0xFF9E9E9E.toInt()
     )
 
-    val encodingApplies = showBarcodeFields && !isEncodingIndependentBarcodeType(codeType) && codeType != "none"
-    val effectiveEncoding = effectiveBarcodeEncoding(codeType, codeEncoding)
-
-    val codeError by remember(cardCode, codeType, effectiveEncoding, showBarcodeFields) {
+    val codeError by remember(cardCode, codeType, showBarcodeFields) {
         derivedStateOf {
             if (!showBarcodeFields || codeType == "none") null
-            else validateBarcodeCode(cardCode, codeType, effectiveEncoding)
+            else validateBarcodeCode(cardCode, codeType)
         }
     }
 
-    val barcodeBitmap by remember(cardCode, codeType, effectiveEncoding, showBarcodeFields, codeError) {
+    val barcodeBitmap by remember(cardCode, codeType, showBarcodeFields, codeError) {
         derivedStateOf {
             if (!showBarcodeFields || codeType == "none" || codeError != null) null
-            else generateBarcodeBitmap(cardCode, codeType, effectiveEncoding)
+            else generateBarcodeBitmap(cardCode, codeType)
         }
     }
 
@@ -302,19 +294,6 @@ fun CardInputSection(
                             value = codeType,
                             options = BARCODE_TYPE_OPTIONS.map { it.key to it.label },
                             onValueChange = onCodeTypeChange,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        )
-                    }
-
-                    if (showBarcodeFields && onCodeEncodingChange != null) {
-                        BarcodeDropdownField(
-                            label = "Кодировка штрих-кода",
-                            value = if (encodingApplies) codeEncoding else "Не применяется",
-                            options = BARCODE_ENCODINGS.map { it to it },
-                            onValueChange = onCodeEncodingChange,
-                            enabled = encodingApplies,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
