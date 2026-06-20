@@ -3,7 +3,6 @@ package ru.merrcurys.seacard.features.detail
 import android.graphics.Bitmap
 import ru.merrcurys.seacard.features.crop.ImageCropDialog
 import ru.merrcurys.seacard.features.scan.CardInputSection
-import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -44,14 +43,9 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Close
 import ru.merrcurys.seacard.core.design.applySeaCardSystemBarColors
 import ru.merrcurys.seacard.core.design.SeaCardTheme
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.WriterException
-import com.google.zxing.common.BitMatrix
-import com.google.zxing.qrcode.QRCodeWriter
-import androidx.core.graphics.set
-import androidx.core.graphics.createBitmap
-import com.google.zxing.datamatrix.encoder.SymbolShapeHint
+import ru.merrcurys.seacard.core.barcode.formatBarcodeForStandard
+import ru.merrcurys.seacard.core.barcode.generateBarcodeBitmap
+import ru.merrcurys.seacard.core.barcode.isValidBarcodeWithChecksum
 import android.graphics.BitmapFactory
 import androidx.compose.ui.draw.shadow
 import ru.merrcurys.seacard.core.design.DynamicGradientBackground
@@ -369,12 +363,8 @@ fun CardDetailScreen(
 ) {
     // Используем remember с ключом, чтобы избежать повторной генерации при перекомпоновке
     val barcodeBitmap = remember(cardCode, codeType) {
-        if (isValidBarcodeWithChecksum(cardCode, codeType)) {
-            if (codeType == "qr") {
-                generateQRCode(cardCode)
-            } else {
-                generateBarcode(cardCode, codeType)
-            }
+        if (isValidBarcodeWithChecksum(cardCode, codeType) && codeType != "none") {
+            generateBarcodeBitmap(cardCode, codeType)
         } else {
             null
         }
@@ -588,8 +578,8 @@ fun CardDetailScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // Код (QR или штрихкод)
-                if (barcodeBitmap != null) {
+                // Код (QR или штрихкод) — не показываем для карт без штрих-кода
+                if (barcodeBitmap != null && editCode.isNotBlank() && editType != "none") {
                     val isSquareCode = editType == "qr" || editType == "datamatrix"
                     val cardHeight = if (isSquareCode) 350.dp else 300.dp
                     val imageHeight = if (editType == "qr" || editType == "datamatrix") 230.dp else 230.dp
@@ -630,6 +620,8 @@ fun CardDetailScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Текст кода карты — скрыт для карт без штрих-кода
+                    if (editCode.isNotBlank() && editType != "none") {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -689,6 +681,7 @@ fun CardDetailScreen(
                                 )
                             }
                         }
+                    }
                     }
                     // Заметки и Обложка
                     Spacer(modifier = Modifier.height(1.dp))
@@ -1120,161 +1113,5 @@ fun CardDetailScreen(
                 backCropImageUri = null
             }
         )
-    }
-}
-
-// Функция для форматирования штрихкода с отступами по стандарту
-fun formatBarcodeForStandard(code: String, codeType: String): String {
-    return when (codeType.lowercase()) {
-        "ean13" -> code.chunked(1)
-            .let { if (it.size >= 13) it[0] + " " + it.subList(1,7).joinToString("") + " " + it.subList(7,13).joinToString("") else code }
-        "upca" -> code.chunked(1)
-            .let { if (it.size >= 12) it[0] + " " + it.subList(1,6).joinToString("") + " " + it.subList(6,11).joinToString("") + " " + it[11] else code }
-        "ean8" -> code.chunked(1)
-            .let { if (it.size >= 8) it.subList(0,4).joinToString("") + " " + it.subList(4,8).joinToString("") else code }
-        else -> code
-    }
-}
-
-private fun generateQRCode(content: String): Bitmap? {
-    return try {
-        val writer = QRCodeWriter()
-        val hints = HashMap<EncodeHintType, Any>()
-        hints[EncodeHintType.MARGIN] = 0
-        hints[EncodeHintType.ERROR_CORRECTION] = com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.M // Средний уровень коррекции ошибок
-
-        val bitMatrix: BitMatrix = writer.encode(
-            content,
-            BarcodeFormat.QR_CODE,
-            600,
-            600,
-            hints
-        )
-
-        val width = bitMatrix.width
-        val height = bitMatrix.height
-        val bitmap = createBitmap(width, height)
-
-        // Создаем простой черно-белый QR-код
-        for (x in 0 until width) {
-            for (y in 0 until height) {
-                val isBlack = bitMatrix[x, y]
-
-                if (isBlack) {
-                    // Черный цвет
-                    bitmap[x, y] = AndroidColor.BLACK
-                } else {
-                    // Белый фон
-                    bitmap[x, y] = AndroidColor.WHITE
-                }
-            }
-        }
-
-        bitmap
-    } catch (e: WriterException) {
-        e.printStackTrace()
-        null
-    }
-}
-
-private fun isInCornerMarker(x: Int, y: Int, width: Int, height: Int): Boolean {
-    val markerSize = 7 // Размер углового маркера
-
-    // Верхний левый угол
-    if (x < markerSize && y < markerSize) return true
-
-    // Верхний правый угол
-    if (x >= width - markerSize && y < markerSize) return true
-
-    // Нижний левый угол
-    if (x < markerSize && y >= height - markerSize) return true
-
-    return false
-}
-
-private fun generateBarcode(content: String, codeType: String = "code128"): Bitmap? {
-    return try {
-        val writer = when (codeType.lowercase()) {
-            "ean13" -> com.google.zxing.oned.EAN13Writer()
-            "upca" -> com.google.zxing.oned.UPCAWriter()
-            "code128" -> com.google.zxing.oned.Code128Writer()
-            "code39" -> com.google.zxing.oned.Code39Writer()
-            "code93" -> com.google.zxing.oned.Code93Writer()
-            "codabar" -> com.google.zxing.oned.CodaBarWriter()
-            "ean8" -> com.google.zxing.oned.EAN8Writer()
-            "itf" -> com.google.zxing.oned.ITFWriter()
-            "upce" -> com.google.zxing.oned.UPCEWriter()
-            "datamatrix" -> com.google.zxing.datamatrix.DataMatrixWriter()
-            "pdf417" -> com.google.zxing.pdf417.PDF417Writer()
-            else -> com.google.zxing.oned.Code128Writer()
-        }
-        val format = when (codeType.lowercase()) {
-            "ean13" -> BarcodeFormat.EAN_13
-            "upca" -> BarcodeFormat.UPC_A
-            "code128" -> BarcodeFormat.CODE_128
-            "code39" -> BarcodeFormat.CODE_39
-            "code93" -> BarcodeFormat.CODE_93
-            "codabar" -> BarcodeFormat.CODABAR
-            "ean8" -> BarcodeFormat.EAN_8
-            "itf" -> BarcodeFormat.ITF
-            "upce" -> BarcodeFormat.UPC_E
-            "datamatrix" -> BarcodeFormat.DATA_MATRIX
-            "pdf417" -> BarcodeFormat.PDF_417
-            else -> BarcodeFormat.CODE_128
-        }
-        val hints = HashMap<EncodeHintType, Any>()
-        hints[EncodeHintType.MARGIN] = 0
-        if (codeType.lowercase() == "datamatrix") {
-            hints[EncodeHintType.DATA_MATRIX_SHAPE] = SymbolShapeHint.FORCE_SQUARE
-        }
-        val bitMatrix: BitMatrix = writer.encode(
-            content,
-            format,
-            if (codeType.lowercase() == "datamatrix") 600 else 800,
-            if (codeType.lowercase() == "datamatrix") 600 else 200,
-            hints
-        )
-        val width = bitMatrix.width
-        val height = bitMatrix.height
-        val bitmap = createBitmap(width, height)
-        for (x in 0 until width) {
-            for (y in 0 until height) {
-                bitmap[x, y] = if (bitMatrix[x, y]) AndroidColor.BLACK else AndroidColor.WHITE
-            }
-        }
-        bitmap
-    } catch (e: WriterException) {
-        e.printStackTrace()
-        null
-    }
-}
-
-fun isValidBarcodeWithChecksum(code: String, codeType: String): Boolean {
-    fun ean8Checksum(s: String): Int {
-        val sum = s.take(7).mapIndexed { i, c ->
-            val n = c.digitToInt()
-            if (i % 2 == 0) n * 3 else n
-        }.sum()
-        return (10 - (sum % 10)) % 10
-    }
-    fun ean13Checksum(s: String): Int {
-        val sum = s.take(12).mapIndexed { i, c ->
-            val n = c.digitToInt()
-            if (i % 2 == 0) n else n * 3
-        }.sum()
-        return (10 - (sum % 10)) % 10
-    }
-    fun upcaChecksum(s: String): Int {
-        val sum = s.take(11).mapIndexed { i, c ->
-            val n = c.digitToInt()
-            if (i % 2 == 0) n * 3 else n
-        }.sum()
-        return (10 - (sum % 10)) % 10
-    }
-    return when (codeType.lowercase()) {
-        "ean8" -> code.length == 8 && code.all { it.isDigit() } && code.last().digitToInt() == ean8Checksum(code)
-        "ean13" -> code.length == 13 && code.all { it.isDigit() } && code.last().digitToInt() == ean13Checksum(code)
-        "upca" -> code.length == 12 && code.all { it.isDigit() } && code.last().digitToInt() == upcaChecksum(code)
-        else -> true
     }
 }

@@ -39,6 +39,7 @@ build/
 !**/testData/**/*.iml
 .idea/artifacts
 .idea/remote-targets.xml
+.idea/deploymentTargetSelector.xml
 .idea/libraries/Gradle*.xml
 .idea/libraries/Maven*.xml
 .idea/modules

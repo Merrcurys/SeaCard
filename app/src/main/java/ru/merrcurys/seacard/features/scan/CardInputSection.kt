@@ -15,6 +15,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,13 +32,16 @@ import ru.merrcurys.seacard.core.design.GradientUtils
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
-import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.layout.ContentScale
+import ru.merrcurys.seacard.core.barcode.BARCODE_ENCODINGS
+import ru.merrcurys.seacard.core.barcode.BARCODE_TYPE_OPTIONS
+import ru.merrcurys.seacard.core.barcode.generateBarcodeBitmap
+import ru.merrcurys.seacard.core.barcode.validateBarcodeCode
 
 // Функция для загрузки bitmap из URI или asset
 @Composable
@@ -65,6 +73,64 @@ fun loadBitmap(frontCoverUri: Uri?, coverAsset: String?): android.graphics.Bitma
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun BarcodeDropdownField(
+    label: String,
+    value: String,
+    options: List<Pair<String, String>>,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    var expanded by remember { mutableStateOf(false) }
+    val displayLabel = options.firstOrNull { it.first == value }?.second ?: value
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = displayLabel,
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            label = { Text(label) },
+            singleLine = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = colorScheme.onSurface,
+                unfocusedTextColor = colorScheme.onSurface,
+                disabledTextColor = colorScheme.onSurface.copy(alpha = 0.5f),
+                focusedBorderColor = colorScheme.primary,
+                unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.5f),
+                focusedLabelColor = colorScheme.primary,
+                unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(colorScheme.surface)
+        ) {
+            options.forEach { (key, optionLabel) ->
+                DropdownMenuItem(
+                    text = { Text(optionLabel) },
+                    onClick = {
+                        onValueChange(key)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun CardInputSection(
     cardName: String,
     cardCode: String,
@@ -82,23 +148,51 @@ fun CardInputSection(
     onFrontCoverPick: (() -> Unit)? = null,
     onBackCoverPick: (() -> Unit)? = null,
     onFrontCoverRemove: (() -> Unit)? = null,
-    onBackCoverRemove: (() -> Unit)? = null
+    onBackCoverRemove: (() -> Unit)? = null,
+    codeType: String = "code128",
+    onCodeTypeChange: ((String) -> Unit)? = null,
+    codeEncoding: String = "UTF-8",
+    onCodeEncodingChange: ((String) -> Unit)? = null,
+    showBarcodeFields: Boolean = false
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val gradientColor = GradientUtils.loadGradientColorPref(context)
     val cardColors = listOf(
-        0xFFFFFFFF.toInt(), // Белый
-        0xFFFF4444.toInt(), // Красный
-        0xFF4CAF50.toInt(), // Зеленый
-        0xFF2196F3.toInt(), // Синий
-        0xFFFF9800.toInt(), // Оранжевый
-        0xFFFFEB3B.toInt(), // Желтый
-        0xFFE91E63.toInt(), // Розовый
-        0xFF9C27B0.toInt(), // Фиолетовый
-        0xFF000000.toInt(), // Черный
-        0xFF9E9E9E.toInt()  // Серый
+        0xFFFFFFFF.toInt(),
+        0xFFFF4444.toInt(),
+        0xFF4CAF50.toInt(),
+        0xFF2196F3.toInt(),
+        0xFFFF9800.toInt(),
+        0xFFFFEB3B.toInt(),
+        0xFFE91E63.toInt(),
+        0xFF9C27B0.toInt(),
+        0xFF000000.toInt(),
+        0xFF9E9E9E.toInt()
     )
+
+    val codeError by remember(cardCode, codeType, codeEncoding, showBarcodeFields) {
+        derivedStateOf {
+            if (!showBarcodeFields || codeType == "none") null
+            else validateBarcodeCode(cardCode, codeType, codeEncoding)
+        }
+    }
+
+    val barcodeBitmap by remember(cardCode, codeType, codeEncoding, showBarcodeFields) {
+        derivedStateOf {
+            if (!showBarcodeFields || codeType == "none" || codeError != null) null
+            else generateBarcodeBitmap(cardCode, codeType, codeEncoding)
+        }
+    }
+
+    val canSave by remember(cardName, cardCode, codeType, codeError, showBarcodeFields) {
+        derivedStateOf {
+            if (cardName.isBlank()) false
+            else if (!showBarcodeFields) cardCode.isNotBlank()
+            else if (codeType == "none") true
+            else cardCode.isNotBlank() && codeError == null
+        }
+    }
 
     GradientBackground(gradientColor = gradientColor) {
         Column(
@@ -159,7 +253,7 @@ fun CardInputSection(
                     OutlinedTextField(
                         value = cardName,
                         onValueChange = { if (it.length <= 20) onCardNameChange(it) },
-                        label = { Text("Название карты") },
+                        label = { Text("Название") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
@@ -172,11 +266,18 @@ fun CardInputSection(
                             unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     )
+
+                    val showCodeError = codeError != null && cardCode.isNotBlank() && codeType != "none" && showBarcodeFields
                     OutlinedTextField(
                         value = cardCode,
-                        onValueChange = {},
-                        label = { Text("Код карты") },
-                        readOnly = true,
+                        onValueChange = { if (showBarcodeFields) onCardCodeChange(it) },
+                        label = { Text("Номер карты") },
+                        readOnly = !showBarcodeFields,
+                        singleLine = true,
+                        isError = showCodeError,
+                        supportingText = if (showCodeError) {
+                            { Text(codeError!!, color = colorScheme.error) }
+                        } else null,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
@@ -189,6 +290,53 @@ fun CardInputSection(
                             unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     )
+
+                    if (showBarcodeFields && onCodeTypeChange != null) {
+                        BarcodeDropdownField(
+                            label = "Тип штрих-кода",
+                            value = codeType,
+                            options = BARCODE_TYPE_OPTIONS.map { it.key to it.label },
+                            onValueChange = onCodeTypeChange,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
+                    }
+
+                    if (showBarcodeFields && onCodeEncodingChange != null) {
+                        BarcodeDropdownField(
+                            label = "Кодировка штрих-кода",
+                            value = codeEncoding,
+                            options = BARCODE_ENCODINGS.map { it to it },
+                            onValueChange = onCodeEncodingChange,
+                            enabled = codeType != "none",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
+                    }
+
+                    if (barcodeBitmap != null) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            val isSquare = codeType in listOf("qr", "datamatrix", "aztec", "pdf417")
+                            Image(
+                                bitmap = barcodeBitmap!!.asImageBitmap(),
+                                contentDescription = "Предпросмотр штрих-кода",
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(if (isSquare) 200.dp else 100.dp)
+                                    .padding(12.dp)
+                            )
+                        }
+                    }
+
                     if (coverAsset == null) {
                         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                             Text(
@@ -256,7 +404,6 @@ fun CardInputSection(
                             }
                         }
                     }
-                    // Добавляем UI для загрузки обложек
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -273,7 +420,6 @@ fun CardInputSection(
                                     .clickable { onFrontCoverPick?.invoke() },
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Показываем загруженную обложку или стандартную обложку
                                 val frontBitmap = loadBitmap(frontCoverUri, coverAsset)
 
                                 if (frontBitmap != null) {
@@ -336,12 +482,10 @@ fun CardInputSection(
                             }
                         }
                     }
-                    // Отступ внизу для кнопки
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-            
-            // Кнопка "Сохранить"
+
             Button(
                 onClick = onSaveCard,
                 modifier = Modifier
@@ -349,7 +493,7 @@ fun CardInputSection(
                     .padding(horizontal = 16.dp, vertical = 16.dp)
                     .navigationBarsPadding(),
                 colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
-                enabled = cardName.isNotBlank() && cardCode.isNotBlank()
+                enabled = canSave
             ) {
                 Text("Сохранить карту", color = colorScheme.onPrimary)
             }

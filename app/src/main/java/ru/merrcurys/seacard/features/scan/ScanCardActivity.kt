@@ -21,10 +21,14 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.CreditCardOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
@@ -36,6 +40,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import ru.merrcurys.seacard.core.design.applySeaCardSystemBarColors
@@ -75,6 +80,7 @@ class ScanCardActivity : ComponentActivity() {
             val scanned by viewModel.scanned.collectAsState()
             val scanSuccess by viewModel.scanSuccess.collectAsState()
             val codeTypeState by viewModel.codeTypeState.collectAsState()
+            val codeEncoding by viewModel.codeEncoding.collectAsState()
             val frontCoverUri by viewModel.frontCoverUri.collectAsState()
             val backCoverUri by viewModel.backCoverUri.collectAsState()
             val showFrontCropDialog by viewModel.showFrontCropDialog.collectAsState()
@@ -103,6 +109,8 @@ class ScanCardActivity : ComponentActivity() {
             }
 
             var pendingCoverPick by remember { mutableStateOf<String?>(null) }
+            var showOptionsSheet by remember { mutableStateOf(false) }
+            var showManualInputWarning by remember { mutableStateOf(false) }
             val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasCameraPermission = it }
             val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
                 if (uri != null) {
@@ -126,7 +134,7 @@ class ScanCardActivity : ComponentActivity() {
                                         Barcode.FORMAT_EAN_8 -> "ean8"
                                         Barcode.FORMAT_ITF -> "itf"
                                         Barcode.FORMAT_UPC_E -> "upce"
-                                        else -> "barcode"
+                                        else -> "code128"
                                     }
                                     if (!viewModel.scanned.value) {
                                         viewModel.onScanResult(barcode.rawValue ?: "", codeType)
@@ -175,58 +183,31 @@ class ScanCardActivity : ComponentActivity() {
                 pendingCoverPick = null
             }
 
-            LaunchedEffect(cardCode, viewModel.cardSaved.value) {
-                if (viewModel.saveIfCoverAssetReady()) {
-                    setResult(RESULT_OK)
-                    finish()
-                }
-            }
 
             SeaCardTheme {
                 GradientBackground(gradientColor = GradientUtils.loadGradientColorPref(context)) {
-                    if (cardCode.isBlank()) {
-                        ScanCardScreen(
-                            hasCameraPermission = hasCameraPermission,
-                            scanned = scanned,
-                            cardName = cardName,
-                            cardCode = cardCode,
-                            scanSuccess = scanSuccess,
-                            selectedColor = selectedColor,
-                            onCardNameChange = { viewModel.setCardName(it) },
-                            onCardCodeChange = { viewModel.setCardCode(it) },
-                            onColorChange = { viewModel.setSelectedColor(it) },
-                            onScanResult = viewModel::onScanResult,
-                            onSaveCard = {
-                                if (cardName.isNotBlank() && cardCode.isNotBlank()) {
-                                    coroutineScope.launch {
-                                        viewModel.saveCardWithCover(cardName, cardCode, codeTypeState.ifBlank { "barcode" }, selectedColor, viewModel.coverAsset, null)
-                                        setResult(RESULT_OK)
-                                        finish()
-                                    }
-                                }
-                            },
-                            onBack = { finish() },
-                            onGalleryClick = { galleryLauncher.launch("image/*") },
-                            coverAsset = viewModel.coverAsset
-                        )
-                    } else {
+                    if (scanned) {
                         CardInputSection(
                             cardName = cardName,
                             cardCode = cardCode,
                             selectedColor = selectedColor,
                             onCardNameChange = { viewModel.setCardName(it) },
-                            onCardCodeChange = {},
+                            onCardCodeChange = { viewModel.setCardCode(it) },
                             onColorChange = { viewModel.setSelectedColor(it) },
                             onSaveCard = {
-                                if (cardName.isNotBlank() && cardCode.isNotBlank()) {
-                                    coroutineScope.launch {
-                                        viewModel.saveCardWithCoverUris(cardName, cardCode, codeTypeState.ifBlank { "barcode" }, selectedColor)
-                                        setResult(RESULT_OK)
-                                        finish()
+                                coroutineScope.launch {
+                                    val type = codeTypeState.ifBlank { if (cardCode.isBlank()) "none" else "code128" }
+                                    val code = if (type == "none") "" else cardCode
+                                    if (viewModel.coverAsset != null) {
+                                        viewModel.saveCardWithCover(cardName, code, type, selectedColor, viewModel.coverAsset, null)
+                                    } else {
+                                        viewModel.saveCardWithCoverUris(cardName, code, type, selectedColor)
                                     }
+                                    setResult(RESULT_OK)
+                                    finish()
                                 }
                             },
-                            coverAsset = null,
+                            coverAsset = viewModel.coverAsset,
                             onBack = { finish() },
                             frontCoverUri = frontCoverUri,
                             backCoverUri = backCoverUri,
@@ -251,7 +232,20 @@ class ScanCardActivity : ComponentActivity() {
                                 }
                             },
                             onFrontCoverRemove = { viewModel.setFrontCoverUri(null) },
-                            onBackCoverRemove = { viewModel.setBackCoverUri(null) }
+                            onBackCoverRemove = { viewModel.setBackCoverUri(null) },
+                            codeType = codeTypeState.ifBlank { "code128" },
+                            onCodeTypeChange = { viewModel.setCodeType(it) },
+                            codeEncoding = codeEncoding,
+                            onCodeEncodingChange = { viewModel.setCodeEncoding(it) },
+                            showBarcodeFields = true
+                        )
+                    } else {
+                        ScanCardScreen(
+                            hasCameraPermission = hasCameraPermission,
+                            scanned = scanned,
+                            scanSuccess = scanSuccess,
+                            onScanResult = viewModel::onScanResult,
+                            onOptionsClick = { showOptionsSheet = true }
                         )
                     }
                 }
@@ -273,6 +267,35 @@ class ScanCardActivity : ComponentActivity() {
                     onDismiss = { viewModel.dismissBackCrop() }
                 )
             }
+
+            // Bottom sheet выбора способа добавления карты
+            if (showOptionsSheet) {
+                AddCardOptionsSheet(
+                    onDismiss = { showOptionsSheet = false },
+                    onPickGallery = {
+                        showOptionsSheet = false
+                        galleryLauncher.launch("image/*")
+                    },
+                    onManualInput = {
+                        showOptionsSheet = false
+                        showManualInputWarning = true
+                    },
+                    onNoBarcode = {
+                        showOptionsSheet = false
+                        viewModel.enterNoCodeMode()
+                    }
+                )
+            }
+
+            if (showManualInputWarning) {
+                ManualInputWarningDialog(
+                    onContinue = {
+                        showManualInputWarning = false
+                        viewModel.enterManualMode()
+                    },
+                    onDismiss = { showManualInputWarning = false }
+                )
+            }
         }
     }
 
@@ -286,22 +309,172 @@ class ScanCardViewModelFactory(private val application: Application, private val
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = ScanCardViewModel(application, coverAsset) as T
 }
 
+private val sectionCardColor = Color(0xFF141414)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddCardOptionsSheet(
+    onDismiss: () -> Unit,
+    onPickGallery: () -> Unit,
+    onManualInput: () -> Unit,
+    onNoBarcode: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = sectionCardColor,
+        contentColor = Color.White,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.3f)) }
+    ) {
+        AddCardOptionsContent(
+            onPickGallery = onPickGallery,
+            onManualInput = onManualInput,
+            onNoBarcode = onNoBarcode
+        )
+    }
+}
+
+@Composable
+private fun AddCardOptionsContent(
+    onPickGallery: () -> Unit,
+    onManualInput: () -> Unit,
+    onNoBarcode: () -> Unit
+) {
+    val sheetTextColor = Color.White
+    val sheetMutedColor = Color.White.copy(alpha = 0.55f)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 8.dp)
+            .padding(bottom = 16.dp)
+    ) {
+        Text(
+            text = "Способ добавления",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = sheetTextColor,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        OptionRow(
+            icon = Icons.Filled.Photo,
+            iconContentDescription = "Галерея",
+            title = "Выбрать изображение из галереи",
+            subtitle = "Распознать код с картинки",
+            tint = sheetTextColor,
+            titleColor = sheetTextColor,
+            subtitleColor = sheetMutedColor,
+            onClick = onPickGallery
+        )
+        OptionRow(
+            icon = Icons.Filled.Edit,
+            iconContentDescription = "Ручной ввод",
+            title = "Ручной ввод номера",
+            subtitle = "Введите номер на странице добавления",
+            tint = sheetTextColor,
+            titleColor = sheetTextColor,
+            subtitleColor = sheetMutedColor,
+            onClick = onManualInput
+        )
+        OptionRow(
+            icon = Icons.Filled.CreditCardOff,
+            iconContentDescription = "Без штрих-кода",
+            title = "Добавить карту без штрих-кода",
+            subtitle = "Только обложка и название",
+            tint = sheetTextColor,
+            titleColor = sheetTextColor,
+            subtitleColor = sheetMutedColor,
+            onClick = onNoBarcode,
+            isLast = true
+        )
+    }
+}
+
+@Composable
+private fun OptionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconContentDescription: String,
+    title: String,
+    subtitle: String,
+    tint: Color,
+    titleColor: Color,
+    subtitleColor: Color,
+    onClick: () -> Unit,
+    isLast: Boolean = false
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = iconContentDescription, tint = tint, modifier = Modifier.size(22.dp))
+        }
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = titleColor)
+            Text(text = subtitle, fontSize = 13.sp, color = subtitleColor)
+        }
+    }
+    if (!isLast) {
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            thickness = 1.dp,
+            color = Color.White.copy(alpha = 0.12f)
+        )
+    }
+}
+
+@Composable
+private fun ManualInputWarningDialog(
+    onContinue: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Ручной ввод", color = Color.White) },
+        text = {
+            Text(
+                "В некоторых картах значение штрих-кода может отличаться от написанного на карте номера, " +
+                    "из-за чего введение номера вручную не всегда работает. " +
+                    "Настоятельно советуем вместо этого отсканировать штрих-код камерой.",
+                color = Color.White.copy(alpha = 0.9f)
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onContinue) {
+                Text("Продолжить", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена", color = Color.White.copy(alpha = 0.7f))
+            }
+        },
+        containerColor = sectionCardColor,
+        titleContentColor = Color.White,
+        textContentColor = Color.White
+    )
+}
+
 @Composable
 fun ScanCardScreen(
     hasCameraPermission: Boolean,
     scanned: Boolean,
-    cardName: String,
-    cardCode: String,
     scanSuccess: Boolean,
-    selectedColor: Int,
-    onCardNameChange: (String) -> Unit,
-    onCardCodeChange: (String) -> Unit,
-    onColorChange: (Int) -> Unit,
     onScanResult: (String, String) -> Unit,
-    onSaveCard: () -> Unit,
-    onBack: () -> Unit,
-    onGalleryClick: () -> Unit,
-    coverAsset: String?
+    onOptionsClick: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Box(
@@ -309,32 +482,13 @@ fun ScanCardScreen(
             .fillMaxSize()
             .background(colorScheme.background)
     ) {
-        Column {
-            if (coverAsset == null && cardCode.isNotBlank()) {
-                // После сканирования вручную — показываем форму
-                CardInputSection(
-                    cardName = cardName,
-                    cardCode = cardCode,
-                    selectedColor = selectedColor,
-                    onCardNameChange = onCardNameChange,
-                    onCardCodeChange = {},
-                    onColorChange = onColorChange,
-                    onSaveCard = onSaveCard,
-                    coverAsset = null,
-                    onBack = onBack
-                )
-            } else {
-                CameraSection(
-                    hasCameraPermission = hasCameraPermission,
-                    scanSuccess = scanSuccess,
-                    scanned = scanned,
-                    onScanResult = { code, codeType ->
-                        onScanResult(code, codeType)
-                    },
-                    onGalleryClick = onGalleryClick
-                )
-            }
-        }
+        CameraSection(
+            hasCameraPermission = hasCameraPermission,
+            scanSuccess = scanSuccess,
+            scanned = scanned,
+            onScanResult = onScanResult,
+            onOptionsClick = onOptionsClick
+        )
     }
 }
 
@@ -345,7 +499,7 @@ fun CameraSection(
     scanSuccess: Boolean,
     scanned: Boolean,
     onScanResult: (String, String) -> Unit,
-    onGalleryClick: () -> Unit
+    onOptionsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -426,7 +580,7 @@ fun CameraSection(
                                             Barcode.FORMAT_EAN_8 -> "ean8"
                                             Barcode.FORMAT_ITF -> "itf"
                                             Barcode.FORMAT_UPC_E -> "upce"
-                                            else -> "barcode"
+                                            else -> "code128"
                                         }
                                         
                                         // Проверяем, является ли это поддерживаемым форматом штрихкода
@@ -587,14 +741,14 @@ fun CameraSection(
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 120.dp, start = 32.dp, end = 32.dp)
             )
-            // Кнопка галереи по центру под текстом
+            // Кнопка «Варианты» по центру под текстом
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 56.dp)
             ) {
                 Button(
-                    onClick = onGalleryClick,
+                    onClick = onOptionsClick,
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isDark) Color.Black.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.35f),
@@ -606,13 +760,13 @@ fun CameraSection(
                         .height(44.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Photo,
-                        contentDescription = "Открыть галерею",
+                        imageVector = Icons.Filled.Tune,
+                        contentDescription = "Другие способы добавления",
                         tint = if (isDark) Color.White else Color.Black,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Галерея", fontWeight = FontWeight.Medium)
+                    Text("Варианты", fontWeight = FontWeight.Medium)
                 }
             }
         } else {
