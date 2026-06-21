@@ -83,7 +83,7 @@ import ru.merrcurys.seacard.core.db.CardEntity
 import ru.merrcurys.seacard.core.db.DatabaseProvider
 import ru.merrcurys.seacard.core.utils.CoverNames
 
-private const val PRIVACY_POLICY_URL = "https://seacard.merrcurys.ru/policy"
+private const val PRIVACY_POLICY_URL = "https://seacard.merrcurys.ru/privacy.html"
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
