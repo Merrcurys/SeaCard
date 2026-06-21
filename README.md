@@ -23,7 +23,7 @@
 ## Демонстрация интерфейса
 
 <p align="center">
-      <img src="https://github.com/user-attachments/assets/3e78fd55-8a77-40be-98cb-fc16e8ac1598" alt="Demo" width="1000">      
+      <img src="https://github.com/user-attachments/assets/3e78fd55-8a77-40be-98cb-fc16e8ac1598" alt="Демонстрация интерфейса" width="1000">      
 </p>
 
 ## Установка приложения
