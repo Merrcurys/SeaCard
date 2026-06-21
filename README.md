@@ -10,13 +10,14 @@
 
 - Локальное хранение — все данные сохраняются только на вашем устройстве
 - Сканирование карт — быстрый импорт через камеру
-- Красивый интерфейс — современный тёмный интерфейс с градиентом или лаконичный белый
+- Библиотека карт — в приложении уже есть 150+ карт
+- Ручное добавление — добавление карт без штрих-кода
+- Красивый интерфейс — современный тёмный интерфейс с градиентом
 - Навигация — фильтрация и поиск по названию карт
 - Импорт/экспорт — резервное копирование коллекции
-- Быстрый доступ — карты всегда под рукой на главном экране
 
 ## Поддержка кодеков
-* **Двумерные:** QR, AZTEC, DATA_MATRIX, PDF417  
+* **Двумерные:** QR, AZTEC, DATA_MATRIX, PDF417
 * **Линейные:**  CODE128/39/93, CODABAR, EAN13/8, UPCA/E, ITF
 
 ## Демонстрация интерфейса
@@ -27,9 +28,13 @@
 
 ## Установка приложения
 
-Приложение доступно в RuStore	- [<img align="center" height="45" alt="logo-color-dark" src="https://github.com/user-attachments/assets/bd6014bd-a5c7-4130-bd31-80c8b57e13a2" />](https://www.rustore.ru/catalog/app/com.example.seacard)
+Приложение доступно в Google Play -[<img align="center" height="60" alt="Google Play" src="https://github.com/user-attachments/assets/50a231f2-d34d-4a88-a257-925a37bcbd07" />](https://play.google.com/store/apps/details?id=ru.merrcurys.seacard)
 
-APK-релизы можно скачать с GitHub -[<img align="center" height="60" alt="logo-color-dark" src="https://github.com/user-attachments/assets/1a481370-4323-40e8-94b8-0106b9fc5363" />](https://github.com/Merrcurys/SeaCard/releases)
+Приложение доступно в RuStore	- [<img align="center" height="45" alt="RuStore" src="https://github.com/user-attachments/assets/bd6014bd-a5c7-4130-bd31-80c8b57e13a2" />](https://www.rustore.ru/catalog/app/com.example.seacard)
+
+APK-релизы можно скачать с GitHub -[<img align="center" height="60" alt="GitHub" src="https://github.com/user-attachments/assets/1a481370-4323-40e8-94b8-0106b9fc5363" />](https://github.com/Merrcurys/SeaCard/releases)
+
+
 
 ## Поддержка и обсуждение
 
