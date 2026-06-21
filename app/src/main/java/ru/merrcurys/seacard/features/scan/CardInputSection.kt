@@ -437,7 +437,8 @@ fun CardInputSection(
 
     LaunchedEffect(coverColorKey) {
         val key = coverColorKey ?: return@LaunchedEffect
-        if (key == initialCoverKey) return@LaunchedEffect
+        // В режиме редактирования сохраняем цвет карты при открытии; при смене обложки — пересчитываем.
+        if (isEditMode && key == initialCoverKey) return@LaunchedEffect
 
         colorManuallyOverridden = false
         val accentColor = when {
