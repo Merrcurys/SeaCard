@@ -42,7 +42,7 @@ APK-релизы можно скачать с GitHub -[<img align="center" heigh
 
 Техническая поддержка приложения в Telegram - [обратиться](https://t.me/SeacardSupportBot).
 
-Политика конфиденциальности - [посмотреть](https://seacard.merrcurys.ru/privacy.html)
+Политика конфиденциальности - [посмотреть](https://seacard.merrcurys.ru/privacy.html).
 
 ## Стек технологий
 
