@@ -5,6 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import ru.merrcurys.seacard.core.db.CardEntity
 import ru.merrcurys.seacard.core.db.DatabaseProvider
+import ru.merrcurys.seacard.core.utils.CardColorResolver
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -132,13 +133,15 @@ object BackupManager {
                             backPath = outFile.absolutePath
                         }
                     }
+                    val storedColor = obj.optInt("color", CardColorResolver.DEFAULT_CARD_COLOR)
+                    val resolvedColor = CardColorResolver.resolveColor(context, storedColor, frontPath)
                     dao.insert(CardEntity(
                         name = name,
                         code = code,
                         type = type,
                         addTime = obj.optLong("addTime", System.currentTimeMillis()),
                         usageCount = obj.optInt("usageCount", 0),
-                        color = obj.optInt("color", 0xFFFFFFFF.toInt()),
+                        color = resolvedColor,
                         frontCoverPath = frontPath,
                         backCoverPath = backPath,
                         note = obj.optString("note", "").takeIf { it.isNotBlank() }
