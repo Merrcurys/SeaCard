@@ -48,7 +48,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -83,6 +85,81 @@ fun loadBitmap(frontCoverUri: Uri?, coverAsset: String?): android.graphics.Bitma
             }
             result
         } catch (_: Exception) { null }
+    }
+}
+
+private val CoverPickerShape = RoundedCornerShape(18.dp)
+
+@Composable
+private fun loadBitmapFromUri(uri: Uri?): android.graphics.Bitmap? {
+    val context = LocalContext.current
+    return remember(uri) {
+        uri?.let {
+            try {
+                context.contentResolver.openInputStream(it)?.use { input ->
+                    BitmapFactory.decodeStream(input)
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+}
+
+@Composable
+private fun CoverPickerSlot(
+    label: String,
+    modifier: Modifier = Modifier,
+    bitmap: android.graphics.Bitmap?,
+    onClick: () -> Unit,
+    showRemove: Boolean,
+    onRemove: (() -> Unit)?,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier,
+    ) {
+        Text(label, fontSize = 14.sp, color = colorScheme.onSurface)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.574f)
+                .graphicsLayer {
+                    shape = CoverPickerShape
+                    clip = true
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+                .background(Color.LightGray)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Icon(
+                    Icons.Default.Image,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = Modifier.size(40.dp),
+                )
+            }
+        }
+        if (showRemove && onRemove != null) {
+            TextButton(onClick = onRemove) {
+                Text("Удалить")
+            }
+        }
     }
 }
 
@@ -646,77 +723,25 @@ fun CardInputSection(
                             .padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                            Text("Лицевая обложка", fontSize = 14.sp, color = colorScheme.onSurface)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1.574f)
-                                    .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
-                                    .clickable { onFrontCoverPick?.invoke() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val frontBitmap = loadBitmap(frontCoverUri, coverAsset)
+                        val frontBitmap = loadBitmap(frontCoverUri, coverAsset)
+                        val backBitmap = loadBitmapFromUri(backCoverUri)
 
-                                if (frontBitmap != null) {
-                                    Image(
-                                        bitmap = frontBitmap.asImageBitmap(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(18.dp))
-                                    )
-                                } else {
-                                    Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
-                                }
-                            }
-                            if ((frontCoverUri != null || coverAsset != null) && onFrontCoverRemove != null) {
-                                TextButton(onClick = { onFrontCoverRemove() }) {
-                                    Text("Удалить")
-                                }
-                            }
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                            Text("Тыльная обложка", fontSize = 14.sp, color = colorScheme.onSurface)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1.574f)
-                                    .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
-                                    .clickable { onBackCoverPick?.invoke() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (backCoverUri != null) {
-                                    val context = LocalContext.current
-                                    val bitmap = remember(backCoverUri) {
-                                        try {
-                                            val input = context.contentResolver.openInputStream(backCoverUri)
-                                            val bmp = BitmapFactory.decodeStream(input)
-                                            input?.close()
-                                            bmp
-                                        } catch (_: Exception) { null }
-                                    }
-                                    if (bitmap != null) {
-                                        Image(
-                                            bitmap = bitmap.asImageBitmap(),
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clip(RoundedCornerShape(18.dp))
-                                        )
-                                    }
-                                } else {
-                                    Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
-                                }
-                            }
-                            if (backCoverUri != null && onBackCoverRemove != null) {
-                                TextButton(onClick = { onBackCoverRemove() }) {
-                                    Text("Удалить")
-                                }
-                            }
-                        }
+                        CoverPickerSlot(
+                            label = "Лицевая обложка",
+                            modifier = Modifier.weight(1f),
+                            bitmap = frontBitmap,
+                            onClick = { onFrontCoverPick?.invoke() },
+                            showRemove = (frontCoverUri != null || coverAsset != null) && onFrontCoverRemove != null,
+                            onRemove = onFrontCoverRemove,
+                        )
+                        CoverPickerSlot(
+                            label = "Тыльная обложка",
+                            modifier = Modifier.weight(1f),
+                            bitmap = backBitmap,
+                            onClick = { onBackCoverPick?.invoke() },
+                            showRemove = backCoverUri != null && onBackCoverRemove != null,
+                            onRemove = onBackCoverRemove,
+                        )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
