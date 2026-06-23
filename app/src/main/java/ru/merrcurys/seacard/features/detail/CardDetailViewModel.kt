@@ -98,6 +98,13 @@ class CardDetailViewModel(application: Application, val cardId: Long) : AndroidV
                     frontUri != null -> saveCoverFromUri(frontUri, "front_${normalizedName}_$timestamp.webp")
                     else -> frontPath
                 }
+            } else if (
+                (color != entity.color || normalizedName != entity.name) &&
+                frontPath != null &&
+                ColorCoverGenerator.isGeneratedColorCover(frontPath, entity.color)
+            ) {
+                deleteCoverFileIfLocal(frontPath)
+                frontPath = generateFrontCoverFromColor(normalizedName, color, timestamp)
             }
 
             if (backDirty) {
