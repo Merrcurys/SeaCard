@@ -3,6 +3,7 @@ package ru.merrcurys.seacard.features.detail
 import android.graphics.Bitmap
 import ru.merrcurys.seacard.features.crop.ImageCropDialog
 import ru.merrcurys.seacard.features.scan.CardInputSection
+import ru.merrcurys.seacard.features.scan.ScanCardActivity
 import android.os.Bundle
 import android.os.Build
 import androidx.activity.ComponentActivity
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import android.provider.Settings
 import androidx.compose.material.icons.filled.MoreVert
@@ -361,6 +363,16 @@ fun CardDetailScreen(
             }
         }
     }
+    val scanBarcodeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val code = result.data?.getStringExtra(ScanCardActivity.RESULT_BARCODE_CODE)
+            val type = result.data?.getStringExtra(ScanCardActivity.RESULT_BARCODE_TYPE)
+            if (!code.isNullOrBlank() && !type.isNullOrBlank()) {
+                editCode = code
+                editType = type
+            }
+        }
+    }
     LaunchedEffect(hasCameraPermission, pendingEditCoverPick) {
         if (!hasCameraPermission || pendingEditCoverPick == null) return@LaunchedEffect
         when (pendingEditCoverPick) {
@@ -598,7 +610,14 @@ fun CardDetailScreen(
                     },
                     codeType = editType.ifBlank { "code128" },
                     onCodeTypeChange = { editType = it },
-                    showBarcodeFields = true
+                    showBarcodeFields = true,
+                    onPickBarcode = {
+                        scanBarcodeLauncher.launch(
+                            Intent(context2, ScanCardActivity::class.java).apply {
+                                putExtra(ScanCardActivity.EXTRA_BARCODE_PICK_ONLY, true)
+                            },
+                        )
+                    },
                 )
             }
             if (!showEditDialog) {

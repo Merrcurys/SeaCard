@@ -19,6 +19,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.geometry.Offset
@@ -425,7 +426,8 @@ fun CardInputSection(
     onBackCoverRemove: (() -> Unit)? = null,
     codeType: String = "code128",
     onCodeTypeChange: ((String) -> Unit)? = null,
-    showBarcodeFields: Boolean = false
+    showBarcodeFields: Boolean = false,
+    onPickBarcode: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -601,6 +603,23 @@ fun CardInputSection(
                                     .height(if (isSquare) 200.dp else 100.dp)
                                     .padding(12.dp)
                             )
+                        }
+                    }
+
+                    if (showBarcodeFields && onPickBarcode != null) {
+                        OutlinedButton(
+                            onClick = onPickBarcode,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Photo,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Изменить штрих-код")
                         }
                     }
 

@@ -69,6 +69,28 @@ class ScanCardActivity : ComponentActivity() {
         applySeaCardSystemBarColors()
         cameraExecutor = Executors.newSingleThreadExecutor()
         val coverAsset = intent.getStringExtra("cover_asset")
+        val barcodePickOnly = intent.getBooleanExtra(EXTRA_BARCODE_PICK_ONLY, false)
+
+        fun deliverBarcodeResult(code: String, type: String) {
+            setResult(
+                RESULT_OK,
+                android.content.Intent().apply {
+                    putExtra(RESULT_BARCODE_CODE, code)
+                    putExtra(RESULT_BARCODE_TYPE, type)
+                },
+            )
+            finish()
+        }
+
+        fun vibrateOnScan() {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                (getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(VIBRATOR_SERVICE) as Vibrator
+            }
+            vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+        }
 
         setContent {
             var hasCameraPermission by remember { mutableStateOf(false) }
@@ -119,44 +141,33 @@ class ScanCardActivity : ComponentActivity() {
                         val image = InputImage.fromFilePath(context, uri)
                         BarcodeScanning.getClient().process(image)
                             .addOnSuccessListener { barcodes ->
-                                var found = false
                                 for (barcode in barcodes) {
-                                    val codeType = when (barcode.format) {
-                                        Barcode.FORMAT_QR_CODE -> "qr"
-                                        Barcode.FORMAT_AZTEC -> "aztec"
-                                        Barcode.FORMAT_DATA_MATRIX -> "datamatrix"
-                                        Barcode.FORMAT_PDF417 -> "pdf417"
-                                        Barcode.FORMAT_CODE_128 -> "code128"
-                                        Barcode.FORMAT_EAN_13 -> "ean13"
-                                        Barcode.FORMAT_UPC_A -> "upca"
-                                        Barcode.FORMAT_CODE_39 -> "code39"
-                                        Barcode.FORMAT_CODE_93 -> "code93"
-                                        Barcode.FORMAT_CODABAR -> "codabar"
-                                        Barcode.FORMAT_EAN_8 -> "ean8"
-                                        Barcode.FORMAT_ITF -> "itf"
-                                        Barcode.FORMAT_UPC_E -> "upce"
-                                        else -> "code128"
+                                    val codeType = barcodeFormatToCodeType(barcode.format)
+                                    val code = barcode.rawValue ?: continue
+                                    if (barcodePickOnly) {
+                                        vibrateOnScan()
+                                        deliverBarcodeResult(code, codeType)
+                                        return@addOnSuccessListener
                                     }
                                     if (!viewModel.scanned.value) {
-                                        viewModel.onScanResult(barcode.rawValue ?: "", codeType)
-                                        found = true
-                                        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                            (getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
-                                        } else {
-                                            @Suppress("DEPRECATION")
-                                            getSystemService(VIBRATOR_SERVICE) as Vibrator
-                                        }
-                                        vibrator.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+                                        viewModel.onScanResult(code, codeType)
+                                        vibrateOnScan()
                                         coroutineScope.launch {
                                             delay(2000)
                                             viewModel.setScanSuccess(false)
                                         }
-                                        break
+                                        return@addOnSuccessListener
                                     }
                                 }
-                                if (!found) android.widget.Toast.makeText(context, "Код не был найден", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, "Код не был найден", android.widget.Toast.LENGTH_SHORT).show()
                             }
-                            .addOnFailureListener { e -> android.widget.Toast.makeText(context, "Ошибка сканирования: ${e.message}", android.widget.Toast.LENGTH_SHORT).show() }
+                            .addOnFailureListener { e ->
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Ошибка сканирования: ${e.message}",
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            }
                     } catch (e: Exception) {
                         android.widget.Toast.makeText(context, "Ошибка загрузки изображения", android.widget.Toast.LENGTH_SHORT).show()
                     }
@@ -255,8 +266,23 @@ class ScanCardActivity : ComponentActivity() {
                             hasCameraPermission = hasCameraPermission,
                             scanned = scanned,
                             scanSuccess = scanSuccess,
-                            onScanResult = viewModel::onScanResult,
-                            onOptionsClick = { showOptionsSheet = true }
+                            onScanResult = { code, type ->
+                                if (barcodePickOnly) {
+                                    vibrateOnScan()
+                                    deliverBarcodeResult(code, type)
+                                } else {
+                                    viewModel.onScanResult(code, type)
+                                }
+                            },
+                            alternativeOptionsLabel = if (barcodePickOnly) "Галерея" else "Варианты",
+                            alternativeOptionsIcon = if (barcodePickOnly) Icons.Filled.Photo else Icons.Filled.Tune,
+                            onOptionsClick = {
+                                if (barcodePickOnly) {
+                                    galleryLauncher.launch("image/*")
+                                } else {
+                                    showOptionsSheet = true
+                                }
+                            },
                         )
                         }
                     }
@@ -281,7 +307,7 @@ class ScanCardActivity : ComponentActivity() {
             }
 
             // Bottom sheet выбора способа добавления карты
-            if (showOptionsSheet) {
+            if (showOptionsSheet && !barcodePickOnly) {
                 AddCardOptionsSheet(
                     onDismiss = { showOptionsSheet = false },
                     onPickGallery = {
@@ -315,10 +341,33 @@ class ScanCardActivity : ComponentActivity() {
         super.onDestroy()
         cameraExecutor.shutdown()
     }
+
+    companion object {
+        const val EXTRA_BARCODE_PICK_ONLY = "barcode_pick_only"
+        const val RESULT_BARCODE_CODE = "barcode_code"
+        const val RESULT_BARCODE_TYPE = "barcode_type"
+    }
 }
 
 class ScanCardViewModelFactory(private val application: Application, private val coverAsset: String?) : androidx.lifecycle.ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = ScanCardViewModel(application, coverAsset) as T
+}
+
+private fun barcodeFormatToCodeType(format: Int): String = when (format) {
+    Barcode.FORMAT_QR_CODE -> "qr"
+    Barcode.FORMAT_AZTEC -> "aztec"
+    Barcode.FORMAT_DATA_MATRIX -> "datamatrix"
+    Barcode.FORMAT_PDF417 -> "pdf417"
+    Barcode.FORMAT_CODE_128 -> "code128"
+    Barcode.FORMAT_EAN_13 -> "ean13"
+    Barcode.FORMAT_UPC_A -> "upca"
+    Barcode.FORMAT_CODE_39 -> "code39"
+    Barcode.FORMAT_CODE_93 -> "code93"
+    Barcode.FORMAT_CODABAR -> "codabar"
+    Barcode.FORMAT_EAN_8 -> "ean8"
+    Barcode.FORMAT_ITF -> "itf"
+    Barcode.FORMAT_UPC_E -> "upce"
+    else -> "code128"
 }
 
 private val sectionCardColor = Color(0xFF141414)
@@ -488,7 +537,9 @@ fun ScanCardScreen(
     scanned: Boolean,
     scanSuccess: Boolean,
     onScanResult: (String, String) -> Unit,
-    onOptionsClick: () -> Unit
+    alternativeOptionsLabel: String = "Варианты",
+    alternativeOptionsIcon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Filled.Tune,
+    onOptionsClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Box(
@@ -501,7 +552,9 @@ fun ScanCardScreen(
             scanSuccess = scanSuccess,
             scanned = scanned,
             onScanResult = onScanResult,
-            onOptionsClick = onOptionsClick
+            alternativeOptionsLabel = alternativeOptionsLabel,
+            alternativeOptionsIcon = alternativeOptionsIcon,
+            onOptionsClick = onOptionsClick,
         )
     }
 }
@@ -513,7 +566,9 @@ fun CameraSection(
     scanSuccess: Boolean,
     scanned: Boolean,
     onScanResult: (String, String) -> Unit,
-    onOptionsClick: () -> Unit
+    alternativeOptionsLabel: String = "Варианты",
+    alternativeOptionsIcon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Filled.Tune,
+    onOptionsClick: () -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -580,22 +635,7 @@ fun CameraSection(
                             scanner.process(image)
                                 .addOnSuccessListener { barcodes ->
                                     for (barcode in barcodes) {
-                                        val codeType = when (barcode.format) {
-                                            Barcode.FORMAT_QR_CODE -> "qr"
-                                            Barcode.FORMAT_AZTEC -> "aztec"
-                                            Barcode.FORMAT_DATA_MATRIX -> "datamatrix"
-                                            Barcode.FORMAT_PDF417 -> "pdf417"
-                                            Barcode.FORMAT_CODE_128 -> "code128"
-                                            Barcode.FORMAT_EAN_13 -> "ean13"
-                                            Barcode.FORMAT_UPC_A -> "upca"
-                                            Barcode.FORMAT_CODE_39 -> "code39"
-                                            Barcode.FORMAT_CODE_93 -> "code93"
-                                            Barcode.FORMAT_CODABAR -> "codabar"
-                                            Barcode.FORMAT_EAN_8 -> "ean8"
-                                            Barcode.FORMAT_ITF -> "itf"
-                                            Barcode.FORMAT_UPC_E -> "upce"
-                                            else -> "code128"
-                                        }
+                                        val codeType = barcodeFormatToCodeType(barcode.format)
                                         
                                         // Проверяем, является ли это поддерживаемым форматом штрихкода
                                         if (barcode.format == Barcode.FORMAT_CODE_128 ||
@@ -755,7 +795,7 @@ fun CameraSection(
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 120.dp, start = 32.dp, end = 32.dp)
             )
-            // Кнопка «Варианты» по центру под текстом
+            // Кнопка альтернативного способа (варианты / галерея)
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -774,13 +814,13 @@ fun CameraSection(
                         .height(44.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Tune,
-                        contentDescription = "Другие способы добавления",
+                        imageVector = alternativeOptionsIcon,
+                        contentDescription = alternativeOptionsLabel,
                         tint = if (isDark) Color.White else Color.Black,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Варианты", fontWeight = FontWeight.Medium)
+                    Text(alternativeOptionsLabel, fontWeight = FontWeight.Medium)
                 }
             }
         } else {
