@@ -13,27 +13,52 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import android.graphics.Color as AndroidColor
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.merrcurys.seacard.core.design.GradientBackground
 import ru.merrcurys.seacard.core.design.GradientUtils
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
-import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.layout.ContentScale
+import ru.merrcurys.seacard.core.barcode.BARCODE_TYPE_OPTIONS
+import ru.merrcurys.seacard.core.barcode.generateBarcodeBitmap
+import ru.merrcurys.seacard.core.barcode.validateBarcodeCode
+import ru.merrcurys.seacard.core.utils.DominantColorExtractor
 
 // Функция для загрузки bitmap из URI или asset
 @Composable
@@ -63,6 +88,399 @@ fun loadBitmap(frontCoverUri: Uri?, coverAsset: String?): android.graphics.Bitma
     }
 }
 
+private val CoverPickerShape = RoundedCornerShape(18.dp)
+
+@Composable
+private fun loadBitmapFromUri(uri: Uri?): android.graphics.Bitmap? {
+    val context = LocalContext.current
+    return remember(uri) {
+        uri?.let {
+            try {
+                context.contentResolver.openInputStream(it)?.use { input ->
+                    BitmapFactory.decodeStream(input)
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+}
+
+@Composable
+private fun CoverPickerSlot(
+    label: String,
+    modifier: Modifier = Modifier,
+    bitmap: android.graphics.Bitmap?,
+    onClick: () -> Unit,
+    showRemove: Boolean,
+    onRemove: (() -> Unit)?,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier,
+    ) {
+        Text(label, fontSize = 14.sp, color = colorScheme.onSurface)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.574f)
+                .graphicsLayer {
+                    shape = CoverPickerShape
+                    clip = true
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+                .background(Color.LightGray)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Icon(
+                    Icons.Default.Image,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = Modifier.size(40.dp),
+                )
+            }
+        }
+        if (showRemove && onRemove != null) {
+            TextButton(onClick = onRemove) {
+                Text("Удалить")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BarcodeDropdownField(
+    label: String,
+    value: String,
+    options: List<Pair<String, String>>,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    var expanded by remember { mutableStateOf(false) }
+    val displayLabel = options.firstOrNull { it.first == value }?.second ?: value
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = displayLabel,
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            label = { Text(label) },
+            singleLine = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = colorScheme.onSurface,
+                unfocusedTextColor = colorScheme.onSurface,
+                disabledTextColor = colorScheme.onSurface.copy(alpha = 0.5f),
+                focusedBorderColor = colorScheme.primary,
+                unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.5f),
+                focusedLabelColor = colorScheme.primary,
+                unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(colorScheme.surface)
+        ) {
+            options.forEach { (key, optionLabel) ->
+                DropdownMenuItem(
+                    text = { Text(optionLabel) },
+                    onClick = {
+                        onValueChange(key)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun colorIntToHsv(color: Int): FloatArray =
+    FloatArray(3).also { AndroidColor.colorToHSV(color and 0xFFFFFF or 0xFF000000.toInt(), it) }
+
+private fun hsvToOpaqueColorInt(hue: Float, saturation: Float, value: Float): Int =
+    AndroidColor.HSVToColor(floatArrayOf(hue, saturation.coerceIn(0f, 1f), value.coerceIn(0f, 1f)))
+
+private fun hsvToComposeColor(hue: Float, saturation: Float, value: Float): Color =
+    Color(hsvToOpaqueColorInt(hue, saturation, value))
+
+@Composable
+private fun CardColorPreviewRow(
+    selectedColor: Int,
+    onPickColor: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val previewColor = Color(selectedColor)
+    val borderColor = colorScheme.onSurface.copy(alpha = 0.25f)
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Цвет карты",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = colorScheme.onSurface
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(previewColor)
+                    .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onPickColor
+                    )
+            )
+            FilledIconButton(
+                onClick = onPickColor,
+                modifier = Modifier.size(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = colorScheme.surfaceVariant,
+                    contentColor = colorScheme.onSurface
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Colorize,
+                    contentDescription = "Выбрать цвет"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardRgbColorDialog(
+    initialColor: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val initialHsv = remember(initialColor) { colorIntToHsv(initialColor) }
+    var hue by remember(initialColor) { mutableStateOf(initialHsv[0]) }
+    var saturation by remember(initialColor) { mutableStateOf(initialHsv[1]) }
+    var value by remember(initialColor) { mutableStateOf(initialHsv[2]) }
+    val previewColor = hsvToComposeColor(hue, saturation, value)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Выберите цвет") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SaturationValuePicker(
+                    hue = hue,
+                    saturation = saturation,
+                    value = value,
+                    onSaturationValueChange = { s, v ->
+                        saturation = s
+                        value = v
+                    }
+                )
+                HuePickerBar(
+                    hue = hue,
+                    onHueChange = { hue = it }
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(previewColor)
+                        .border(1.dp, colorScheme.onSurface.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(hsvToOpaqueColorInt(hue, saturation, value)) }) {
+                Text("Готово")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        },
+        containerColor = colorScheme.surface,
+        titleContentColor = colorScheme.onSurface,
+        textContentColor = colorScheme.onSurface
+    )
+}
+
+@Composable
+private fun SaturationValuePicker(
+    hue: Float,
+    saturation: Float,
+    value: Float,
+    onSaturationValueChange: (Float, Float) -> Unit
+) {
+    var areaSize by remember { mutableStateOf(IntSize.Zero) }
+
+    fun updateFromOffset(offset: Offset) {
+        if (areaSize.width == 0 || areaSize.height == 0) return
+        onSaturationValueChange(
+            (offset.x / areaSize.width).coerceIn(0f, 1f),
+            (1f - offset.y / areaSize.height).coerceIn(0f, 1f)
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .onSizeChanged { areaSize = it }
+    ) {
+        Box(Modifier.fillMaxSize().background(hsvToComposeColor(hue, 1f, 1f)))
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.horizontalGradient(listOf(Color.White, Color.Transparent))
+            )
+        )
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(listOf(Color.Transparent, Color.Black))
+            )
+        )
+        if (areaSize.width > 0 && areaSize.height > 0) {
+            ColorPickerHandle(
+                centerX = saturation * areaSize.width,
+                centerY = (1f - value) * areaSize.height
+            )
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .pointerInput(areaSize) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        updateFromOffset(down.position)
+                        drag(down.id) { change ->
+                            updateFromOffset(change.position)
+                            change.consume()
+                        }
+                    }
+                }
+        )
+    }
+}
+
+@Composable
+private fun HuePickerBar(
+    hue: Float,
+    onHueChange: (Float) -> Unit
+) {
+    var barSize by remember { mutableStateOf(IntSize.Zero) }
+
+    fun updateFromOffset(offset: Offset) {
+        if (barSize.width == 0) return
+        onHueChange((offset.x / barSize.width).coerceIn(0f, 1f) * 360f)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(28.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .onSizeChanged { barSize = it }
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFFFF0000),
+                            Color(0xFFFFFF00),
+                            Color(0xFF00FF00),
+                            Color(0xFF00FFFF),
+                            Color(0xFF0000FF),
+                            Color(0xFFFF00FF),
+                            Color(0xFFFF0000)
+                        )
+                    )
+                )
+        )
+        if (barSize.width > 0) {
+            ColorPickerHandle(
+                centerX = (hue / 360f) * barSize.width,
+                centerY = barSize.height / 2f,
+                size = 22.dp
+            )
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .pointerInput(barSize) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        updateFromOffset(down.position)
+                        drag(down.id) { change ->
+                            updateFromOffset(change.position)
+                            change.consume()
+                        }
+                    }
+                }
+        )
+    }
+}
+
+@Composable
+private fun ColorPickerHandle(
+    centerX: Float,
+    centerY: Float,
+    size: Dp = 24.dp
+) {
+    val radiusPx = with(LocalDensity.current) { (size / 2).toPx() }
+    Box(
+        modifier = Modifier.offset {
+            IntOffset(
+                (centerX - radiusPx).toInt(),
+                (centerY - radiusPx).toInt()
+            )
+        }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .border(2.dp, Color.White, CircleShape)
+                .border(1.dp, Color.Black.copy(alpha = 0.35f), CircleShape)
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardInputSection(
@@ -82,23 +500,58 @@ fun CardInputSection(
     onFrontCoverPick: (() -> Unit)? = null,
     onBackCoverPick: (() -> Unit)? = null,
     onFrontCoverRemove: (() -> Unit)? = null,
-    onBackCoverRemove: (() -> Unit)? = null
+    onBackCoverRemove: (() -> Unit)? = null,
+    codeType: String = "code128",
+    onCodeTypeChange: ((String) -> Unit)? = null,
+    showBarcodeFields: Boolean = false,
+    onPickBarcode: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val gradientColor = GradientUtils.loadGradientColorPref(context)
-    val cardColors = listOf(
-        0xFFFFFFFF.toInt(), // Белый
-        0xFFFF4444.toInt(), // Красный
-        0xFF4CAF50.toInt(), // Зеленый
-        0xFF2196F3.toInt(), // Синий
-        0xFFFF9800.toInt(), // Оранжевый
-        0xFFFFEB3B.toInt(), // Желтый
-        0xFFE91E63.toInt(), // Розовый
-        0xFF9C27B0.toInt(), // Фиолетовый
-        0xFF000000.toInt(), // Черный
-        0xFF9E9E9E.toInt()  // Серый
-    )
+    var showRgbColorDialog by remember { mutableStateOf(false) }
+    var colorManuallyOverridden by remember { mutableStateOf(false) }
+    val coverColorKey = frontCoverUri?.toString() ?: coverAsset
+    val initialCoverKey = remember { coverColorKey }
+
+    LaunchedEffect(coverColorKey) {
+        val key = coverColorKey ?: return@LaunchedEffect
+        // В режиме редактирования сохраняем цвет карты при открытии; при смене обложки — пересчитываем.
+        if (isEditMode && key == initialCoverKey) return@LaunchedEffect
+
+        colorManuallyOverridden = false
+        val accentColor = when {
+            frontCoverUri != null -> DominantColorExtractor.fromUri(context, frontCoverUri)
+            coverAsset != null -> DominantColorExtractor.fromAsset(context, coverAsset)
+            else -> null
+        }
+        if (accentColor != null && !colorManuallyOverridden) {
+            onColorChange(accentColor)
+        }
+    }
+
+    val codeError by remember(cardCode, codeType, showBarcodeFields) {
+        derivedStateOf {
+            if (!showBarcodeFields || codeType == "none") null
+            else validateBarcodeCode(cardCode, codeType)
+        }
+    }
+
+    val barcodeBitmap by remember(cardCode, codeType, showBarcodeFields, codeError) {
+        derivedStateOf {
+            if (!showBarcodeFields || codeType == "none" || codeError != null) null
+            else generateBarcodeBitmap(cardCode, codeType)
+        }
+    }
+
+    val canSave by remember(cardName, cardCode, codeType, codeError, showBarcodeFields) {
+        derivedStateOf {
+            if (cardName.isBlank()) false
+            else if (!showBarcodeFields) cardCode.isNotBlank()
+            else if (codeType == "none") true
+            else cardCode.isNotBlank() && codeError == null
+        }
+    }
 
     GradientBackground(gradientColor = gradientColor) {
         Column(
@@ -106,11 +559,11 @@ fun CardInputSection(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when {
-                showTopBar -> {
+                isEditMode -> {
                     TopAppBar(
                         title = {
                             Text(
-                                "Добавить карту",
+                                "Изменить карту",
                                 color = colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Start
@@ -124,11 +577,11 @@ fun CardInputSection(
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                     )
                 }
-                isEditMode -> {
+                showTopBar -> {
                     TopAppBar(
                         title = {
                             Text(
-                                "Изменение карты",
+                                "Добавить карту",
                                 color = colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Start
@@ -159,7 +612,7 @@ fun CardInputSection(
                     OutlinedTextField(
                         value = cardName,
                         onValueChange = { if (it.length <= 20) onCardNameChange(it) },
-                        label = { Text("Название карты") },
+                        label = { Text("Название") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
@@ -172,11 +625,18 @@ fun CardInputSection(
                             unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     )
+
+                    val showCodeError = codeError != null && cardCode.isNotBlank() && codeType != "none" && showBarcodeFields
                     OutlinedTextField(
                         value = cardCode,
-                        onValueChange = {},
-                        label = { Text("Код карты") },
-                        readOnly = true,
+                        onValueChange = { if (showBarcodeFields) onCardCodeChange(it) },
+                        label = { Text("Номер карты") },
+                        readOnly = !showBarcodeFields,
+                        singleLine = true,
+                        isError = showCodeError,
+                        supportingText = if (showCodeError) {
+                            { Text(codeError!!, color = colorScheme.error) }
+                        } else null,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
@@ -189,159 +649,104 @@ fun CardInputSection(
                             unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     )
-                    if (coverAsset == null) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                            Text(
-                                text = "Выберите цвет карты",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = colorScheme.onSurface,
-                                modifier = Modifier.padding(bottom = 12.dp)
+
+                    if (showBarcodeFields && onCodeTypeChange != null) {
+                        BarcodeDropdownField(
+                            label = "Тип штрих-кода",
+                            value = codeType,
+                            options = BARCODE_TYPE_OPTIONS.map { it.key to it.label },
+                            onValueChange = onCodeTypeChange,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
+                    }
+
+                    if (barcodeBitmap != null) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            val isSquare = codeType in listOf("qr", "datamatrix", "aztec", "pdf417")
+                            Image(
+                                bitmap = barcodeBitmap!!.asImageBitmap(),
+                                contentDescription = "Предпросмотр штрих-кода",
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(if (isSquare) 200.dp else 100.dp)
+                                    .padding(12.dp)
                             )
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    cardColors.take(5).forEach { color ->
-                                        val isSelected = color == selectedColor
-                                        val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
-                                        Box(
-                                            modifier = Modifier
-                                                .size(50.dp)
-                                                .background(
-                                                    color = Color(color),
-                                                    shape = CircleShape
-                                                )
-                                                .border(
-                                                    width = if (isSelected) 3.dp else 1.dp,
-                                                    color = borderColor,
-                                                    shape = CircleShape
-                                                )
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null
-                                                ) { onColorChange(color) }
-                                        )
-                                    }
-                                }
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    cardColors.drop(5).forEach { color ->
-                                        val isSelected = color == selectedColor
-                                        val borderColor = if (isSelected) Color(0xFFBDBDBD) else colorScheme.onSurface.copy(alpha = 0.3f)
-                                        Box(
-                                            modifier = Modifier
-                                                .size(50.dp)
-                                                .background(
-                                                    color = Color(color),
-                                                    shape = CircleShape
-                                                )
-                                                .border(
-                                                    width = if (isSelected) 3.dp else 1.dp,
-                                                    color = borderColor,
-                                                    shape = CircleShape
-                                                )
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null
-                                                ) { onColorChange(color) }
-                                        )
-                                    }
-                                }
-                            }
                         }
                     }
-                    // Добавляем UI для загрузки обложек
+
+                    if (showBarcodeFields && onPickBarcode != null) {
+                        OutlinedButton(
+                            onClick = onPickBarcode,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Photo,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Изменить штрих-код")
+                        }
+                    }
+
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        CardColorPreviewRow(
+                            selectedColor = selectedColor,
+                            onPickColor = { showRgbColorDialog = true }
+                        )
+                        if (showRgbColorDialog) {
+                            CardRgbColorDialog(
+                                initialColor = selectedColor,
+                                onDismiss = { showRgbColorDialog = false },
+                                onConfirm = { color ->
+                                    colorManuallyOverridden = true
+                                    onColorChange(color)
+                                    showRgbColorDialog = false
+                                }
+                            )
+                        }
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                            Text("Лицевая обложка", fontSize = 14.sp, color = colorScheme.onSurface)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1.574f)
-                                    .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
-                                    .clickable { onFrontCoverPick?.invoke() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                // Показываем загруженную обложку или стандартную обложку
-                                val frontBitmap = loadBitmap(frontCoverUri, coverAsset)
+                        val frontBitmap = loadBitmap(frontCoverUri, coverAsset)
+                        val backBitmap = loadBitmapFromUri(backCoverUri)
 
-                                if (frontBitmap != null) {
-                                    Image(
-                                        bitmap = frontBitmap.asImageBitmap(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(18.dp))
-                                    )
-                                } else {
-                                    Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
-                                }
-                            }
-                            if ((frontCoverUri != null || coverAsset != null) && onFrontCoverRemove != null) {
-                                TextButton(onClick = { onFrontCoverRemove() }) {
-                                    Text("Удалить")
-                                }
-                            }
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                            Text("Тыльная обложка", fontSize = 14.sp, color = colorScheme.onSurface)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1.574f)
-                                    .background(Color.LightGray, shape = RoundedCornerShape(18.dp))
-                                    .clickable { onBackCoverPick?.invoke() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (backCoverUri != null) {
-                                    val context = LocalContext.current
-                                    val bitmap = remember(backCoverUri) {
-                                        try {
-                                            val input = context.contentResolver.openInputStream(backCoverUri)
-                                            val bmp = BitmapFactory.decodeStream(input)
-                                            input?.close()
-                                            bmp
-                                        } catch (_: Exception) { null }
-                                    }
-                                    if (bitmap != null) {
-                                        Image(
-                                            bitmap = bitmap.asImageBitmap(),
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clip(RoundedCornerShape(18.dp))
-                                        )
-                                    }
-                                } else {
-                                    Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
-                                }
-                            }
-                            if (backCoverUri != null && onBackCoverRemove != null) {
-                                TextButton(onClick = { onBackCoverRemove() }) {
-                                    Text("Удалить")
-                                }
-                            }
-                        }
+                        CoverPickerSlot(
+                            label = "Лицевая обложка",
+                            modifier = Modifier.weight(1f),
+                            bitmap = frontBitmap,
+                            onClick = { onFrontCoverPick?.invoke() },
+                            showRemove = (frontCoverUri != null || coverAsset != null) && onFrontCoverRemove != null,
+                            onRemove = onFrontCoverRemove,
+                        )
+                        CoverPickerSlot(
+                            label = "Тыльная обложка",
+                            modifier = Modifier.weight(1f),
+                            bitmap = backBitmap,
+                            onClick = { onBackCoverPick?.invoke() },
+                            showRemove = backCoverUri != null && onBackCoverRemove != null,
+                            onRemove = onBackCoverRemove,
+                        )
                     }
-                    // Отступ внизу для кнопки
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-            
-            // Кнопка "Сохранить"
+
             Button(
                 onClick = onSaveCard,
                 modifier = Modifier
@@ -349,7 +754,7 @@ fun CardInputSection(
                     .padding(horizontal = 16.dp, vertical = 16.dp)
                     .navigationBarsPadding(),
                 colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
-                enabled = cardName.isNotBlank() && cardCode.isNotBlank()
+                enabled = canSave
             ) {
                 Text("Сохранить карту", color = colorScheme.onPrimary)
             }

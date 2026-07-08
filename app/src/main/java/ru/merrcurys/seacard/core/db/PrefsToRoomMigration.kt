@@ -1,6 +1,7 @@
 package ru.merrcurys.seacard.core.db
 
 import android.content.Context
+import ru.merrcurys.seacard.core.utils.CardColorResolver
 import ru.merrcurys.seacard.core.utils.ColorCoverGenerator
 
 /**
@@ -23,6 +24,7 @@ object PrefsToRoomMigration {
      */
     suspend fun migrateIfNeeded(context: Context) {
         migrateColorCoversToWebp(context)
+        repairCoverAccentColors(context)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (prefs.getBoolean(KEY_MIGRATED, false)) return
 
@@ -141,5 +143,16 @@ object PrefsToRoomMigration {
 
         prefs.edit().putBoolean(KEY_COLOR_COVERS_MIGRATED, true).apply()
         ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(context)
+    }
+
+    /**
+     * Карты с дефолтным белым и обложкой: записывает акцентный цвет из обложки.
+     * Идемпотентно, вызывается при каждом запуске (в т.ч. после импорта старых бэкапов).
+     */
+    private suspend fun repairCoverAccentColors(context: Context) {
+        val updated = CardColorResolver.repairDefaultColors(context, DatabaseProvider.get(context).cardDao())
+        if (updated > 0) {
+            ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(context)
+        }
     }
 }

@@ -12,11 +12,11 @@ plugins {
             compileSdk = 36
 
             defaultConfig {
-                applicationId = "com.example.seacard"
+                applicationId = "ru.merrcurys.seacard"
                 minSdk = 26
-                targetSdk = 35
-                versionCode = 15
-                versionName = "3.1"
+                targetSdk = 36
+                versionCode = 19
+                versionName = "3.2.2"
 
                 testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
             }
@@ -48,6 +48,11 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.play.app.update)
+    implementation(libs.play.app.update.ktx)
+    implementation(libs.play.review)
+    implementation(libs.play.review.ktx)
+
     implementation(platform(libs.rustore.bom))
     implementation(libs.rustore.appupdate)
     implementation(libs.rustore.review)

@@ -31,6 +31,8 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
     val scanSuccess = MutableStateFlow(false)
     val codeTypeState = MutableStateFlow("")
     val cardSaved = MutableStateFlow(false)
+    // true — форма «Добавить карту» открыта (любой способ добавления)
+    val manualMode = MutableStateFlow(false)
 
     val frontCoverUri = MutableStateFlow<Uri?>(null)
     val backCoverUri = MutableStateFlow<Uri?>(null)
@@ -45,6 +47,28 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
     fun setScanned(value: Boolean) { scanned.value = value }
     fun setScanSuccess(value: Boolean) { scanSuccess.value = value }
     fun setCodeType(type: String) { codeTypeState.value = type }
+
+    /** Открывает форму «Добавить карту» для ручного ввода. */
+    fun enterManualMode(code: String = "", codeType: String = "") {
+        cardCode.value = code
+        codeTypeState.value = when {
+            codeType.isNotBlank() -> codeType
+            code.isNotBlank() -> detectCodeType(code)
+            else -> "code128"
+        }
+        scanned.value = true
+        scanSuccess.value = false
+        manualMode.value = true
+    }
+
+    /** Переводит ViewModel в режим карты без штрих-кода. */
+    fun enterNoCodeMode() {
+        cardCode.value = ""
+        codeTypeState.value = "none"
+        scanned.value = true
+        scanSuccess.value = false
+        manualMode.value = true
+    }
 
     fun onScanResult(code: String, type: String) {
         cardCode.value = code
@@ -169,7 +193,9 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
         val code = cardCode.value
         val codeType = codeTypeState.value.ifBlank { "barcode" }
         val color = selectedColor.value
-        if (name.isBlank() || code.isBlank() || cardSaved.value) return false
+        // Карты без штрих-кода (тип "none") можно сохранять с пустым кодом
+        val needsCode = codeType != "none"
+        if (name.isBlank() || (needsCode && code.isBlank()) || cardSaved.value) return false
         saveCardWithCover(name, code, codeType, color, asset, null)
         cardSaved.value = true
         return true

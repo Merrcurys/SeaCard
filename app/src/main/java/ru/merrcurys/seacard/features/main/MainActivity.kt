@@ -61,7 +61,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -97,8 +96,11 @@ import kotlinx.coroutines.flow.first
 import ru.merrcurys.seacard.core.design.GradientBackground
 import ru.merrcurys.seacard.core.design.SeaCardTheme
 import ru.merrcurys.seacard.core.design.applySeaCardSystemBarColors
+import ru.merrcurys.seacard.core.play.PlayInAppUpdateController
+import ru.merrcurys.seacard.core.play.PlayReviewHelper
 import ru.merrcurys.seacard.core.rustore.RuStoreInAppUpdateController
 import ru.merrcurys.seacard.core.rustore.RuStoreReviewHelper
+import ru.merrcurys.seacard.core.store.AppInstallSource
 import ru.merrcurys.seacard.core.utils.SortType
 import ru.merrcurys.seacard.features.detail.CardDetailActivity
 import ru.merrcurys.seacard.features.scan.ScanCardActivity
@@ -106,7 +108,7 @@ import ru.merrcurys.seacard.features.settings.SettingsActivity
 import java.io.File
 import ru.merrcurys.seacard.domain.entity.Card as CardModel
 
-private const val RU_STORE_REVIEW_LOG_TAG = "RuStoreReview"
+private const val IN_APP_REVIEW_LOG_TAG = "InAppReview"
 
 private fun mainGridCoverModel(frontPath: String): Any =
     if (frontPath.startsWith("cards/")) "file:///android_asset/$frontPath"
@@ -114,9 +116,21 @@ private fun mainGridCoverModel(frontPath: String): Any =
 
 class MainActivity : ComponentActivity() {
 
+    private var playUpdateController: PlayInAppUpdateController? = null
+    private var ruStoreUpdateController: RuStoreInAppUpdateController? = null
+    private val installSource: AppInstallSource by lazy { AppInstallSource.detect(this) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         applySeaCardSystemBarColors()
+
+        when (installSource) {
+            AppInstallSource.GOOGLE_PLAY ->
+                playUpdateController = PlayInAppUpdateController(this).also { it.checkOnLaunch() }
+            AppInstallSource.RU_STORE ->
+                ruStoreUpdateController = RuStoreInAppUpdateController(this).also { it.checkOnLaunch() }
+            AppInstallSource.UNKNOWN -> Unit
+        }
 
         setContent {
             val viewModel: MainViewModel = viewModel()
@@ -132,18 +146,21 @@ class MainActivity : ComponentActivity() {
             val settingsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
             val context = this@MainActivity
 
-            DisposableEffect(Unit) {
-                val ruStoreUpdate = RuStoreInAppUpdateController(this@MainActivity)
-                ruStoreUpdate.checkOnLaunch()
-                onDispose { ruStoreUpdate.dispose() }
-            }
+            LaunchedEffect(installSource) {
+                if (installSource == AppInstallSource.UNKNOWN) return@LaunchedEffect
 
-            LaunchedEffect(Unit) {
-                Log.i(RU_STORE_REVIEW_LOG_TAG, "Ожидание: главный экран (!picker) и карт >= 5, сейчас карт=${cards.size}")
+                Log.i(
+                    IN_APP_REVIEW_LOG_TAG,
+                    "Ожидание: главный экран (!picker) и карт >= 5, магазин=$installSource, сейчас карт=${cards.size}",
+                )
                 snapshotFlow { !showCoverPicker && cards.size >= 5 }
                     .first { it }
-                Log.i(RU_STORE_REVIEW_LOG_TAG, "Условие выполнено, вызываем RuStoreReviewHelper")
-                RuStoreReviewHelper.tryLaunchReview(this@MainActivity)
+                Log.i(IN_APP_REVIEW_LOG_TAG, "Условие выполнено, запрос отзыва ($installSource)")
+                when (installSource) {
+                    AppInstallSource.GOOGLE_PLAY -> PlayReviewHelper.tryLaunchReview(this@MainActivity)
+                    AppInstallSource.RU_STORE -> RuStoreReviewHelper.tryLaunchReview(this@MainActivity)
+                    AppInstallSource.UNKNOWN -> Unit
+                }
             }
 
             SeaCardTheme {
@@ -176,6 +193,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        playUpdateController?.dispose()
+        ruStoreUpdateController?.dispose()
+        super.onDestroy()
     }
 }
 
@@ -279,8 +302,9 @@ fun MainScreen(
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedTextColor = colorScheme.onSurface,
                                         unfocusedTextColor = colorScheme.onSurface,
-                                        focusedBorderColor = colorScheme.primary,
+                                        focusedBorderColor = Color.Transparent,
                                         unfocusedBorderColor = Color.Transparent,
+                                        disabledBorderColor = Color.Transparent,
                                         focusedContainerColor = Color.Transparent,
                                         unfocusedContainerColor = Color.Transparent
                                     ),
@@ -291,10 +315,9 @@ fun MainScreen(
                                             fontWeight = FontWeight.Medium
                                         )
                                     },
-                                    shape = RoundedCornerShape(100.dp),
                                     lineLimits = TextFieldLineLimits.SingleLine,
                                     contentPadding = OutlinedTextFieldDefaults.contentPadding(
-                                        start = 24.dp,
+                                        start = 8.dp,
                                         end = 8.dp,
                                         top = 8.dp,
                                         bottom = 8.dp
@@ -342,51 +365,51 @@ fun MainScreen(
                                     )
                                 }
                             }
-                        }
-                        Box {
-                            IconButton(onClick = { showFilterMenu = true }) {
+                            Box {
+                                IconButton(onClick = { showFilterMenu = true }) {
+                                    Icon(
+                                        Icons.Default.FilterAlt,
+                                        contentDescription = "Фильтр",
+                                        tint = colorScheme.onSurface
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showFilterMenu,
+                                    onDismissRequest = { showFilterMenu = false },
+                                    modifier = Modifier.background(colorScheme.surface)
+                                ) {
+                                    SortType.entries.forEach { sortType ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    text = sortType.displayName,
+                                                    color = if (currentSortType == sortType) colorScheme.primary else colorScheme.onSurface
+                                                )
+                                            },
+                                            onClick = {
+                                                onSortTypeChange(sortType)
+                                                showFilterMenu = false
+                                            },
+                                            leadingIcon = {
+                                                if (currentSortType == sortType) {
+                                                    Icon(
+                                                        Icons.Default.Check,
+                                                        contentDescription = "Выбрано",
+                                                        tint = colorScheme.primary
+                                                    )
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            IconButton(onClick = onSettingsClick) {
                                 Icon(
-                                    Icons.Default.FilterAlt,
-                                    contentDescription = "Фильтр",
+                                    Icons.Filled.Settings,
+                                    contentDescription = "Настройки",
                                     tint = colorScheme.onSurface
                                 )
                             }
-                            DropdownMenu(
-                                expanded = showFilterMenu,
-                                onDismissRequest = { showFilterMenu = false },
-                                modifier = Modifier.background(colorScheme.surface)
-                            ) {
-                                SortType.entries.forEach { sortType ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                text = sortType.displayName,
-                                                color = if (currentSortType == sortType) colorScheme.primary else colorScheme.onSurface
-                                            )
-                                        },
-                                        onClick = {
-                                            onSortTypeChange(sortType)
-                                            showFilterMenu = false
-                                        },
-                                        leadingIcon = {
-                                            if (currentSortType == sortType) {
-                                                Icon(
-                                                    Icons.Default.Check,
-                                                    contentDescription = "Выбрано",
-                                                    tint = colorScheme.primary
-                                                )
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                        IconButton(onClick = onSettingsClick) {
-                            Icon(
-                                Icons.Filled.Settings,
-                                contentDescription = "Настройки",
-                                tint = colorScheme.onSurface
-                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)

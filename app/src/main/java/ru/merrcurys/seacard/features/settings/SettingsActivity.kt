@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,6 +21,9 @@ import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.PrivacyTip
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -29,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.merrcurys.seacard.core.design.applySeaCardSystemBarColors
@@ -42,18 +47,23 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import android.content.Intent
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
@@ -72,6 +82,8 @@ import ru.merrcurys.seacard.core.backup.BackupManager
 import ru.merrcurys.seacard.core.db.CardEntity
 import ru.merrcurys.seacard.core.db.DatabaseProvider
 import ru.merrcurys.seacard.core.utils.CoverNames
+
+private const val PRIVACY_POLICY_URL = "https://seacard.merrcurys.ru/privacy.html"
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -206,7 +218,7 @@ fun SettingsScreen(
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var showAboutDialog by remember { mutableStateOf(false) }
+    var showAboutSheet by remember { mutableStateOf(false) }
     var showGridColumnsDialog by remember { mutableStateOf(false) }
     var showGradientDialog by remember { mutableStateOf(false) }
     val appVersion = BuildConfig.VERSION_NAME
@@ -552,7 +564,7 @@ fun SettingsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .noRippleClickable { showAboutDialog = true }
+                                .noRippleClickable { showAboutSheet = true }
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -609,53 +621,29 @@ fun SettingsScreen(
         )
     }
 
-    if (showAboutDialog) {
-        AlertDialog(
-            onDismissRequest = { showAboutDialog = false },
-            title = { Text("О приложении") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                append("Море Карт - ваш надежный цифровой кошелек для хранения всех скидок, бонусов и карт лояльности!")
-                            }
-                        },
-                        color = colorScheme.onSurface.copy(alpha = 0.9f)
-                    )
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Разработчик:\n") }
-                            append("• Себежко Александр Андреевич")
-                        },
-                        color = colorScheme.onSurface.copy(alpha = 0.9f)
-                    )
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Лицензия:\n") }
-                            append("Приложение расспространяется под лицензией GPL-3.0")
-                        },
-                        color = colorScheme.onSurface.copy(alpha = 0.9f)
-                    )
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                append("Версия: $appVersion")
-                            }
-                        },
-                        color = colorScheme.onSurface.copy(alpha = 0.9f)
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAboutDialog = false }) {
-                    Text("Закрыть")
-                }
-            },
+    if (showAboutSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.42f
+        val aboutSheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+
+        ModalBottomSheet(
+            onDismissRequest = { showAboutSheet = false },
+            sheetState = sheetState,
             containerColor = sectionCardColor,
-            titleContentColor = colorScheme.onSurface,
-            textContentColor = colorScheme.onSurface
-        )
+            shape = aboutSheetShape,
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false)
+        ) {
+            BackHandler(onBack = { showAboutSheet = false })
+            AboutBottomSheetContent(
+                appVersion = appVersion,
+                sheetHeight = sheetHeight,
+                onPrivacyPolicyClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, PRIVACY_POLICY_URL.toUri())
+                    context.startActivity(intent)
+                }
+            )
+        }
     }
 
     if (showGridColumnsDialog) {
@@ -741,6 +729,135 @@ fun SettingsScreen(
             containerColor = sectionCardColor,
             titleContentColor = colorScheme.onSurface,
             textContentColor = colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun AboutBottomSheetContent(
+    appVersion: String,
+    sheetHeight: androidx.compose.ui.unit.Dp,
+    onPrivacyPolicyClick: () -> Unit,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val mutedColor = colorScheme.onSurface.copy(alpha = 0.55f)
+    val bodyColor = colorScheme.onSurface.copy(alpha = 0.88f)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = sheetHeight)
+            .wrapContentHeight()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState())
+        ) {
+            Text(
+                text = "Море Карт",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface,
+                letterSpacing = (-0.5).sp,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "Ваш надёжный цифровой кошелёк для хранения скидок, бонусов и карт лояльности.",
+                fontSize = 14.sp,
+                lineHeight = 21.sp,
+                color = mutedColor,
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                AboutMetaLine(
+                    icon = Icons.Outlined.Person,
+                    text = "Себежко Александр Андреевич",
+                    iconTint = colorScheme.primary,
+                    textColor = bodyColor,
+                )
+                AboutMetaLine(
+                    icon = Icons.Outlined.Description,
+                    text = "Лицензия GNU GPL-3.0",
+                    iconTint = colorScheme.primary.copy(alpha = 0.75f),
+                    textColor = bodyColor.copy(alpha = 0.82f),
+                )
+                AboutMetaLine(
+                    icon = Icons.Outlined.Info,
+                    text = "Версия $appVersion",
+                    iconTint = colorScheme.primary.copy(alpha = 0.75f),
+                    textColor = bodyColor.copy(alpha = 0.82f),
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(20.dp))
+        val sectionCardColor = Color(0xFF141414)
+        val sectionShape = RoundedCornerShape(26.dp)
+        val sectionBorderColor = Color.White.copy(alpha = 0.06f)
+        Surface(
+            shape = sectionShape,
+            color = sectionCardColor,
+            tonalElevation = 2.dp,
+            shadowElevation = 0.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, sectionBorderColor, sectionShape)
+                .noRippleClickable(onPrivacyPolicyClick)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.PrivacyTip,
+                    contentDescription = null,
+                    tint = colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "Политика конфиденциальности",
+                    modifier = Modifier.weight(1f),
+                    color = colorScheme.onSurface,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutMetaLine(
+    icon: ImageVector,
+    text: String,
+    iconTint: Color,
+    textColor: Color,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            text = text,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            color = textColor,
         )
     }
 }

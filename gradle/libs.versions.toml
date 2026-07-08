@@ -1,12 +1,14 @@
 [versions]
-agp = "8.10.1"
+agp = "8.13.2"
 barcodeScanning = "17.3.0"
+play-app-update = "2.1.0"
+play-review = "2.0.2"
 rustore-bom = "2026.03.01"
 camerax = "1.6.1"
 coilCompose = "2.7.0"
 zxingCore = "3.5.4"
-kotlin = "2.0.21"
-ksp = "2.0.21-1.0.28"
+kotlin = "2.3.21"
+ksp = "2.3.9"
 room = "2.8.4"
 coreKtx = "1.18.0"
 junit = "4.13.2"
@@ -46,6 +48,10 @@ androidx-material-icons-extended = { group = "androidx.compose.material", name =
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+play-app-update = { module = "com.google.android.play:app-update", version.ref = "play-app-update" }
+play-app-update-ktx = { module = "com.google.android.play:app-update-ktx", version.ref = "play-app-update" }
+play-review = { module = "com.google.android.play:review", version.ref = "play-review" }
+play-review-ktx = { module = "com.google.android.play:review-ktx", version.ref = "play-review" }
 rustore-appupdate = { module = "ru.rustore.sdk:appupdate" }
 rustore-bom = { module = "ru.rustore.sdk:bom", version.ref = "rustore-bom" }
 rustore-review = { module = "ru.rustore.sdk:review" }
