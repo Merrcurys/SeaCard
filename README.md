@@ -34,8 +34,6 @@
 
 APK-релизы можно скачать с GitHub -[<img align="center" height="60" alt="GitHub" src="https://github.com/user-attachments/assets/1a481370-4323-40e8-94b8-0106b9fc5363" />](https://github.com/Merrcurys/SeaCard/releases)
 
-
-
 ## Поддержка и обсуждение
 
 Обсуждение приложения доступно на [4PDA](https://4pda.to/forum/index.php?showtopic=1108694).
@@ -52,5 +50,4 @@ APK-релизы можно скачать с GitHub -[<img align="center" heigh
 
 ## Лицензия
 
-Море карт расспространяется под лицензией GNU GPL-3.0.
-
+Море карт распространяется под лицензией GNU GPL-3.0.
