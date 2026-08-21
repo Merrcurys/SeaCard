@@ -12,7 +12,7 @@ plugins {
             compileSdk = 36
 
             defaultConfig {
-                applicationId = "ru.merrcurys.seacard"
+                applicationId = "ru.merrcurys.seacardtest"
                 minSdk = 28
                 targetSdk = 36
                 versionCode = 19
