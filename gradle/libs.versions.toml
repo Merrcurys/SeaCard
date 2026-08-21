@@ -10,14 +10,14 @@ zxingCore = "3.5.4"
 kotlin = "2.3.21"
 ksp = "2.3.9"
 room = "2.8.4"
-coreKtx = "1.18.0"
+coreKtx = "1.19.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
-lifecycleRuntimeKtx = "2.10.0"
-lifecycleRuntimeCompose = "2.10.0"
+lifecycleRuntimeKtx = "2.11.0"
+lifecycleRuntimeCompose = "2.11.0"
 activityCompose = "1.13.0"
-composeBom = "2026.05.01"
+composeBom = "2026.08.00"
 
 [libraries]
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }

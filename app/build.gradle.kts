@@ -13,7 +13,7 @@ plugins {
 
             defaultConfig {
                 applicationId = "ru.merrcurys.seacard"
-                minSdk = 26
+                minSdk = 28
                 targetSdk = 36
                 versionCode = 19
                 versionName = "3.2.2"
@@ -32,8 +32,8 @@ plugins {
                 }
             }
             compileOptions {
-                sourceCompatibility = JavaVersion.VERSION_11
-                targetCompatibility = JavaVersion.VERSION_11
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
             }
             buildFeatures {
                 compose = true
@@ -43,7 +43,7 @@ plugins {
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_11)
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
