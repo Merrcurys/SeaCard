@@ -1,3 +1,7 @@
+/converter-image/input/*
+!/converter-image/input/.gitkeep
+/converter-image/output/*
+!/converter-image/output/.gitkeep
 /local.properties
 /.idea/caches
 /.idea/workspace.xml
