@@ -375,7 +375,7 @@ fun SettingsScreen(
                             headlineContent = { Text("Экспорт") },
                             supportingContent = {
                                 Text(
-                                    text = "Сохранить все карточки в файл",
+                                    text = "Сохранить все карточки в архив,
                                     fontSize = 12.sp,
                                     color = colorScheme.onSurface.copy(alpha = 0.62f)
                                 )
@@ -398,7 +398,7 @@ fun SettingsScreen(
                             headlineContent = { Text("Импорт") },
                             supportingContent = {
                                 Text(
-                                    text = "Восстановить все карточки из файла",
+                                    text = "Восстановить все карточки из архива",
                                     fontSize = 12.sp,
                                     color = colorScheme.onSurface.copy(alpha = 0.62f)
                                 )
