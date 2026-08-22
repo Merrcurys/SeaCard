@@ -15,8 +15,8 @@ plugins {
                 applicationId = "ru.merrcurys.seacard"
                 minSdk = 28
                 targetSdk = 36
-                versionCode = 19
-                versionName = "3.2.2"
+                versionCode = 20
+                versionName = "3.3.0"
 
                 testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
             }
