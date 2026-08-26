@@ -554,54 +554,70 @@ fun CardInputSection(
     }
 
     GradientBackground(gradientColor = gradientColor) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            when {
-                isEditMode -> {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                "Изменить карту",
-                                color = colorScheme.onSurface,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Start
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-                    )
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets.safeDrawing,
+            topBar = {
+                when {
+                    isEditMode -> {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    "Изменить карту",
+                                    color = colorScheme.onSurface,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Start
+                                )
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = onBack) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                        )
+                    }
+                    showTopBar -> {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    "Добавить карту",
+                                    color = colorScheme.onSurface,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Start
+                                )
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = onBack) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                        )
+                    }
+                    else -> Unit
                 }
-                showTopBar -> {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                "Добавить карту",
-                                color = colorScheme.onSurface,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Start
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = colorScheme.onSurface)
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-                    )
-                }
-                else -> {
-                    Spacer(modifier = Modifier.height(32.dp))
+            },
+            bottomBar = {
+                Button(
+                    onClick = onSaveCard,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .navigationBarsPadding()
+                        .imePadding(),
+                    colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+                    enabled = canSave
+                ) {
+                    Text("Сохранить карту", color = colorScheme.onPrimary)
                 }
             }
-
+        ) { innerPadding ->
             Box(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding)
             ) {
                 Column(
                     modifier = Modifier
@@ -745,18 +761,6 @@ fun CardInputSection(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
-            }
-
-            Button(
-                onClick = onSaveCard,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
-                    .navigationBarsPadding(),
-                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
-                enabled = canSave
-            ) {
-                Text("Сохранить карту", color = colorScheme.onPrimary)
             }
         }
     }

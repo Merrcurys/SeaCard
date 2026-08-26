@@ -21,12 +21,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -74,6 +77,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -164,32 +168,34 @@ class MainActivity : ComponentActivity() {
             }
 
             SeaCardTheme {
-                if (showCoverPicker) {
-                    CardCoverPickerScreen(
-                        onCoverSelected = { coverAsset: String? ->
-                            viewModel.setShowCoverPicker(false)
-                            val intent = Intent(context, ScanCardActivity::class.java)
-                            if (coverAsset != null) intent.putExtra("cover_asset", coverAsset)
-                            scanCardLauncher.launch(intent)
-                        },
-                        onBack = { viewModel.setShowCoverPicker(false) }
-                    )
-                } else {
-                    MainScreen(
-                        cards = cards,
-                        cardsFromDbReady = cardsFromDbReady,
-                        currentSortType = currentSortType,
-                        gridColumns = gridColumns,
-                        gradientColor = gradientColor,
-                        onAddCard = { viewModel.setShowCoverPicker(true) },
-                        onCardClick = { card ->
-                            viewModel.updateCardUsage(card.id)
-                            cardDetailLauncher.launch(Intent(context, CardDetailActivity::class.java).apply { putExtra("card_id", card.id) })
-                        },
-                        onSettingsClick = { settingsLauncher.launch(Intent(context, SettingsActivity::class.java)) },
-                        onSortTypeChange = { viewModel.setSortType(it) },
-                        onDeleteCards = { viewModel.deleteCards(it) }
-                    )
+                GradientBackground(gradientColor = gradientColor) {
+                    if (showCoverPicker) {
+                        CardCoverPickerScreen(
+                            onCoverSelected = { coverAsset: String? ->
+                                viewModel.setShowCoverPicker(false)
+                                val intent = Intent(context, ScanCardActivity::class.java)
+                                if (coverAsset != null) intent.putExtra("cover_asset", coverAsset)
+                                scanCardLauncher.launch(intent)
+                            },
+                            onBack = { viewModel.setShowCoverPicker(false) }
+                        )
+                    } else {
+                        MainScreen(
+                            cards = cards,
+                            cardsFromDbReady = cardsFromDbReady,
+                            currentSortType = currentSortType,
+                            gridColumns = gridColumns,
+                            gradientColor = gradientColor,
+                            onAddCard = { viewModel.setShowCoverPicker(true) },
+                            onCardClick = { card ->
+                                viewModel.updateCardUsage(card.id)
+                                cardDetailLauncher.launch(Intent(context, CardDetailActivity::class.java).apply { putExtra("card_id", card.id) })
+                            },
+                            onSettingsClick = { settingsLauncher.launch(Intent(context, SettingsActivity::class.java)) },
+                            onSortTypeChange = { viewModel.setSortType(it) },
+                            onDeleteCards = { viewModel.deleteCards(it) }
+                        )
+                    }
                 }
             }
         }
@@ -266,6 +272,7 @@ fun MainScreen(
 
         Scaffold(
             containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets.safeDrawing,
             topBar = {
                 TopAppBar(
                     title = {
@@ -456,7 +463,8 @@ fun MainScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding)
+                        .padding(top = innerPadding.calculateTopPadding())
+                        .consumeWindowInsets(innerPadding)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -476,6 +484,7 @@ fun MainScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
                                 .align(Alignment.Center)
+                                .padding(bottom = innerPadding.calculateBottomPadding())
                                 .offset(y = (-64).dp)
                                 .semantics { contentDescription = "Загружаем ваши карты из хранилища" }
                         ) {
@@ -499,7 +508,10 @@ fun MainScreen(
                     } else if (filteredCards.isEmpty()) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.align(Alignment.Center).offset(y = (-64).dp)
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(bottom = innerPadding.calculateBottomPadding())
+                                .offset(y = (-64).dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Wallet,
@@ -525,7 +537,12 @@ fun MainScreen(
                     } else {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(gridColumns.coerceIn(1, 4)),
-                            contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 80.dp),
+                            contentPadding = PaddingValues(
+                                start = 8.dp,
+                                top = 8.dp,
+                                end = 8.dp,
+                                bottom = innerPadding.calculateBottomPadding() + 80.dp
+                            ),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             flingBehavior = ScrollableDefaults.flingBehavior(),

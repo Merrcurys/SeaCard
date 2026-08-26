@@ -73,6 +73,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -453,11 +454,10 @@ fun CardDetailScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        Column {
+    Scaffold(
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets.safeDrawing,
+        topBar = {
             if (!showEditDialog) {
                 TopAppBar(
                     title = {
@@ -511,6 +511,13 @@ fun CardDetailScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarContainerColor)
                 )
             }
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .consumeWindowInsets(innerPadding)
+        ) {
             // Диалог удаления
             if (showDeleteDialog) {
                 AlertDialog(
@@ -551,10 +558,13 @@ fun CardDetailScreen(
                         if (normalizedName.isBlank()) {
                             editError = "Заполните имя карты"
                         } else {
-                            val type = editType.ifBlank { if (editCode.isBlank()) "none" else "code128" }
+                            val type =
+                                editType.ifBlank { if (editCode.isBlank()) "none" else "code128" }
                             val code = editCode
-                            val frontDirty = editFrontCoverRemoved || editFrontCoverUri != initialEditFrontUri
-                            val backDirty = editBackCoverRemoved || editBackCoverUri != initialEditBackUri
+                            val frontDirty =
+                                editFrontCoverRemoved || editFrontCoverUri != initialEditFrontUri
+                            val backDirty =
+                                editBackCoverRemoved || editBackCoverUri != initialEditBackUri
                             showEditDialog = false
                             editError = ""
                             onEdit(
@@ -578,7 +588,8 @@ fun CardDetailScreen(
                         resetEditDraft()
                         showEditDialog = false
                     },
-                    frontCoverUri = if (editFrontCoverRemoved) null else (editFrontCoverUri ?: frontCoverUri),
+                    frontCoverUri = if (editFrontCoverRemoved) null else (editFrontCoverUri
+                        ?: frontCoverUri),
                     backCoverUri = if (editBackCoverRemoved) null else editBackCoverUri,
                     onFrontCoverPick = {
                         if (hasCameraPermission) {
@@ -619,495 +630,550 @@ fun CardDetailScreen(
                         )
                     },
                 )
-            }
-            if (!showEditDialog) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                // Штрих-код или текстовый код (для карт без штрих-кода)
-                if (barcodeBitmap != null && cardCode.isNotBlank() && displayCodeType != "none") {
-                    val isSquareCode = displayCodeType == "qr" || displayCodeType == "datamatrix"
-                    val cardHeight = if (isSquareCode) 350.dp else 300.dp
-                    val imageHeight = if (displayCodeType == "qr" || displayCodeType == "datamatrix") 230.dp else 230.dp
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp, bottom = 8.dp)
-                            .height(cardHeight)
-                            .shadow(18.dp, RoundedCornerShape(28.dp)),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 18.dp),
-                        shape = RoundedCornerShape(28.dp),
-                        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.25f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(20.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                bitmap = barcodeBitmap!!.asImageBitmap(),
-                                contentDescription = cardName,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(imageHeight)
-                            )
-                        }
-                    }
-                } else if (displayCodeType == "none" && cardCode.isNotBlank()) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp, bottom = 8.dp)
-                            .height(300.dp)
-                            .shadow(18.dp, RoundedCornerShape(28.dp)),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 18.dp),
-                        shape = RoundedCornerShape(28.dp),
-                        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.25f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(20.dp)
-                                .pointerInput(Unit) {
-                                    detectTapGestures(onLongPress = { copyToClipboard() })
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = cardCode,
-                                    fontSize = plainCodeDisplayFontSize(cardCode),
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.Black,
-                                    textAlign = TextAlign.Center,
-                                    lineHeight = plainCodeDisplayFontSize(cardCode) * 1.15f,
-                                    modifier = Modifier.padding(vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 32.dp),
-                    thickness = 1.dp,
-                    color = colorScheme.onSurface.copy(alpha = 0.2f)
-                )
-                // Код карты внизу
+            } else {
                 Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                        .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    // Текст кода карты — скрыт для карт без штрих-кода
-                    if (cardCode.isNotBlank() && displayCodeType != "none") {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp),
-                        shape = RoundedCornerShape(22.dp),
-                        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.20f)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Column(
+                    Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 8.dp))
+                    // Штрих-код или текстовый код (для карт без штрих-кода)
+                    if (barcodeBitmap != null && cardCode.isNotBlank() && displayCodeType != "none") {
+                        val isSquareCode =
+                            displayCodeType == "qr" || displayCodeType == "datamatrix"
+                        val cardHeight = if (isSquareCode) 350.dp else 300.dp
+                        val imageHeight =
+                            if (displayCodeType == "qr" || displayCodeType == "datamatrix") 230.dp else 230.dp
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 12.dp, horizontal = 12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(top = 16.dp, bottom = 8.dp)
+                                .height(cardHeight)
+                                .shadow(18.dp, RoundedCornerShape(28.dp)),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 18.dp),
+                            shape = RoundedCornerShape(28.dp),
+                            border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.25f))
                         ) {
-                            val formattedCode = formatBarcodeForStandard(cardCode, displayCodeType)
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState())
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onLongPress = {
-                                                copyToClipboard()
-                                            }
-                                        )
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = formattedCode,
-                                    fontSize = if (cardCode.length > 20) 20.sp else 28.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.TouchApp,
-                                    contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Долгое нажатие — скопировать",
-                                    fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
-                    }
-                    }
-                    // Заметки и Обложка
-                    Spacer(modifier = Modifier.height(1.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(
-                            space = 12.dp,
-                            alignment = Alignment.CenterHorizontally
-                        ),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Кнопка "Заметки"
-                        Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(54.dp)
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onTap = { showNoteDialog = true }
-                                    )
-                                },
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.20f)),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            Row(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Заметки",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Text(
-                                    text = "Заметки",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                        // Кнопка "Обложка"
-                        Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(54.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.20f)),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    ) { showCoverDialog = true }
-                                    .padding(horizontal = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Image,
-                                    contentDescription = "Обложка",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Text(
-                                    text = "Обложка",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            }
-            // Диалог для заметки
-            if (showNoteDialog) {
-                AlertDialog(
-                    onDismissRequest = { showNoteDialog = false },
-                    title = { Text("Заметка к карте") },
-                    text = {
-                        Column {
-                            OutlinedTextField(
-                                value = noteDraft,
-                                onValueChange = {
-                                    if (it.length <= 100) {
-                                        noteDraft = it
-                                        noteError = ""
-                                    }
-                                },
-                                label = { Text("Введите заметку") },
-                                singleLine = false,
-                                maxLines = 4,
-                                modifier = Modifier.fillMaxWidth(),
-                                trailingIcon = {
-                                    if (noteDraft.isNotEmpty()) {
-                                        IconButton(onClick = { noteDraft = "" }) {
-                                            Icon(Icons.Default.Close, contentDescription = "Очистить")
-                                        }
-                                    }
-                                }
-                            )
-                            if (noteError.isNotEmpty()) {
-                                Text(noteError, color = Color.Red, fontSize = 13.sp)
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                if (noteDraft.length <= 100) {
-                                    onSaveNote(noteDraft)
-                                    showNoteDialog = false
-                                } else {
-                                    noteError = "Максимум 100 символов"
-                                }
-                            }
-                        ) {
-                            Text("Сохранить")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showNoteDialog = false }) {
-                            Text("Отмена")
-                        }
-                    },
-                    containerColor = colorScheme.surface,
-                    titleContentColor = colorScheme.onSurface,
-                    textContentColor = colorScheme.onSurface
-                )
-            }
-            // Диалог выбора/просмотра обложки
-            if (showCoverDialog) {
-                AlertDialog(
-                    onDismissRequest = { showCoverDialog = false },
-                    title = { Text("Обложка карты") },
-                    text = {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1.574f)
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
-                                    .clickable {
-                                        when {
-                                            frontCoverPath != null && !frontCoverPath!!.startsWith("cards/") ->
-                                                showFullScreenImage = true to Uri.fromFile(File(frontCoverPath!!))
-                                            frontImageUri != null -> showFullScreenImage = true to frontImageUri
-                                            coverBitmap != null -> showFullScreenImage = true to null
-                                        }
-                                    },
+                                    .padding(20.dp),
                                 contentAlignment = Alignment.Center
-                            ) {
-                                val frontBitmap = frontCoverPath?.let { path ->
-                                    if (path.startsWith("cards/")) null
-                                    else try { BitmapFactory.decodeFile(path) } catch (_: Exception) { null }
-                                } ?: frontImageUri?.let { rememberBitmapFromUri(it) } ?: coverBitmap?.let { null }
-                                if (frontBitmap != null) {
-                                    Image(
-                                        bitmap = frontBitmap.asImageBitmap(),
-                                        contentDescription = "Лицевая обложка",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else if (coverBitmap != null) {
-                                    Image(
-                                        bitmap = coverBitmap,
-                                        contentDescription = "Лицевая обложка",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Image,
-                                        contentDescription = null,
-                                        tint = colorScheme.primary,
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                }
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1.574f)
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
-                                    .clickable {
-                                        backCoverPath?.let { path ->
-                                            showFullScreenImage = true to Uri.fromFile(File(path))
-                                        } ?: run {
-                                            if (backImageUri != null) {
-                                                showFullScreenImage = true to backImageUri
-                                            }
-                                        }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val backBitmap = if (backCoverPath != null) {
-                                    try {
-                                        BitmapFactory.decodeFile(backCoverPath)
-                                    } catch (_: Exception) { null }
-                                } else rememberBitmapFromUri(backImageUri)
-                                if (backBitmap != null) {
-                                    Image(
-                                        bitmap = backBitmap.asImageBitmap(),
-                                        contentDescription = "Тыльная обложка",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Image,
-                                        contentDescription = null,
-                                        tint = colorScheme.primary,
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "Нажмите на обложку, чтобы увеличить изображение. А изменить обложку, можно в меню изменения карты.",
-                                fontSize = 13.sp,
-                                color = colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showCoverDialog = false }) {
-                            Text("Готово")
-                        }
-                    },
-                    containerColor = colorScheme.surface,
-                    titleContentColor = colorScheme.onSurface,
-                    textContentColor = colorScheme.onSurface
-                )
-            }
-            // Полноэкранный просмотр изображения
-            if (showFullScreenImage.first) {
-                Dialog(onDismissRequest = { showFullScreenImage = false to null }) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val uri = showFullScreenImage.second
-                        val bitmap = if (uri != null) rememberBitmapFromUri(uri)?.asImageBitmap() else coverBitmap
-                        if (bitmap != null) {
-                            var scale by remember { mutableStateOf(1f) }
-                            var offset by remember { mutableStateOf(Offset.Zero) }
-                            var lastOffset by remember { mutableStateOf(Offset.Zero) }
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.98f)
-                                    .fillMaxHeight(0.98f)
-                                    .pointerInput(Unit) {
-                                        detectTransformGestures { _, pan, zoom, _ ->
-                                            scale = (scale * zoom).coerceIn(1f, 5f)
-                                            offset += pan
-                                        }
-                                    }
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(onDoubleTap = {
-                                            scale = 1f
-                                            offset = Offset.Zero
-                                        })
-                                    }
                             ) {
                                 Image(
-                                    bitmap = bitmap,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
+                                    bitmap = barcodeBitmap!!.asImageBitmap(),
+                                    contentDescription = cardName,
                                     modifier = Modifier
-                                        .graphicsLayer(
-                                            scaleX = scale,
-                                            scaleY = scale,
-                                            translationX = offset.x,
-                                            translationY = offset.y
-                                        )
-                                        .fillMaxSize()
+                                        .fillMaxWidth()
+                                        .height(imageHeight)
                                 )
+                            }
+                        }
+                    } else if (displayCodeType == "none" && cardCode.isNotBlank()) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp, bottom = 8.dp)
+                                .height(300.dp)
+                                .shadow(18.dp, RoundedCornerShape(28.dp)),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 18.dp),
+                            shape = RoundedCornerShape(28.dp),
+                            border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.25f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(20.dp)
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(onLongPress = { copyToClipboard() })
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = cardCode,
+                                        fontSize = plainCodeDisplayFontSize(cardCode),
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black,
+                                        textAlign = TextAlign.Center,
+                                        lineHeight = plainCodeDisplayFontSize(cardCode) * 1.15f,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                        thickness = 1.dp,
+                        color = colorScheme.onSurface.copy(alpha = 0.2f)
+                    )
+                    // Код карты внизу
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Текст кода карты — скрыт для карт без штрих-кода
+                        if (cardCode.isNotBlank() && displayCodeType != "none") {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp),
+                                shape = RoundedCornerShape(22.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = colorScheme.surface.copy(
+                                        alpha = 0.20f
+                                    )
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp, horizontal = 12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    val formattedCode =
+                                        formatBarcodeForStandard(cardCode, displayCodeType)
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState())
+                                            .pointerInput(Unit) {
+                                                detectTapGestures(
+                                                    onLongPress = {
+                                                        copyToClipboard()
+                                                    }
+                                                )
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = formattedCode,
+                                            fontSize = if (cardCode.length > 20) 20.sp else 28.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.TouchApp,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.7f),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Долгое нажатие — скопировать",
+                                            fontSize = 11.sp,
+                                            color = Color.White.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        // Заметки и Обложка
+                        Spacer(modifier = Modifier.height(1.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(
+                                space = 12.dp,
+                                alignment = Alignment.CenterHorizontally
+                            ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Кнопка "Заметки"
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(54.dp)
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onTap = { showNoteDialog = true }
+                                        )
+                                    },
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = colorScheme.surface.copy(
+                                        alpha = 0.20f
+                                    )
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(
+                                        12.dp,
+                                        Alignment.CenterHorizontally
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Заметки",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Text(
+                                        text = "Заметки",
+                                        color = Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                            // Кнопка "Обложка"
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(54.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = colorScheme.surface.copy(
+                                        alpha = 0.20f
+                                    )
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) { showCoverDialog = true }
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(
+                                        12.dp,
+                                        Alignment.CenterHorizontally
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Image,
+                                        contentDescription = "Обложка",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Text(
+                                        text = "Обложка",
+                                        color = Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(innerPadding.calculateBottomPadding() + 24.dp))
+                    }
+                }
+                // Диалог для заметки
+                if (showNoteDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showNoteDialog = false },
+                        title = { Text("Заметка к карте") },
+                        text = {
+                            Column {
+                                OutlinedTextField(
+                                    value = noteDraft,
+                                    onValueChange = {
+                                        if (it.length <= 100) {
+                                            noteDraft = it
+                                            noteError = ""
+                                        }
+                                    },
+                                    label = { Text("Введите заметку") },
+                                    singleLine = false,
+                                    maxLines = 4,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    trailingIcon = {
+                                        if (noteDraft.isNotEmpty()) {
+                                            IconButton(onClick = { noteDraft = "" }) {
+                                                Icon(
+                                                    Icons.Default.Close,
+                                                    contentDescription = "Очистить"
+                                                )
+                                            }
+                                        }
+                                    }
+                                )
+                                if (noteError.isNotEmpty()) {
+                                    Text(noteError, color = Color.Red, fontSize = 13.sp)
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    if (noteDraft.length <= 100) {
+                                        onSaveNote(noteDraft)
+                                        showNoteDialog = false
+                                    } else {
+                                        noteError = "Максимум 100 символов"
+                                    }
+                                }
+                            ) {
+                                Text("Сохранить")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showNoteDialog = false }) {
+                                Text("Отмена")
+                            }
+                        },
+                        containerColor = colorScheme.surface,
+                        titleContentColor = colorScheme.onSurface,
+                        textContentColor = colorScheme.onSurface
+                    )
+                }
+                // Диалог выбора/просмотра обложки
+                if (showCoverDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showCoverDialog = false },
+                        title = { Text("Обложка карты") },
+                        text = {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(1.574f)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                                        .clickable {
+                                            when {
+                                                frontCoverPath != null && !frontCoverPath!!.startsWith(
+                                                    "cards/"
+                                                ) ->
+                                                    showFullScreenImage =
+                                                        true to Uri.fromFile(File(frontCoverPath!!))
+
+                                                frontImageUri != null -> showFullScreenImage =
+                                                    true to frontImageUri
+
+                                                coverBitmap != null -> showFullScreenImage =
+                                                    true to null
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val frontBitmap = frontCoverPath?.let { path ->
+                                        if (path.startsWith("cards/")) null
+                                        else try {
+                                            BitmapFactory.decodeFile(path)
+                                        } catch (_: Exception) {
+                                            null
+                                        }
+                                    } ?: frontImageUri?.let { rememberBitmapFromUri(it) }
+                                    ?: coverBitmap?.let { null }
+                                    if (frontBitmap != null) {
+                                        Image(
+                                            bitmap = frontBitmap.asImageBitmap(),
+                                            contentDescription = "Лицевая обложка",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else if (coverBitmap != null) {
+                                        Image(
+                                            bitmap = coverBitmap,
+                                            contentDescription = "Лицевая обложка",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Image,
+                                            contentDescription = null,
+                                            tint = colorScheme.primary,
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(1.574f)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                                        .clickable {
+                                            backCoverPath?.let { path ->
+                                                showFullScreenImage =
+                                                    true to Uri.fromFile(File(path))
+                                            } ?: run {
+                                                if (backImageUri != null) {
+                                                    showFullScreenImage = true to backImageUri
+                                                }
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val backBitmap = if (backCoverPath != null) {
+                                        try {
+                                            BitmapFactory.decodeFile(backCoverPath)
+                                        } catch (_: Exception) {
+                                            null
+                                        }
+                                    } else rememberBitmapFromUri(backImageUri)
+                                    if (backBitmap != null) {
+                                        Image(
+                                            bitmap = backBitmap.asImageBitmap(),
+                                            contentDescription = "Тыльная обложка",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Image,
+                                            contentDescription = null,
+                                            tint = colorScheme.primary,
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "Нажмите на обложку, чтобы увеличить изображение. А изменить обложку, можно в меню изменения карты.",
+                                    fontSize = 13.sp,
+                                    color = colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showCoverDialog = false }) {
+                                Text("Готово")
+                            }
+                        },
+                        containerColor = colorScheme.surface,
+                        titleContentColor = colorScheme.onSurface,
+                        textContentColor = colorScheme.onSurface
+                    )
+                }
+                // Полноэкранный просмотр изображения
+                if (showFullScreenImage.first) {
+                    Dialog(
+                        onDismissRequest = { showFullScreenImage = false to null },
+                        properties = DialogProperties(
+                            usePlatformDefaultWidth = false,
+                            decorFitsSystemWindows = false
+                        )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .safeDrawingPadding(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val uri = showFullScreenImage.second
+                            val bitmap =
+                                if (uri != null) rememberBitmapFromUri(uri)?.asImageBitmap() else coverBitmap
+                            if (bitmap != null) {
+                                var scale by remember { mutableStateOf(1f) }
+                                var offset by remember { mutableStateOf(Offset.Zero) }
+                                var lastOffset by remember { mutableStateOf(Offset.Zero) }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.98f)
+                                        .fillMaxHeight(0.98f)
+                                        .pointerInput(Unit) {
+                                            detectTransformGestures { _, pan, zoom, _ ->
+                                                scale = (scale * zoom).coerceIn(1f, 5f)
+                                                offset += pan
+                                            }
+                                        }
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(onDoubleTap = {
+                                                scale = 1f
+                                                offset = Offset.Zero
+                                            })
+                                        }
+                                ) {
+                                    Image(
+                                        bitmap = bitmap,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier
+                                            .graphicsLayer(
+                                                scaleX = scale,
+                                                scaleY = scale,
+                                                translationX = offset.x,
+                                                translationY = offset.y
+                                            )
+                                            .fillMaxSize()
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
-    }
-    if (showEditFrontCrop && editFrontCropUri != null) {
-        ImageCropDialog(
-            imageUri = editFrontCropUri!!,
-            aspectRatio = 1.574f,
-            onCrop = { croppedBitmap ->
-                val file = File.createTempFile("front_crop_", ".webp", context2.cacheDir)
-                ru.merrcurys.seacard.core.utils.CoverBitmapStorage.saveBitmapAsWebpFile(file, croppedBitmap)
-                editFrontCoverUri = Uri.fromFile(file)
-                editFrontCoverRemoved = false
-                showEditFrontCrop = false
-                editFrontCropUri = null
-            },
-            onDismiss = {
-                showEditFrontCrop = false
-                editFrontCropUri = null
-            }
-        )
-    }
-    if (showEditBackCrop && editBackCropUri != null) {
-        ImageCropDialog(
-            imageUri = editBackCropUri!!,
-            aspectRatio = 1.574f,
-            onCrop = { croppedBitmap ->
-                val file = File.createTempFile("back_crop_", ".webp", context2.cacheDir)
-                ru.merrcurys.seacard.core.utils.CoverBitmapStorage.saveBitmapAsWebpFile(file, croppedBitmap)
-                editBackCoverUri = Uri.fromFile(file)
-                editBackCoverRemoved = false
-                showEditBackCrop = false
-                editBackCropUri = null
-            },
-            onDismiss = {
-                showEditBackCrop = false
-                editBackCropUri = null
-            }
-        )
+        if (showEditFrontCrop && editFrontCropUri != null) {
+            ImageCropDialog(
+                imageUri = editFrontCropUri!!,
+                aspectRatio = 1.574f,
+                onCrop = { croppedBitmap ->
+                    val file = File.createTempFile("front_crop_", ".webp", context2.cacheDir)
+                    ru.merrcurys.seacard.core.utils.CoverBitmapStorage.saveBitmapAsWebpFile(
+                        file,
+                        croppedBitmap
+                    )
+                    editFrontCoverUri = Uri.fromFile(file)
+                    editFrontCoverRemoved = false
+                    showEditFrontCrop = false
+                    editFrontCropUri = null
+                },
+                onDismiss = {
+                    showEditFrontCrop = false
+                    editFrontCropUri = null
+                }
+            )
+        }
+        if (showEditBackCrop && editBackCropUri != null) {
+            ImageCropDialog(
+                imageUri = editBackCropUri!!,
+                aspectRatio = 1.574f,
+                onCrop = { croppedBitmap ->
+                    val file = File.createTempFile("back_crop_", ".webp", context2.cacheDir)
+                    ru.merrcurys.seacard.core.utils.CoverBitmapStorage.saveBitmapAsWebpFile(
+                        file,
+                        croppedBitmap
+                    )
+                    editBackCoverUri = Uri.fromFile(file)
+                    editBackCoverRemoved = false
+                    showEditBackCrop = false
+                    editBackCropUri = null
+                },
+                onDismiss = {
+                    showEditBackCrop = false
+                    editBackCropUri = null
+                }
+            )
+        }
     }
 }
