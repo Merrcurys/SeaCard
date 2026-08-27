@@ -4,14 +4,24 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
-# Аннотации (Room, Compose и др.)
--keepattributes RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,AnnotationDefault
+# Аннотации, generics-сигнатуры и вложенные классы (Room, Kotlin, reflection)
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 
-# --- ZXing ---
+# --- Room ---
+# Реализация AppDatabase_Impl создаётся рефлексивно: Room.databaseBuilder(...) делает
+# Class.forName(name + "_Impl"). База и её сгенерированная реализация не должны вырезаться
+# и переименовываться.
+-keep class * extends androidx.room.RoomDatabase { *; }
+
+# --- ViewModel ---
+# Конструкторы ViewModel вызываются рефлексивно (AndroidViewModelFactory / NewInstanceFactory),
+# поэтому их нельзя вырезать (например, MainViewModel(Application), SettingsViewModel(Application)).
+-keep class * extends androidx.lifecycle.ViewModel { <init>(); }
+
+# --- ZXing (генерация штрих-кодов) ---
 -keep class com.google.zxing.** { *; }
 
-# --- Kotlin / корутины ---
--dontwarn kotlinx.coroutines.**
-
-# Виджет: провайдер объявлен в манифесте
+# --- Виджет ---
+# Провайдер объявлен в манифесте; правило — страховка от переименования при работе через
+# ComponentName и RemoteViews.
 -keep class ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider { <init>(); }
