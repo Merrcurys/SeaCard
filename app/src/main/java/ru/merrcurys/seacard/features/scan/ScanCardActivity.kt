@@ -793,13 +793,15 @@ fun CameraSection(
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 120.dp, start = 32.dp, end = 32.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 76.dp, start = 32.dp, end = 32.dp)
             )
             // Кнопка альтернативного способа (варианты / галерея)
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 56.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 20.dp)
             ) {
                 Button(
                     onClick = onOptionsClick,

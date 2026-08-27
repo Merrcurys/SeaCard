@@ -178,15 +178,18 @@ fun CardCoverPickerScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
             },
-            containerColor = Color.Transparent
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets.safeDrawing
         ) { innerPadding ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding)
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = innerPadding.calculateTopPadding()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     OutlinedTextField(
@@ -205,6 +208,7 @@ fun CardCoverPickerScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
+                                .padding(bottom = innerPadding.calculateBottomPadding())
                                 .offset(y = (-48).dp),
                             verticalArrangement = Arrangement.Center
                         ) {
@@ -229,7 +233,12 @@ fun CardCoverPickerScreen(
                         LazyVerticalGrid(
                             state = gridState,
                             columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 92.dp),
+                            contentPadding = PaddingValues(
+                                start = 8.dp,
+                                top = 8.dp,
+                                end = 8.dp,
+                                bottom = innerPadding.calculateBottomPadding() + 84.dp
+                            ),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             flingBehavior = ScrollableDefaults.flingBehavior(),
@@ -313,10 +322,10 @@ fun CardCoverPickerScreen(
                     onClick = { onCoverSelected(null) },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .offset(y = (-20).dp)
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = innerPadding.calculateBottomPadding() + 16.dp)
                         .fillMaxWidth()
                         .height(52.dp)
-                        .padding(horizontal = 12.dp)
                         .border(1.dp, Color.White.copy(alpha = 0.14f), addManualShape),
                     shape = addManualShape,
                     color = Color(0xF21C1C20),
