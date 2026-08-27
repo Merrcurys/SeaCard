@@ -7,6 +7,7 @@ import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.FileInputStream
+import androidx.core.graphics.get
 
 object DominantColorExtractor {
 
@@ -17,7 +18,7 @@ object DominantColorExtractor {
         val step = (width * height / 10000).coerceAtLeast(1)
         for (y in 0 until height step step) {
             for (x in 0 until width step step) {
-                val color = bitmap.getPixel(x, y)
+                val color = bitmap[x, y]
                 val alpha = color ushr 24
                 if (alpha > 200) {
                     colorCount[color] = (colorCount[color] ?: 0) + 1

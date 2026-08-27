@@ -58,7 +58,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadGradientColorPref(): Color {
         val colorValue = prefs.getInt("gradient_color", BerlinAzure.hashCode())
-        return GradientColorOption.values().find { it.color.hashCode() == colorValue }?.color ?: BerlinAzure
+        return GradientColorOption.entries.find { it.color.hashCode() == colorValue }?.color ?: BerlinAzure
     }
 
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->

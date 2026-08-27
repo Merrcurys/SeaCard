@@ -17,8 +17,8 @@ object CardSortUtil {
     private val sortComparator: (SortType) -> Comparator<Card> = { sortType ->
         when (sortType) {
             SortType.ADD_TIME -> compareByDescending { it.addTime }
-            SortType.NAME_ASC -> compareBy(Collator.getInstance(Locale("ru"))) { it.name }
-            SortType.NAME_DESC -> compareByDescending(Collator.getInstance(Locale("ru"))) { it.name }
+            SortType.NAME_ASC -> compareBy(Collator.getInstance(Locale.forLanguageTag("ru"))) { it.name }
+            SortType.NAME_DESC -> compareByDescending(Collator.getInstance(Locale.forLanguageTag("ru"))) { it.name }
             SortType.NAME_ASC_LATIN -> compareBy(Collator.getInstance(Locale.ENGLISH)) { it.name }
             SortType.NAME_DESC_LATIN -> compareByDescending(Collator.getInstance(Locale.ENGLISH)) { it.name }
             SortType.USAGE_FREQ -> compareByDescending { it.usageCount }

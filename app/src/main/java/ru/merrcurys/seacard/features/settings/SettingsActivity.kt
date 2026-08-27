@@ -13,13 +13,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PrivacyTip
@@ -44,7 +44,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.AlertDialog
@@ -74,7 +74,7 @@ import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContracts
 import java.nio.charset.StandardCharsets
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.unit.Dp
 import ru.merrcurys.seacard.BuildConfig
 import ru.merrcurys.seacard.core.design.BerlinAzure
 import ru.merrcurys.seacard.core.design.GradientColorOption
@@ -84,6 +84,7 @@ import ru.merrcurys.seacard.core.backup.BackupManager
 import ru.merrcurys.seacard.core.db.CardEntity
 import ru.merrcurys.seacard.core.db.DatabaseProvider
 import ru.merrcurys.seacard.core.utils.CoverNames
+import ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider
 
 private const val PRIVACY_POLICY_URL = "https://seacard.merrcurys.ru/privacy.html"
 
@@ -139,7 +140,7 @@ class SettingsActivity : ComponentActivity() {
         }
         setContent {
             val viewModel: SettingsViewModel = viewModel()
-            val gradientColor by viewModel.gradientColor.collectAsState(initial = ru.merrcurys.seacard.core.design.BerlinAzure)
+            val gradientColor by viewModel.gradientColor.collectAsState(initial = BerlinAzure)
             val gridColumns by viewModel.gridColumns.collectAsState(initial = 2)
             SeaCardTheme {
                 GradientBackground(gradientColor = gradientColor) {
@@ -150,8 +151,8 @@ class SettingsActivity : ComponentActivity() {
                         onGridColumnsChange = { viewModel.setGridColumns(it) },
                         onBack = { finish() },
                         topBarContainerColor = Color.Transparent,
-                        onExport = { exportCards?.invoke() },
-                        onImport = { importCards?.invoke() }
+                        onExport = { exportCards() },
+                        onImport = { importCards() }
                     )
                 }
             }
@@ -228,7 +229,6 @@ fun SettingsScreen(
     val sectionShape = RoundedCornerShape(26.dp)
     val sectionBorderColor = Color.White.copy(alpha = 0.06f)
     val listItemColors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    val smallButtonUnselectedColor = Color(0xFF141414)
 
     val listState = rememberLazyListState()
 
@@ -322,7 +322,7 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .noRippleClickable { showGradientDialog = true }
                         )
-                        Divider(color = colorScheme.onSurface.copy(alpha = 0.08f))
+                        HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
                             headlineContent = { Text("Отображение карт") },
                             supportingContent = {
@@ -397,7 +397,7 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .noRippleClickable { onExport() }
                         )
-                        Divider(color = colorScheme.onSurface.copy(alpha = 0.08f))
+                        HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
                             headlineContent = { Text("Импорт") },
                             supportingContent = {
@@ -454,7 +454,7 @@ fun SettingsScreen(
                                 )
                             },
                             colors = listItemColors,
-                            leadingContent = { Icon(Icons.Outlined.Chat, contentDescription = null, tint = colorScheme.primary) },
+                            leadingContent = { Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = null, tint = colorScheme.primary) },
                             trailingContent = {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -469,7 +469,7 @@ fun SettingsScreen(
                                     context.startActivity(intent)
                                 }
                         )
-                        Divider(color = colorScheme.onSurface.copy(alpha = 0.08f))
+                        HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
                             headlineContent = { Text("Следить за приложением") },
                             supportingContent = {
@@ -480,7 +480,7 @@ fun SettingsScreen(
                                 )
                             },
                             colors = listItemColors,
-                            leadingContent = { Icon(Icons.Outlined.Chat, contentDescription = null, tint = colorScheme.primary) },
+                            leadingContent = { Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = null, tint = colorScheme.primary) },
                             trailingContent = {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -606,7 +606,7 @@ fun SettingsScreen(
                         runBlocking(Dispatchers.IO) {
                             DatabaseProvider.get(context).cardDao().deleteAll()
                         }
-                        ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(context)
+                        SeaCardAppWidgetProvider.notifyDataChanged(context)
                         showDeleteDialog = false
                         onBack()
                     }
@@ -706,7 +706,7 @@ fun SettingsScreen(
                         .padding(top = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    GradientColorOption.values().forEach { option ->
+                    GradientColorOption.entries.forEach { option ->
                         val selected = gradientColor == option.color
                         Box(
                             modifier = Modifier
@@ -740,7 +740,7 @@ fun SettingsScreen(
 @Composable
 private fun AboutBottomSheetContent(
     appVersion: String,
-    sheetHeight: androidx.compose.ui.unit.Dp,
+    sheetHeight: Dp,
     onPrivacyPolicyClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme

@@ -3,6 +3,7 @@ package ru.merrcurys.seacard.core.db
 import android.content.Context
 import ru.merrcurys.seacard.core.utils.CardColorResolver
 import ru.merrcurys.seacard.core.utils.ColorCoverGenerator
+import androidx.core.content.edit
 
 /**
  * Однократная миграция данных из SharedPreferences в Room.
@@ -30,7 +31,7 @@ object PrefsToRoomMigration {
 
         val cardSet = prefs.getStringSet(KEY_CARD_LIST, null) ?: emptySet()
         if (cardSet.isEmpty()) {
-            prefs.edit().putBoolean(KEY_MIGRATED, true).apply()
+            prefs.edit { putBoolean(KEY_MIGRATED, true) }
             return
         }
 
@@ -115,7 +116,7 @@ object PrefsToRoomMigration {
             }
         }
 
-        prefs.edit().putBoolean(KEY_MIGRATED, true).apply()
+        prefs.edit { putBoolean(KEY_MIGRATED, true) }
     }
 
     /**
@@ -141,7 +142,7 @@ object PrefsToRoomMigration {
             path?.let { dao.updateFrontCover(card.id, it) }
         }
 
-        prefs.edit().putBoolean(KEY_COLOR_COVERS_MIGRATED, true).apply()
+        prefs.edit { putBoolean(KEY_COLOR_COVERS_MIGRATED, true) }
         ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(context)
     }
 

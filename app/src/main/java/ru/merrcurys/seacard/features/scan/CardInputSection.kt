@@ -191,7 +191,7 @@ private fun BarcodeDropdownField(
             singleLine = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
-                .menuAnchor()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)
                 .fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = colorScheme.onSurface,

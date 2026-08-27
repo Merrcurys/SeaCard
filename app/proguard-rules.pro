@@ -13,6 +13,5 @@
 # --- Kotlin / корутины ---
 -dontwarn kotlinx.coroutines.**
 
-# Виджет: провайдер и сервис объявлены в манифесте; фабрика создаётся из кода сервиса
+# Виджет: провайдер объявлен в манифесте
 -keep class ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider { <init>(); }
--keep class ru.merrcurys.seacard.widget.SeaCardWidgetService { <init>(); }

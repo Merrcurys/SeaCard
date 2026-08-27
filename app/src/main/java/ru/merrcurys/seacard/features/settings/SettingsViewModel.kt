@@ -22,7 +22,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadGradientColor(): Color {
         val colorValue = prefs.getInt("gradient_color", BerlinAzure.hashCode())
-        return GradientColorOption.values().find { it.color.hashCode() == colorValue }?.color ?: BerlinAzure
+        return GradientColorOption.entries.find { it.color.hashCode() == colorValue }?.color ?: BerlinAzure
     }
 
     private fun loadGridColumns(): Int =

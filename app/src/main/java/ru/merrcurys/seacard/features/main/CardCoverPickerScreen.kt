@@ -43,7 +43,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
-import ru.merrcurys.seacard.core.design.BlackBackground
 import ru.merrcurys.seacard.core.design.GradientBackground
 import ru.merrcurys.seacard.core.design.GradientUtils
 import kotlin.text.substringBeforeLast
@@ -79,7 +78,7 @@ fun CardCoverPickerScreen(
                 coverList = emptyList()
             }
         }
-        val ruCollator = Collator.getInstance(Locale("ru")).apply { strength = Collator.PRIMARY }
+        val ruCollator = Collator.getInstance(Locale.forLanguageTag("ru")).apply { strength = Collator.PRIMARY }
         val enCollator = Collator.getInstance(Locale.ENGLISH).apply { strength = Collator.PRIMARY }
         val filteredCovers = remember(coverList, searchQuery, currentSortType) {
             fun normalize(text: String): String {

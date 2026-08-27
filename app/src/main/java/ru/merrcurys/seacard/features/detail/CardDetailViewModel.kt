@@ -181,5 +181,6 @@ class CardDetailViewModel(application: Application, val cardId: Long) : AndroidV
 }
 
 class CardDetailViewModelFactory(private val application: Application, private val cardId: Long) : androidx.lifecycle.ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = CardDetailViewModel(application, cardId) as T
 }

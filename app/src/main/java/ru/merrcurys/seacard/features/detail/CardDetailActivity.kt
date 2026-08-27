@@ -53,11 +53,9 @@ import ru.merrcurys.seacard.core.barcode.isValidBarcodeWithChecksum
 import android.graphics.BitmapFactory
 import androidx.compose.ui.draw.shadow
 import ru.merrcurys.seacard.core.design.DynamicGradientBackground
-import kotlinx.coroutines.withContext
 import ru.merrcurys.seacard.core.utils.CoverBitmapStorage
 import ru.merrcurys.seacard.core.utils.createImagePickerChooserIntent
 import androidx.compose.foundation.BorderStroke
-import androidx.core.graphics.get
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.filled.TouchApp
 import android.Manifest
@@ -79,9 +77,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import java.io.File
-import kotlinx.coroutines.Dispatchers
-import java.io.FileInputStream
-import java.io.InputStream
 import androidx.compose.ui.graphics.luminance
 
 private fun normalizeCardName(name: String): String =
@@ -154,8 +149,6 @@ class CardDetailActivity : ComponentActivity() {
         setContent {
             val viewModel: CardDetailViewModel = viewModel(factory = CardDetailViewModelFactory(application, cardId))
             val card by viewModel.card.collectAsState()
-            var isDark by remember { mutableStateOf(loadThemePref(this@CardDetailActivity)) }
-            val context = this@CardDetailActivity
             var frontImageUri by remember { mutableStateOf<Uri?>(null) }
             var hasCameraPermission by remember {
                 mutableStateOf(ContextCompat.checkSelfPermission(this@CardDetailActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
@@ -163,7 +156,6 @@ class CardDetailActivity : ComponentActivity() {
             val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
                 hasCameraPermission = granted
             }
-            val scope = rememberCoroutineScope()
 
             // Обновляем проверку разрешения при изменении состояния
             LaunchedEffect(Unit) {
@@ -665,7 +657,7 @@ fun CardDetailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
-                                    bitmap = barcodeBitmap!!.asImageBitmap(),
+                                    bitmap = barcodeBitmap.asImageBitmap(),
                                     contentDescription = cardName,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -967,11 +959,11 @@ fun CardDetailScreen(
                                         .background(colorScheme.surfaceVariant.copy(alpha = 0.7f))
                                         .clickable {
                                             when {
-                                                frontCoverPath != null && !frontCoverPath!!.startsWith(
+                                                frontCoverPath != null && !frontCoverPath.startsWith(
                                                     "cards/"
                                                 ) ->
                                                     showFullScreenImage =
-                                                        true to Uri.fromFile(File(frontCoverPath!!))
+                                                        true to Uri.fromFile(File(frontCoverPath))
 
                                                 frontImageUri != null -> showFullScreenImage =
                                                     true to frontImageUri
@@ -990,7 +982,6 @@ fun CardDetailScreen(
                                             null
                                         }
                                     } ?: frontImageUri?.let { rememberBitmapFromUri(it) }
-                                    ?: coverBitmap?.let { null }
                                     if (frontBitmap != null) {
                                         Image(
                                             bitmap = frontBitmap.asImageBitmap(),
@@ -1093,9 +1084,8 @@ fun CardDetailScreen(
                             val bitmap =
                                 if (uri != null) rememberBitmapFromUri(uri)?.asImageBitmap() else coverBitmap
                             if (bitmap != null) {
-                                var scale by remember { mutableStateOf(1f) }
+                                var scale by remember { mutableFloatStateOf(1f) }
                                 var offset by remember { mutableStateOf(Offset.Zero) }
-                                var lastOffset by remember { mutableStateOf(Offset.Zero) }
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth(0.98f)
@@ -1139,7 +1129,7 @@ fun CardDetailScreen(
                 aspectRatio = 1.574f,
                 onCrop = { croppedBitmap ->
                     val file = File.createTempFile("front_crop_", ".webp", context2.cacheDir)
-                    ru.merrcurys.seacard.core.utils.CoverBitmapStorage.saveBitmapAsWebpFile(
+                    CoverBitmapStorage.saveBitmapAsWebpFile(
                         file,
                         croppedBitmap
                     )
@@ -1160,7 +1150,7 @@ fun CardDetailScreen(
                 aspectRatio = 1.574f,
                 onCrop = { croppedBitmap ->
                     val file = File.createTempFile("back_crop_", ".webp", context2.cacheDir)
-                    ru.merrcurys.seacard.core.utils.CoverBitmapStorage.saveBitmapAsWebpFile(
+                    CoverBitmapStorage.saveBitmapAsWebpFile(
                         file,
                         croppedBitmap
                     )

@@ -34,6 +34,7 @@ import ru.merrcurys.seacard.core.barcode.barcodePreviewCacheKey
 import ru.merrcurys.seacard.core.barcode.generateBarcodePreviewBitmap
 import ru.merrcurys.seacard.core.design.GradientBackground
 import ru.merrcurys.seacard.core.design.GradientUtils
+import kotlin.time.Duration.Companion.milliseconds
 
 private val PreviewCardHeight = 96.dp
 private const val INPUT_DEBOUNCE_MS = 350L
@@ -54,7 +55,7 @@ fun ManualBarcodeSelectionScreen(
 
     LaunchedEffect(cardNumber) {
         isGenerating = cardNumber.isNotBlank()
-        delay(INPUT_DEBOUNCE_MS)
+        delay(INPUT_DEBOUNCE_MS.milliseconds)
         debouncedNumber = cardNumber
     }
 

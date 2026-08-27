@@ -2,7 +2,6 @@ package ru.merrcurys.seacard.core.utils
 
 import android.content.Context
 import ru.merrcurys.seacard.core.db.CardDao
-import ru.merrcurys.seacard.core.db.CardEntity
 
 /**
  * Цвет карты хранится в БД. Если там дефолтный белый, а обложка есть — берём акцент из обложки.

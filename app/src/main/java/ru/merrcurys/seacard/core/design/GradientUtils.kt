@@ -8,7 +8,7 @@ object GradientUtils {
     fun loadGradientColorPref(context: Context): Color {
         val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
         val colorValue = prefs.getInt("gradient_color", BerlinAzure.hashCode())
-        return GradientColorOption.values().find { it.color.hashCode() == colorValue }?.color ?: BerlinAzure
+        return GradientColorOption.entries.find { it.color.hashCode() == colorValue }?.color ?: BerlinAzure
     }
 }
 

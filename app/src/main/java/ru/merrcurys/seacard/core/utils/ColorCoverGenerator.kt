@@ -9,6 +9,8 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import java.io.File
 import java.io.FileOutputStream
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.get
 
 /**
  * Генерирует и сохраняет обложку карты из цвета и названия.
@@ -30,7 +32,7 @@ object ColorCoverGenerator {
         val aspectRatio = 1.574f
         val width = 600
         val height = (width / aspectRatio).toInt()
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(width, height)
         val canvas = Canvas(bitmap)
         canvas.drawColor(color)
         val textColor = if (isColorDark(color)) GColor.WHITE else GColor.BLACK
@@ -74,7 +76,7 @@ object ColorCoverGenerator {
                     // Центр с названием — пропускаем, там может быть текст другого цвета.
                     if (x in width / 4..3 * width / 4 && y in height / 3..2 * height / 3) continue
                     total++
-                    val pixelRgb = bitmap.getPixel(x, y) and 0xFFFFFF
+                    val pixelRgb = bitmap[x, y] and 0xFFFFFF
                     if (rgbDistance(pixelRgb, expectedRgb) <= tolerance) matching++
                 }
             }
@@ -106,7 +108,7 @@ object ColorCoverGenerator {
             if (!coversDir.exists()) coversDir.mkdirs()
             val file = File(coversDir, fileName)
             FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.WEBP, 90, out)
+                bitmap.compress(webpLossyFormat, 90, out)
             }
             return file.absolutePath
         } catch (e: Exception) {

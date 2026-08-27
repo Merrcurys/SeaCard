@@ -18,6 +18,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -37,7 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -60,6 +62,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.merrcurys.seacard.core.utils.createImagePickerChooserIntent
 import android.net.Uri
 import android.os.Build
+import kotlin.time.Duration.Companion.milliseconds
 
 class ScanCardActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
@@ -153,7 +156,7 @@ class ScanCardActivity : ComponentActivity() {
                                         viewModel.onScanResult(code, codeType)
                                         vibrateOnScan()
                                         coroutineScope.launch {
-                                            delay(2000)
+                                            delay(2000.milliseconds)
                                             viewModel.setScanSuccess(false)
                                         }
                                         return@addOnSuccessListener
@@ -350,6 +353,7 @@ class ScanCardActivity : ComponentActivity() {
 }
 
 class ScanCardViewModelFactory(private val application: Application, private val coverAsset: String?) : androidx.lifecycle.ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = ScanCardViewModel(application, coverAsset) as T
 }
 
@@ -604,8 +608,16 @@ fun CameraSection(
                         previewUseCase = preview
                         
                         // Улучшенный анализ изображений с высоким разрешением и троттлингом
+                        val resolutionSelector = ResolutionSelector.Builder()
+                            .setResolutionStrategy(
+                                ResolutionStrategy(
+                                    android.util.Size(1280, 720),
+                                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                                )
+                            )
+                            .build()
                         val imageAnalysis = ImageAnalysis.Builder()
-                            .setTargetResolution(android.util.Size(1280, 720)) // Высокое разрешение для лучшего распознавания
+                            .setResolutionSelector(resolutionSelector) // Высокое разрешение для лучшего распознавания
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                             .build()
                         imageAnalysisUseCase = imageAnalysis

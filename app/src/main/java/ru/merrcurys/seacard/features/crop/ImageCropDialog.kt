@@ -39,6 +39,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.onSizeChanged
 import ru.merrcurys.seacard.core.design.SeaCardTheme
+import androidx.core.graphics.createBitmap
 
 /** Полоска со шкалой градусов: тянем влево/вправо — шкала прокручивается, угол 0..360°. */
 @Composable
@@ -78,9 +79,9 @@ private fun rotateBitmap(source: Bitmap, degrees: Float): Bitmap {
     val matrix = Matrix().apply { postRotate(degrees) }
     val rect = RectF(0f, 0f, source.width.toFloat(), source.height.toFloat())
     matrix.mapRect(rect)
-    val newWidth = kotlin.math.ceil(rect.width()).toInt().coerceAtLeast(1)
-    val newHeight = kotlin.math.ceil(rect.height()).toInt().coerceAtLeast(1)
-    val result = Bitmap.createBitmap(newWidth, newHeight, Bitmap.Config.ARGB_8888)
+    val newWidth = ceil(rect.width()).toInt().coerceAtLeast(1)
+    val newHeight = ceil(rect.height()).toInt().coerceAtLeast(1)
+    val result = createBitmap(newWidth, newHeight)
     val canvas = Canvas(result)
     canvas.translate(newWidth / 2f, newHeight / 2f)
     canvas.rotate(degrees)
@@ -114,7 +115,7 @@ fun ImageCropDialog(
         var offset by remember { mutableStateOf(Offset.Zero) }
         var canvasSize by remember { mutableStateOf(IntSize.Zero) }
         // Поворот ограничен 0..360°
-        var rotationDegrees by remember { mutableStateOf(0f) }
+        var rotationDegrees by remember { mutableFloatStateOf(0f) }
 
         val colorScheme = MaterialTheme.colorScheme
         val isDark = colorScheme.background == Color(0xFF111111) || colorScheme.background == Color(0xFF232323)
