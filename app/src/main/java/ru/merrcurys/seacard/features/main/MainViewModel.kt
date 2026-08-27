@@ -42,6 +42,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val gradientColor = MutableStateFlow(loadGradientColorPref())
     val showCoverPicker = MutableStateFlow(false)
 
+    val showSearch = MutableStateFlow(false)
+    val showFilterMenu = MutableStateFlow(false)
+    val selectionMode = MutableStateFlow(false)
+    val selectedCardIds = MutableStateFlow<Set<Long>>(emptySet())
+
     val cards: StateFlow<List<CardModel>> = combine(cardsFromDb, sortType) { list, sort ->
         CardSortUtil.sorted(list, sort.name)
     }.stateIn(
@@ -94,11 +99,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun deleteCards(cardsToDelete: List<CardModel>) {
+    fun setShowSearch(show: Boolean) {
+        showSearch.value = show
+    }
+
+    fun setShowFilterMenu(show: Boolean) {
+        showFilterMenu.value = show
+    }
+
+    fun setSelectionMode(enabled: Boolean) {
+        selectionMode.value = enabled
+        if (!enabled) selectedCardIds.value = emptySet()
+    }
+
+    fun startSelection(cardId: Long) {
+        selectionMode.value = true
+        selectedCardIds.value = setOf(cardId)
+    }
+
+    fun toggleCardSelection(cardId: Long) {
+        val current = selectedCardIds.value
+        selectedCardIds.value = if (cardId in current) current - cardId else current + cardId
+        if (selectedCardIds.value.isEmpty()) selectionMode.value = false
+    }
+
+    fun deleteSelectedCards() {
+        val ids = selectedCardIds.value
+        if (ids.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
-            cardsToDelete.forEach { dao.deleteById(it.id) }
+            ids.forEach { dao.deleteById(it) }
             ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(getApplication())
         }
+        selectedCardIds.value = emptySet()
+        selectionMode.value = false
     }
 
     override fun onCleared() {

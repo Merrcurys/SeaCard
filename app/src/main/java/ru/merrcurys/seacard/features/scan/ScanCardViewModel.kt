@@ -211,3 +211,8 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
         }
     }
 }
+
+class ScanCardViewModelFactory(private val application: Application, private val coverAsset: String?) : androidx.lifecycle.ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = ScanCardViewModel(application, coverAsset) as T
+}
