@@ -16,7 +16,9 @@ data class Card(
     /** Оборотная обложка: путь к файлу. */
     val backCoverPath: String?,
     /** Заметка пользователя. */
-    val note: String?
+    val note: String?,
+    /** Позиция в пользовательской сортировке (меньше — раньше). */
+    val sortOrder: Long = 0L
 ) {
     /** Для совместимости с местами, где раньше использовался coverAsset (лицевая обложка). */
     val coverAsset: String? get() = frontCoverPath

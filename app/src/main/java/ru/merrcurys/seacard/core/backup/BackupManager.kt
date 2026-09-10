@@ -42,6 +42,7 @@ object BackupManager {
                     put("type", card.type)
                     put("addTime", card.addTime)
                     put("usageCount", card.usageCount)
+                    put("sortOrder", card.sortOrder)
                     put("color", card.color)
                     put("note", card.note ?: "")
                     if (frontInZip != null) put("frontCoverFile", frontInZip)
@@ -135,16 +136,18 @@ object BackupManager {
                     }
                     val storedColor = obj.optInt("color", CardColorResolver.DEFAULT_CARD_COLOR)
                     val resolvedColor = CardColorResolver.resolveColor(context, storedColor, frontPath)
+                    val addTime = obj.optLong("addTime", System.currentTimeMillis())
                     dao.insert(CardEntity(
                         name = name,
                         code = code,
                         type = type,
-                        addTime = obj.optLong("addTime", System.currentTimeMillis()),
+                        addTime = addTime,
                         usageCount = obj.optInt("usageCount", 0),
                         color = resolvedColor,
                         frontCoverPath = frontPath,
                         backCoverPath = backPath,
-                        note = obj.optString("note", "").takeIf { it.isNotBlank() }
+                        note = obj.optString("note", "").takeIf { it.isNotBlank() },
+                        sortOrder = obj.optLong("sortOrder", -addTime)
                     ))
                     imported++
                 } catch (e: Exception) {

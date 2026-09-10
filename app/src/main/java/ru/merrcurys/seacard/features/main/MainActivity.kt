@@ -14,6 +14,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,8 +34,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridItemInfo
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
@@ -46,6 +50,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.Card
@@ -53,6 +58,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -67,20 +73,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.retain.retain
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -88,6 +103,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -97,6 +114,9 @@ import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
+import kotlin.math.floor
+import kotlin.math.roundToInt
 import ru.merrcurys.seacard.core.design.GradientBackground
 import ru.merrcurys.seacard.core.design.SeaCardTheme
 import ru.merrcurys.seacard.core.design.applySeaCardSystemBarColors
@@ -117,6 +137,130 @@ private const val IN_APP_REVIEW_LOG_TAG = "InAppReview"
 private fun mainGridCoverModel(frontPath: String): Any =
     if (frontPath.startsWith("cards/")) "file:///android_asset/$frontPath"
     else File(frontPath)
+
+private fun isColorDark(color: Int): Boolean {
+    val red = (color shr 16) and 0xFF
+    val green = (color shr 8) and 0xFF
+    val blue = color and 0xFF
+    val brightness = (red * 299 + green * 587 + blue * 114) / 1000
+    return brightness < 128
+}
+
+/**
+ * Индекс ячейки сетки под центром перетаскиваемой карточки.
+ * Считается через геометрию видимых ячеек, поэтому устойчиво к прокрутке.
+ */
+private fun computeTargetIndex(
+    visibleItems: List<LazyGridItemInfo>,
+    draggingKey: Any?,
+    center: Offset,
+    itemSize: IntSize,
+    columns: Int,
+    spacingPx: Float,
+    listSize: Int,
+    fallback: Int
+): Int {
+    if (columns <= 0 || visibleItems.isEmpty() || itemSize.width <= 0 || itemSize.height <= 0 || listSize <= 0) {
+        return fallback
+    }
+    val columnPitch = itemSize.width + spacingPx
+    val rowPitch = itemSize.height + spacingPx
+    val reference = visibleItems.firstOrNull { it.key != draggingKey } ?: visibleItems.first()
+    val referenceColumn = reference.index % columns
+    val referenceRow = reference.index / columns
+    val originX = reference.offset.x - referenceColumn * columnPitch
+    val originY = reference.offset.y - referenceRow * rowPitch
+    val column = floor((center.x - originX) / columnPitch).toInt().coerceIn(0, columns - 1)
+    val row = floor((center.y - originY) / rowPitch).toInt().coerceAtLeast(0)
+    return (row * columns + column).coerceIn(0, listSize - 1)
+}
+
+@Composable
+private fun GridCardItem(
+    card: CardModel,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val cardShape = RoundedCornerShape(12.dp)
+    val dark = isColorDark(card.color)
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (card.coverAsset != null) Color.Transparent else Color(card.color),
+            contentColor = if (card.coverAsset != null) Color.Unspecified else if (dark) Color.White else Color.Black
+        ),
+        shape = cardShape,
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color.Black.copy(alpha = 0.12f), shape = cardShape)
+                )
+            }
+            CardCover(card = card, dark = dark)
+            if (isSelected) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = "Выбрано",
+                    tint = colorScheme.primary,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardCover(card: CardModel, dark: Boolean) {
+    val context = LocalContext.current
+    val frontPath = card.frontCoverPath
+    key(frontPath) {
+        if (frontPath != null) {
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(mainGridCoverModel(frontPath))
+                    .crossfade(false)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when (painter.state) {
+                    is AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
+                    is AsyncImagePainter.State.Loading,
+                    is AsyncImagePainter.State.Empty -> Unit
+                    is AsyncImagePainter.State.Error -> Text(
+                        text = card.name,
+                        color = if (dark) Color.White else Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+        } else {
+            Text(
+                text = card.name,
+                color = if (dark) Color.White else Color.Black,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
+    }
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -193,6 +337,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onSettingsClick = { settingsLauncher.launch(Intent(context, SettingsActivity::class.java)) },
                             onSortTypeChange = { viewModel.setSortType(it) },
+                            onReorderCards = { viewModel.reorderCards(it) },
                             onDeleteCards = { viewModel.deleteCards(it) }
                         )
                     }
@@ -220,6 +365,7 @@ fun MainScreen(
     onCardClick: (CardModel) -> Unit,
     onSettingsClick: () -> Unit,
     onSortTypeChange: (SortType) -> Unit,
+    onReorderCards: (List<CardModel>) -> Unit,
     onDeleteCards: (List<CardModel>) -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -230,14 +376,6 @@ fun MainScreen(
         var selectionMode by rememberSaveable { mutableStateOf(false) }
         var selectedCards by retain { mutableStateOf<Set<CardModel>>(emptySet()) }
         val focusRequester = retain { FocusRequester() }
-
-        fun isColorDark(color: Int): Boolean {
-            val red = (color shr 16) and 0xFF
-            val green = (color shr 8) and 0xFF
-            val blue = color and 0xFF
-            val brightness = (red * 299 + green * 587 + blue * 114) / 1000
-            return brightness < 128
-        }
 
         val filteredCards = remember(cards, searchQueryState.text) {
             fun normalize(text: String): String {
@@ -258,6 +396,65 @@ fun MainScreen(
                     normalize(card.name).contains(normQuery)
                 }
             }
+        }
+
+        val density = LocalDensity.current
+        val haptics = LocalHapticFeedback.current
+        val gridState = rememberLazyGridState()
+        val spacingPx = with(density) { 8.dp.toPx() }
+
+        var dragOrder by remember { mutableStateOf<List<CardModel>?>(null) }
+        var draggingId by remember { mutableStateOf<Long?>(null) }
+        var draggingIndex by remember { mutableIntStateOf(-1) }
+        var dragAccumulator by remember { mutableStateOf(Offset.Zero) }
+        var dragStartTopLeft by remember { mutableStateOf(Offset.Zero) }
+        var dragItemSize by remember { mutableStateOf(IntSize.Zero) }
+        var dragCenter by remember { mutableStateOf(Offset.Zero) }
+
+        val displayCards = dragOrder ?: filteredCards
+        val dragEnabled = cardsFromDbReady && !selectionMode && searchQueryState.text.isBlank()
+
+        val latestFilteredCards by rememberUpdatedState(filteredCards)
+        val latestCards by rememberUpdatedState(cards)
+        val latestColumns by rememberUpdatedState(gridColumns)
+        val latestSpacingPx by rememberUpdatedState(spacingPx)
+        val latestDragEnabled by rememberUpdatedState(dragEnabled)
+
+        // Снимаем закреплённый локальный порядок, когда БД отдала ровно тот же список.
+        LaunchedEffect(cards, dragOrder) {
+            val pinned = dragOrder ?: return@LaunchedEffect
+            if (draggingId != null) return@LaunchedEffect
+            if (pinned.size == cards.size && pinned.map { it.id } == cards.map { it.id }) {
+                dragOrder = null
+            }
+        }
+
+        // Автопрокрутка при перетаскивании к верхнему/нижнему краю сетки.
+        LaunchedEffect(draggingId) {
+            if (draggingId == null) return@LaunchedEffect
+            val threshold = with(density) { 72.dp.toPx() }
+            while (isActive) {
+                val viewportHeight = gridState.layoutInfo.viewportSize.height
+                if (viewportHeight > 0) {
+                    val centerY = dragCenter.y
+                    val dy = when {
+                        centerY < threshold -> -((threshold - centerY) * 0.04f).coerceIn(0f, 14f)
+                        centerY > viewportHeight - threshold ->
+                            ((centerY - (viewportHeight - threshold)) * 0.04f).coerceIn(0f, 14f)
+                        else -> 0f
+                    }
+                    if (dy != 0f) gridState.scrollBy(dy)
+                }
+                withFrameNanos { }
+            }
+        }
+
+        fun stopDragging() {
+            draggingId = null
+            draggingIndex = -1
+            dragAccumulator = Offset.Zero
+            dragItemSize = IntSize.Zero
+            dragCenter = Offset.Zero
         }
 
         BackHandler(enabled = selectionMode) {
@@ -350,6 +547,7 @@ fun MainScreen(
                     actions = {
                         if (selectionMode) {
                             IconButton(onClick = {
+                                dragOrder = null
                                 onDeleteCards(selectedCards.toList())
                                 selectedCards = emptySet()
                                 selectionMode = false
@@ -394,6 +592,7 @@ fun MainScreen(
                                                 )
                                             },
                                             onClick = {
+                                                dragOrder = null
                                                 onSortTypeChange(sortType)
                                                 showFilterMenu = false
                                             },
@@ -408,6 +607,22 @@ fun MainScreen(
                                             }
                                         )
                                     }
+                                    HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.12f))
+                                    DropdownMenuItem(
+                                        text = { Text("Выбрать карты", color = colorScheme.onSurface) },
+                                        onClick = {
+                                            showFilterMenu = false
+                                            selectedCards = emptySet()
+                                            selectionMode = true
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Default.SelectAll,
+                                                contentDescription = "Выбрать карты",
+                                                tint = colorScheme.onSurface
+                                            )
+                                        }
+                                    )
                                 }
                             }
                             IconButton(onClick = onSettingsClick) {
@@ -505,7 +720,7 @@ fun MainScreen(
                                 textAlign = TextAlign.Center
                             )
                         }
-                    } else if (filteredCards.isEmpty()) {
+                    } else if (displayCards.isEmpty()) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
@@ -535,119 +750,153 @@ fun MainScreen(
                             )
                         }
                     } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(gridColumns.coerceIn(1, 4)),
-                            contentPadding = PaddingValues(
-                                start = 8.dp,
-                                top = 8.dp,
-                                end = 8.dp,
-                                bottom = innerPadding.calculateBottomPadding() + 80.dp
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            flingBehavior = ScrollableDefaults.flingBehavior(),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(filteredCards, key = { it.id }) { card ->
-                                val isSelected = selectedCards.contains(card)
-                                Card(
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (card.coverAsset != null) Color.Transparent else Color(card.color),
-                                        contentColor = if (card.coverAsset != null) Color.Unspecified else if (isColorDark(card.color)) Color.White else Color.Black
-                                    ),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(gridColumns.coerceIn(1, 4)),
+                                state = gridState,
+                                contentPadding = PaddingValues(
+                                    start = 8.dp,
+                                    top = 8.dp,
+                                    end = 8.dp,
+                                    bottom = innerPadding.calculateBottomPadding() + 80.dp
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                flingBehavior = ScrollableDefaults.flingBehavior(),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(displayCards, key = { it.id }) { card ->
+                                    val isSelected = selectedCards.contains(card)
+                                    val isDragging = card.id == draggingId
+                                    val itemModifier = Modifier
                                         .aspectRatio(1.574f)
                                         .fillMaxWidth()
-                                        .then(
-                                            if (isSelected) Modifier
+                                        .animateItem()
+
+                                    if (isDragging) {
+                                        Box(
+                                            modifier = itemModifier
                                                 .border(
-                                                    width = 3.dp,
-                                                    color = colorScheme.primary,
+                                                    width = 1.dp,
+                                                    color = colorScheme.primary.copy(alpha = 0.5f),
                                                     shape = RoundedCornerShape(12.dp)
                                                 )
-                                            else Modifier
-                                        )
-                                        .combinedClickable(
-                                            onClick = {
-                                                if (selectionMode) {
-                                                    selectedCards = if (isSelected) selectedCards - card else selectedCards + card
-                                                    if (selectedCards.isEmpty()) selectionMode = false
-                                                } else {
-                                                    onCardClick(card)
-                                                }
-                                            },
-                                            onLongClick = {
-                                                if (!selectionMode) {
-                                                    selectionMode = true
-                                                    selectedCards = setOf(card)
-                                                }
-                                            }
-                                        )
-                                ) {
-                                    val currentContext = LocalContext.current
-                                    val frontPath = card.frontCoverPath
-                                    key(frontPath) {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            if (isSelected) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .matchParentSize()
-                                                        .background(Color.Black.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp))
+                                                .background(
+                                                    color = Color.White.copy(alpha = 0.06f),
+                                                    shape = RoundedCornerShape(12.dp)
                                                 )
-                                            }
-                                            if (frontPath != null) {
-                                                SubcomposeAsyncImage(
-                                                    model = ImageRequest.Builder(currentContext)
-                                                        .data(mainGridCoverModel(frontPath))
-                                                        .crossfade(false)
-                                                        .build(),
-                                                    contentDescription = null,
-                                                    contentScale = ContentScale.Crop,
-                                                    modifier = Modifier.fillMaxSize()
-                                                ) {
-                                                    when (painter.state) {
-                                                        is AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
-                                                        is AsyncImagePainter.State.Loading,
-                                                        is AsyncImagePainter.State.Empty -> Unit
-                                                        is AsyncImagePainter.State.Error -> Text(
-                                                            text = card.name,
-                                                            color = if (isColorDark(card.color)) Color.White else Color.Black,
-                                                            fontWeight = FontWeight.Bold,
-                                                            fontSize = 18.sp,
-                                                            textAlign = TextAlign.Center,
-                                                            maxLines = 2,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            modifier = Modifier.padding(8.dp)
-                                                        )
+                                        )
+                                    } else {
+                                        GridCardItem(
+                                            card = card,
+                                            isSelected = isSelected,
+                                            modifier = itemModifier
+                                                .then(
+                                                    if (isSelected) Modifier.border(
+                                                        width = 3.dp,
+                                                        color = colorScheme.primary,
+                                                        shape = RoundedCornerShape(12.dp)
+                                                    ) else Modifier
+                                                )
+                                                .combinedClickable(
+                                                    onClick = {
+                                                        if (selectionMode) {
+                                                            selectedCards = if (isSelected) selectedCards - card else selectedCards + card
+                                                            if (selectedCards.isEmpty()) selectionMode = false
+                                                        } else {
+                                                            dragOrder = null
+                                                            onCardClick(card)
+                                                        }
                                                     }
+                                                )
+                                                .pointerInput(card.id) {
+                                                    detectDragGesturesAfterLongPress(
+                                                        onDragStart = { _ ->
+                                                            if (!latestDragEnabled) return@detectDragGesturesAfterLongPress
+                                                            val info = gridState.layoutInfo.visibleItemsInfo
+                                                                .firstOrNull { it.key == card.id }
+                                                                ?: return@detectDragGesturesAfterLongPress
+                                                            if (dragOrder == null) dragOrder = latestFilteredCards
+                                                            draggingId = card.id
+                                                            draggingIndex = info.index
+                                                            dragItemSize = info.size
+                                                            dragStartTopLeft = Offset(info.offset.x.toFloat(), info.offset.y.toFloat())
+                                                            dragAccumulator = Offset.Zero
+                                                            dragCenter = dragStartTopLeft + Offset(info.size.width / 2f, info.size.height / 2f)
+                                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        },
+                                                        onDrag = { change, dragAmount ->
+                                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
+                                                            change.consume()
+                                                            dragAccumulator += dragAmount
+                                                            val current = dragOrder ?: return@detectDragGesturesAfterLongPress
+                                                            val center = dragStartTopLeft +
+                                                                Offset(dragItemSize.width / 2f, dragItemSize.height / 2f) +
+                                                                dragAccumulator
+                                                            dragCenter = center
+                                                            val target = computeTargetIndex(
+                                                                visibleItems = gridState.layoutInfo.visibleItemsInfo,
+                                                                draggingKey = draggingId,
+                                                                center = center,
+                                                                itemSize = dragItemSize,
+                                                                columns = latestColumns,
+                                                                spacingPx = latestSpacingPx,
+                                                                listSize = current.size,
+                                                                fallback = draggingIndex
+                                                            )
+                                                            if (target != draggingIndex && draggingIndex in current.indices) {
+                                                                val mutable = current.toMutableList()
+                                                                val moved = mutable.removeAt(draggingIndex)
+                                                                mutable.add(target.coerceIn(0, mutable.size), moved)
+                                                                dragOrder = mutable
+                                                                draggingIndex = target
+                                                            }
+                                                        },
+                                                        onDragEnd = {
+                                                            val finished = dragOrder
+                                                            stopDragging()
+                                                            if (finished != null && finished.map { it.id } != latestCards.map { it.id }) {
+                                                                onReorderCards(finished)
+                                                            } else {
+                                                                dragOrder = null
+                                                            }
+                                                        },
+                                                        onDragCancel = {
+                                                            stopDragging()
+                                                            dragOrder = null
+                                                        }
+                                                    )
                                                 }
-                                            } else {
-                                                Text(
-                                                    text = card.name,
-                                                    color = if (isColorDark(card.color)) Color.White else Color.Black,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 18.sp,
-                                                    textAlign = TextAlign.Center,
-                                                    maxLines = 2,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    modifier = Modifier.padding(8.dp)
-                                                )
-                                            }
-                                            if (isSelected) {
-                                                Icon(
-                                                    Icons.Default.Check,
-                                                    contentDescription = "Выбрано",
-                                                    tint = colorScheme.primary,
-                                                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)
-                                                )
-                                            }
-                                        }
+                                        )
                                     }
                                 }
+                            }
+
+                            val draggingCard = draggingId?.let { id -> displayCards.firstOrNull { it.id == id } }
+                            if (draggingCard != null && dragItemSize.width > 0) {
+                                val rotation = (dragAccumulator.x / dragItemSize.width * 8f).coerceIn(-8f, 8f)
+                                GridCardItem(
+                                    card = draggingCard,
+                                    isSelected = false,
+                                    modifier = Modifier
+                                        .offset {
+                                            IntOffset(
+                                                (dragStartTopLeft.x + dragAccumulator.x).roundToInt(),
+                                                (dragStartTopLeft.y + dragAccumulator.y).roundToInt()
+                                            )
+                                        }
+                                        .size(
+                                            width = with(density) { dragItemSize.width.toDp() },
+                                            height = with(density) { dragItemSize.height.toDp() }
+                                        )
+                                        .graphicsLayer {
+                                            scaleX = 1.06f
+                                            scaleY = 1.06f
+                                            rotationZ = rotation
+                                            shadowElevation = 24.dp.toPx()
+                                            alpha = 0.98f
+                                        }
+                                )
                             }
                         }
                     }
@@ -661,6 +910,6 @@ fun MainScreen(
 @Composable
 fun MainScreenPreview() {
     SeaCardTheme {
-        MainScreen(cards = emptyList(), currentSortType = SortType.ADD_TIME, gridColumns = 2, gradientColor = Color(0xFF000000), onAddCard = {}, onCardClick = {}, onSettingsClick = {}, onSortTypeChange = {}, onDeleteCards = {})
+        MainScreen(cards = emptyList(), currentSortType = SortType.ADD_TIME, gridColumns = 2, gradientColor = Color(0xFF000000), onAddCard = {}, onCardClick = {}, onSettingsClick = {}, onSortTypeChange = {}, onReorderCards = {}, onDeleteCards = {})
     }
 }

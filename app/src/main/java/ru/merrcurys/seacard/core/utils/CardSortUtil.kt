@@ -10,7 +10,8 @@ enum class SortType(val displayName: String) {
     NAME_DESC("По названию (Я-А)"),
     NAME_ASC_LATIN("По названию (A-Z)"),
     NAME_DESC_LATIN("По названию (Z-A)"),
-    USAGE_FREQ("По частоте использования")
+    USAGE_FREQ("По частоте использования"),
+    CUSTOM("Своя сортировка")
 }
 
 object CardSortUtil {
@@ -22,6 +23,7 @@ object CardSortUtil {
             SortType.NAME_ASC_LATIN -> compareBy(Collator.getInstance(Locale.ENGLISH)) { it.name }
             SortType.NAME_DESC_LATIN -> compareByDescending(Collator.getInstance(Locale.ENGLISH)) { it.name }
             SortType.USAGE_FREQ -> compareByDescending { it.usageCount }
+            SortType.CUSTOM -> compareBy<Card> { it.sortOrder }.thenByDescending { it.addTime }
         }
     }
 

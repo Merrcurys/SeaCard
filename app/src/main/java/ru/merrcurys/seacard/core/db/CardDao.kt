@@ -48,4 +48,7 @@ interface CardDao {
 
     @Query("UPDATE cards SET note = :note WHERE id = :id")
     suspend fun updateNote(id: Long, note: String?)
+
+    @Query("UPDATE cards SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun updateSortOrder(id: Long, sortOrder: Long)
 }

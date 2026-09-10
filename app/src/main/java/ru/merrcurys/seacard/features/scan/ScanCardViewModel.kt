@@ -135,16 +135,18 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
         backPath: String?
     ) = withContext(Dispatchers.IO) {
         val normalizedName = normalizeCardName(name)
+        val timestamp = System.currentTimeMillis()
         dao.insert(CardEntity(
             name = normalizedName,
             code = code,
             type = codeType,
-            addTime = System.currentTimeMillis(),
+            addTime = timestamp,
             usageCount = 0,
             color = color,
             frontCoverPath = frontPath,
             backCoverPath = backPath,
-            note = null
+            note = null,
+            sortOrder = -timestamp
         ))
         ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(app)
     }

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import android.content.SharedPreferences
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -86,6 +87,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setShowCoverPicker(show: Boolean) {
         showCoverPicker.value = show
+    }
+
+    /**
+     * Сохраняет пользовательский порядок карт и переключает сортировку на «Своя сортировка».
+     * Позиции пишутся как 0..n-1 по порядку отображаемого списка.
+     */
+    fun reorderCards(orderedCards: List<CardModel>) {
+        if (orderedCards.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val db = DatabaseProvider.get(getApplication())
+            db.withTransaction {
+                orderedCards.forEachIndexed { index, card ->
+                    dao.updateSortOrder(card.id, index.toLong())
+                }
+            }
+            prefs.edit { putString("sort_type", SortType.CUSTOM.name) }
+            sortType.value = SortType.CUSTOM
+            ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(getApplication())
+        }
     }
 
     fun updateCardUsage(cardId: Long) {

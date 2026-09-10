@@ -23,7 +23,9 @@ data class CardEntity(
     /** Путь к оборотной обложке (файл на диске). */
     val backCoverPath: String?,
     /** Заметка пользователя (до 100 символов). */
-    val note: String?
+    val note: String?,
+    /** Позиция в пользовательской сортировке (меньше — раньше). */
+    val sortOrder: Long = 0L
 ) {
     fun toCard(): Card = Card(
         id = id,
@@ -35,6 +37,7 @@ data class CardEntity(
         color = color,
         frontCoverPath = frontCoverPath,
         backCoverPath = backCoverPath,
-        note = note
+        note = note,
+        sortOrder = sortOrder
     )
 }
