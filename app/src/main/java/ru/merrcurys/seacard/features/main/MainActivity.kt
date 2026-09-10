@@ -410,6 +410,7 @@ fun MainScreen(
         var dragStartTopLeft by remember { mutableStateOf(Offset.Zero) }
         var dragItemSize by remember { mutableStateOf(IntSize.Zero) }
         var dragCenter by remember { mutableStateOf(Offset.Zero) }
+        var lastDragEndedAt by remember { mutableStateOf(0L) }
 
         val displayCards = dragOrder ?: filteredCards
         val dragEnabled = cardsFromDbReady && !selectionMode && searchQueryState.text.isBlank()
@@ -800,6 +801,8 @@ fun MainScreen(
                                                 )
                                                 .combinedClickable(
                                                     onClick = {
+                                                        // Отсекаем ложный клик после перетаскивания.
+                                                        if (System.currentTimeMillis() - lastDragEndedAt < 250L) return@combinedClickable
                                                         if (selectionMode) {
                                                             selectedCards = if (isSelected) selectedCards - card else selectedCards + card
                                                             if (selectedCards.isEmpty()) selectionMode = false
@@ -853,8 +856,10 @@ fun MainScreen(
                                                             }
                                                         },
                                                         onDragEnd = {
+                                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
                                                             val finished = dragOrder
                                                             stopDragging()
+                                                            lastDragEndedAt = System.currentTimeMillis()
                                                             if (finished != null && finished.map { it.id } != latestCards.map { it.id }) {
                                                                 onReorderCards(finished)
                                                             } else {
@@ -862,7 +867,9 @@ fun MainScreen(
                                                             }
                                                         },
                                                         onDragCancel = {
+                                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
                                                             stopDragging()
+                                                            lastDragEndedAt = System.currentTimeMillis()
                                                             dragOrder = null
                                                         }
                                                     )

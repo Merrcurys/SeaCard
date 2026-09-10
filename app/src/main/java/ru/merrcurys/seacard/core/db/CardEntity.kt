@@ -1,5 +1,6 @@
 package ru.merrcurys.seacard.core.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import ru.merrcurys.seacard.domain.entity.Card
@@ -25,6 +26,7 @@ data class CardEntity(
     /** Заметка пользователя (до 100 символов). */
     val note: String?,
     /** Позиция в пользовательской сортировке (меньше — раньше). */
+    @ColumnInfo(defaultValue = "0")
     val sortOrder: Long = 0L
 ) {
     fun toCard(): Card = Card(
