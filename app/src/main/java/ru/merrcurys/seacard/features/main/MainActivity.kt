@@ -50,7 +50,6 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.Card
@@ -58,7 +57,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -174,6 +172,9 @@ private fun computeTargetIndex(
     val row = floor((center.y - originY) / rowPitch).toInt().coerceAtLeast(0)
     return (row * columns + column).coerceIn(0, listSize - 1)
 }
+
+/** Стабильный (один и тот же) Modifier: позволяет GridCardItem пропускать рекомпозицию. */
+private val GridItemFillModifier = Modifier.fillMaxSize()
 
 @Composable
 private fun GridCardItem(
@@ -374,7 +375,8 @@ fun MainScreen(
         var showSearch by rememberSaveable { mutableStateOf(false) }
         var showFilterMenu by rememberSaveable { mutableStateOf(false) }
         var selectionMode by rememberSaveable { mutableStateOf(false) }
-        var selectedCards by retain { mutableStateOf<Set<CardModel>>(emptySet()) }
+        // Храним идентификаторы: после drag меняется sortOrder и объекты CardModel пересоздаются.
+        var selectedCards by retain { mutableStateOf<Set<Long>>(emptySet()) }
         val focusRequester = retain { FocusRequester() }
 
         val filteredCards = remember(cards, searchQueryState.text) {
@@ -414,7 +416,8 @@ fun MainScreen(
         var lastDragEndedAt by remember { mutableStateOf(0L) }
 
         val displayCards = dragOrder ?: filteredCards
-        val dragEnabled = cardsFromDbReady && !selectionMode && searchQueryState.text.isBlank()
+        // Перетаскивание доступно и в режиме выбора: оно само его включает.
+        val dragEnabled = cardsFromDbReady && searchQueryState.text.isBlank()
 
         val latestFilteredCards by rememberUpdatedState(filteredCards)
         val latestCards by rememberUpdatedState(cards)
@@ -552,7 +555,7 @@ fun MainScreen(
                         if (selectionMode) {
                             IconButton(onClick = {
                                 dragOrder = null
-                                onDeleteCards(selectedCards.toList())
+                                onDeleteCards(displayCards.filter { it.id in selectedCards })
                                 selectedCards = emptySet()
                                 selectionMode = false
                             }) {
@@ -611,22 +614,6 @@ fun MainScreen(
                                             }
                                         )
                                     }
-                                    HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.12f))
-                                    DropdownMenuItem(
-                                        text = { Text("Выбрать карты", color = colorScheme.onSurface) },
-                                        onClick = {
-                                            showFilterMenu = false
-                                            selectedCards = emptySet()
-                                            selectionMode = true
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                Icons.Default.SelectAll,
-                                                contentDescription = "Выбрать карты",
-                                                tint = colorScheme.onSurface
-                                            )
-                                        }
-                                    )
                                 }
                             }
                             IconButton(onClick = onSettingsClick) {
@@ -688,6 +675,8 @@ fun MainScreen(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
+                            // Не выходим из режима выбора сразу после завершения перетаскивания.
+                            if (System.currentTimeMillis() - lastDragEndedAt < 250L) return@clickable
                             if (showSearch) {
                                 showSearch = false
                                 searchQueryState.clearText()
@@ -770,6 +759,8 @@ fun MainScreen(
                                                     position.y >= top && position.y < top + info.size.height
                                             } ?: return@detectDragGesturesAfterLongPress
                                             val id = hit.key as? Long ?: return@detectDragGesturesAfterLongPress
+                                            // Drag-and-Drop автоматически включает режим «Выбрать карты».
+                                            selectionMode = true
                                             if (dragOrder == null) dragOrder = latestFilteredCards
                                             draggingId = id
                                             draggingIndex = hit.index
@@ -843,62 +834,64 @@ fun MainScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 items(displayCards, key = { it.id }) { card ->
-                                    val isSelected = selectedCards.contains(card)
+                                    val isSelected = card.id in selectedCards
                                     val isDragging = card.id == draggingId
-                                    val itemModifier = Modifier
-                                        .aspectRatio(1.574f)
-                                        .fillMaxWidth()
-                                        .animateItem()
-
-                                    if (isDragging) {
-                                        Box(
-                                            modifier = itemModifier
-                                                .border(
-                                                    width = 1.dp,
-                                                    color = colorScheme.primary.copy(alpha = 0.5f),
+                                    // Клик/размер вешаем на обёртку, а сам GridCardItem получает
+                                    // стабильный Modifier — тогда при перестановке карточки не
+                                    // перерисовываются (и не перезагружают обложку из Coil).
+                                    Box(
+                                        modifier = Modifier
+                                            .aspectRatio(1.574f)
+                                            .fillMaxWidth()
+                                            .then(
+                                                if (isSelected) Modifier.border(
+                                                    width = 3.dp,
+                                                    color = colorScheme.primary,
                                                     shape = RoundedCornerShape(12.dp)
-                                                )
-                                                .background(
-                                                    color = Color.White.copy(alpha = 0.06f),
-                                                    shape = RoundedCornerShape(12.dp)
-                                                )
-                                        )
-                                    } else {
-                                        GridCardItem(
-                                            card = card,
-                                            isSelected = isSelected,
-                                            modifier = itemModifier
-                                                .then(
-                                                    if (isSelected) Modifier.border(
-                                                        width = 3.dp,
-                                                        color = colorScheme.primary,
-                                                        shape = RoundedCornerShape(12.dp)
-                                                    ) else Modifier
-                                                )
-                                                .combinedClickable(
-                                                    onClick = {
-                                                        // Отсекаем ложный клик после перетаскивания.
-                                                        if (System.currentTimeMillis() - lastDragEndedAt < 250L) return@combinedClickable
-                                                        if (selectionMode) {
-                                                            selectedCards = if (isSelected) selectedCards - card else selectedCards + card
-                                                            if (selectedCards.isEmpty()) selectionMode = false
-                                                        } else {
-                                                            dragOrder = null
-                                                            onCardClick(card)
-                                                        }
+                                                ) else Modifier
+                                            )
+                                            .combinedClickable(
+                                                onClick = {
+                                                    // Отсекаем ложный клик после перетаскивания.
+                                                    if (System.currentTimeMillis() - lastDragEndedAt < 250L) return@combinedClickable
+                                                    if (selectionMode) {
+                                                        selectedCards = if (isSelected) selectedCards - card.id else selectedCards + card.id
+                                                        if (selectedCards.isEmpty()) selectionMode = false
+                                                    } else {
+                                                        dragOrder = null
+                                                        onCardClick(card)
                                                     }
-                                                )
-                                        )
+                                                }
+                                            )
+                                    ) {
+                                        if (isDragging) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .border(
+                                                        width = 1.dp,
+                                                        color = colorScheme.primary.copy(alpha = 0.5f),
+                                                        shape = RoundedCornerShape(12.dp)
+                                                    )
+                                                    .background(
+                                                        color = Color.White.copy(alpha = 0.06f),
+                                                        shape = RoundedCornerShape(12.dp)
+                                                    )
+                                            )
+                                        } else {
+                                            GridCardItem(
+                                                card = card,
+                                                isSelected = isSelected,
+                                                modifier = GridItemFillModifier
+                                            )
+                                        }
                                     }
                                 }
                             }
 
                             val draggingCard = draggingId?.let { id -> displayCards.firstOrNull { it.id == id } }
                             if (draggingCard != null && dragItemSize.width > 0) {
-                                val rotation = ((dragPointer.x - dragStartPointer.x) / dragItemSize.width * 8f).coerceIn(-8f, 8f)
-                                GridCardItem(
-                                    card = draggingCard,
-                                    isSelected = false,
+                                Box(
                                     modifier = Modifier
                                         .offset {
                                             val topLeft = dragPointer - dragGrabOffset
@@ -909,13 +902,22 @@ fun MainScreen(
                                             height = with(density) { dragItemSize.height.toDp() }
                                         )
                                         .graphicsLayer {
+                                            // Читаем состояние только в layer-фазе, чтобы движение пальца
+                                            // не вызывало рекомпозицию всего экрана.
+                                            val width = dragItemSize.width.coerceAtLeast(1)
+                                            rotationZ = ((dragPointer.x - dragStartPointer.x) / width * 8f).coerceIn(-8f, 8f)
                                             scaleX = 1.06f
                                             scaleY = 1.06f
-                                            rotationZ = rotation
                                             shadowElevation = 24.dp.toPx()
                                             alpha = 0.98f
                                         }
-                                )
+                                ) {
+                                    GridCardItem(
+                                        card = draggingCard,
+                                        isSelected = false,
+                                        modifier = GridItemFillModifier
+                                    )
+                                }
                             }
                         }
                     }

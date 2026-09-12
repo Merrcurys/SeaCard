@@ -15,7 +15,7 @@ plugins {
                 minSdk = 28
                 targetSdk = 36
                 versionCode = 21
-                versionName = "3.3.1"
+                versionName = "3.4.0-beta"
 
                 testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
             }
