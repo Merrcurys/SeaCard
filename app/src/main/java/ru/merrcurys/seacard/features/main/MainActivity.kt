@@ -406,8 +406,9 @@ fun MainScreen(
         var dragOrder by remember { mutableStateOf<List<CardModel>?>(null) }
         var draggingId by remember { mutableStateOf<Long?>(null) }
         var draggingIndex by remember { mutableIntStateOf(-1) }
-        var dragAccumulator by remember { mutableStateOf(Offset.Zero) }
-        var dragStartTopLeft by remember { mutableStateOf(Offset.Zero) }
+        var dragPointer by remember { mutableStateOf(Offset.Zero) }
+        var dragStartPointer by remember { mutableStateOf(Offset.Zero) }
+        var dragGrabOffset by remember { mutableStateOf(Offset.Zero) }
         var dragItemSize by remember { mutableStateOf(IntSize.Zero) }
         var dragCenter by remember { mutableStateOf(Offset.Zero) }
         var lastDragEndedAt by remember { mutableStateOf(0L) }
@@ -453,7 +454,9 @@ fun MainScreen(
         fun stopDragging() {
             draggingId = null
             draggingIndex = -1
-            dragAccumulator = Offset.Zero
+            dragPointer = Offset.Zero
+            dragStartPointer = Offset.Zero
+            dragGrabOffset = Offset.Zero
             dragItemSize = IntSize.Zero
             dragCenter = Offset.Zero
         }
@@ -751,10 +754,83 @@ fun MainScreen(
                             )
                         }
                     } else {
-                        Box(modifier = Modifier.fillMaxSize()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    // Жест висит на стабильном контейнере: ячейка под пальцем
+                                    // заменяется плейсхолдером, но узел жеста не пересоздаётся.
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = { position ->
+                                            if (!latestDragEnabled) return@detectDragGesturesAfterLongPress
+                                            val hit = gridState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
+                                                val left = info.offset.x.toFloat()
+                                                val top = info.offset.y.toFloat()
+                                                position.x >= left && position.x < left + info.size.width &&
+                                                    position.y >= top && position.y < top + info.size.height
+                                            } ?: return@detectDragGesturesAfterLongPress
+                                            val id = hit.key as? Long ?: return@detectDragGesturesAfterLongPress
+                                            if (dragOrder == null) dragOrder = latestFilteredCards
+                                            draggingId = id
+                                            draggingIndex = hit.index
+                                            dragItemSize = hit.size
+                                            dragGrabOffset = position - Offset(hit.offset.x.toFloat(), hit.offset.y.toFloat())
+                                            dragPointer = position
+                                            dragStartPointer = position
+                                            dragCenter = position - dragGrabOffset +
+                                                Offset(hit.size.width / 2f, hit.size.height / 2f)
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        },
+                                        onDrag = { change, _ ->
+                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
+                                            change.consume()
+                                            dragPointer = change.position
+                                            val current = dragOrder ?: return@detectDragGesturesAfterLongPress
+                                            val center = dragPointer - dragGrabOffset +
+                                                Offset(dragItemSize.width / 2f, dragItemSize.height / 2f)
+                                            dragCenter = center
+                                            val target = computeTargetIndex(
+                                                visibleItems = gridState.layoutInfo.visibleItemsInfo,
+                                                draggingKey = draggingId,
+                                                center = center,
+                                                itemSize = dragItemSize,
+                                                columns = latestColumns,
+                                                spacingPx = latestSpacingPx,
+                                                listSize = current.size,
+                                                fallback = draggingIndex
+                                            )
+                                            if (target != draggingIndex && draggingIndex in current.indices) {
+                                                val mutable = current.toMutableList()
+                                                val moved = mutable.removeAt(draggingIndex)
+                                                mutable.add(target.coerceIn(0, mutable.size), moved)
+                                                dragOrder = mutable
+                                                draggingIndex = target
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
+                                            val finished = dragOrder
+                                            stopDragging()
+                                            lastDragEndedAt = System.currentTimeMillis()
+                                            if (finished != null && finished.map { it.id } != latestCards.map { it.id }) {
+                                                onReorderCards(finished)
+                                            } else {
+                                                dragOrder = null
+                                            }
+                                        },
+                                        onDragCancel = {
+                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
+                                            stopDragging()
+                                            lastDragEndedAt = System.currentTimeMillis()
+                                            dragOrder = null
+                                        }
+                                    )
+                                }
+                        ) {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(gridColumns.coerceIn(1, 4)),
                                 state = gridState,
+                                userScrollEnabled = draggingId == null,
                                 contentPadding = PaddingValues(
                                     start = 8.dp,
                                     top = 8.dp,
@@ -812,68 +888,6 @@ fun MainScreen(
                                                         }
                                                     }
                                                 )
-                                                .pointerInput(card.id) {
-                                                    detectDragGesturesAfterLongPress(
-                                                        onDragStart = { _ ->
-                                                            if (!latestDragEnabled) return@detectDragGesturesAfterLongPress
-                                                            val info = gridState.layoutInfo.visibleItemsInfo
-                                                                .firstOrNull { it.key == card.id }
-                                                                ?: return@detectDragGesturesAfterLongPress
-                                                            if (dragOrder == null) dragOrder = latestFilteredCards
-                                                            draggingId = card.id
-                                                            draggingIndex = info.index
-                                                            dragItemSize = info.size
-                                                            dragStartTopLeft = Offset(info.offset.x.toFloat(), info.offset.y.toFloat())
-                                                            dragAccumulator = Offset.Zero
-                                                            dragCenter = dragStartTopLeft + Offset(info.size.width / 2f, info.size.height / 2f)
-                                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        },
-                                                        onDrag = { change, dragAmount ->
-                                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
-                                                            change.consume()
-                                                            dragAccumulator += dragAmount
-                                                            val current = dragOrder ?: return@detectDragGesturesAfterLongPress
-                                                            val center = dragStartTopLeft +
-                                                                Offset(dragItemSize.width / 2f, dragItemSize.height / 2f) +
-                                                                dragAccumulator
-                                                            dragCenter = center
-                                                            val target = computeTargetIndex(
-                                                                visibleItems = gridState.layoutInfo.visibleItemsInfo,
-                                                                draggingKey = draggingId,
-                                                                center = center,
-                                                                itemSize = dragItemSize,
-                                                                columns = latestColumns,
-                                                                spacingPx = latestSpacingPx,
-                                                                listSize = current.size,
-                                                                fallback = draggingIndex
-                                                            )
-                                                            if (target != draggingIndex && draggingIndex in current.indices) {
-                                                                val mutable = current.toMutableList()
-                                                                val moved = mutable.removeAt(draggingIndex)
-                                                                mutable.add(target.coerceIn(0, mutable.size), moved)
-                                                                dragOrder = mutable
-                                                                draggingIndex = target
-                                                            }
-                                                        },
-                                                        onDragEnd = {
-                                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
-                                                            val finished = dragOrder
-                                                            stopDragging()
-                                                            lastDragEndedAt = System.currentTimeMillis()
-                                                            if (finished != null && finished.map { it.id } != latestCards.map { it.id }) {
-                                                                onReorderCards(finished)
-                                                            } else {
-                                                                dragOrder = null
-                                                            }
-                                                        },
-                                                        onDragCancel = {
-                                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
-                                                            stopDragging()
-                                                            lastDragEndedAt = System.currentTimeMillis()
-                                                            dragOrder = null
-                                                        }
-                                                    )
-                                                }
                                         )
                                     }
                                 }
@@ -881,16 +895,14 @@ fun MainScreen(
 
                             val draggingCard = draggingId?.let { id -> displayCards.firstOrNull { it.id == id } }
                             if (draggingCard != null && dragItemSize.width > 0) {
-                                val rotation = (dragAccumulator.x / dragItemSize.width * 8f).coerceIn(-8f, 8f)
+                                val rotation = ((dragPointer.x - dragStartPointer.x) / dragItemSize.width * 8f).coerceIn(-8f, 8f)
                                 GridCardItem(
                                     card = draggingCard,
                                     isSelected = false,
                                     modifier = Modifier
                                         .offset {
-                                            IntOffset(
-                                                (dragStartTopLeft.x + dragAccumulator.x).roundToInt(),
-                                                (dragStartTopLeft.y + dragAccumulator.y).roundToInt()
-                                            )
+                                            val topLeft = dragPointer - dragGrabOffset
+                                            IntOffset(topLeft.x.roundToInt(), topLeft.y.roundToInt())
                                         }
                                         .size(
                                             width = with(density) { dragItemSize.width.toDp() },
