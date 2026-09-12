@@ -508,7 +508,12 @@ fun CardDetailScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .consumeWindowInsets(innerPadding)
+                .then(
+                    // Экран редактирования — вложенный Scaffold, который сам применяет safeDrawing.
+                    // Если потребить инсеты здесь, его TopAppBar уезжает под статус-бар.
+                    if (showEditDialog) Modifier
+                    else Modifier.consumeWindowInsets(innerPadding)
+                )
         ) {
             // Диалог удаления
             if (showDeleteDialog) {
