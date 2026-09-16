@@ -74,4 +74,16 @@ object CoverBitmapStorage {
             scaled.recycle()
         }
     }
+
+    /**
+     * Удаляет файл пользовательской обложки. Пути-ассеты (`cards/...`) не трогаем:
+     * они лежат в APK, общие для всех карт и доступны только на чтение.
+     */
+    fun deleteLocalCover(path: String?) {
+        if (path.isNullOrBlank() || path.startsWith("cards/")) return
+        try {
+            File(path).delete()
+        } catch (_: Exception) {
+        }
+    }
 }

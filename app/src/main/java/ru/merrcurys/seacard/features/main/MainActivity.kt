@@ -426,11 +426,15 @@ fun MainScreen(
         val latestSpacingPx by rememberUpdatedState(spacingPx)
         val latestDragEnabled by rememberUpdatedState(dragEnabled)
 
-        // Снимаем закреплённый локальный порядок, когда БД отдала ровно тот же список.
+        // Снимаем закреплённый локальный порядок, когда БД отдала ровно тот же список,
+        // либо когда набор карт изменился (добавили/удалили) — иначе в сетке останется
+        // «призрак» удалённой карты со старой обложкой.
         LaunchedEffect(cards, dragOrder) {
             val pinned = dragOrder ?: return@LaunchedEffect
             if (draggingId != null) return@LaunchedEffect
-            if (pinned.size == cards.size && pinned.map { it.id } == cards.map { it.id }) {
+            val pinnedIds = pinned.map { it.id }
+            val cardIds = cards.map { it.id }
+            if (pinnedIds == cardIds || pinnedIds.toSet() != cardIds.toSet()) {
                 dragOrder = null
             }
         }

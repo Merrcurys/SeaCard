@@ -34,8 +34,20 @@ object BackupManager {
         zip.use {
             val jsonArray = JSONArray()
             cards.forEachIndexed { index, card ->
-                val frontInZip = if (card.frontCoverPath != null) "${COVERS_DIR}/${index}_front.webp" else null
-                val backInZip = if (card.backCoverPath != null) "${COVERS_DIR}/${index}_back.webp" else null
+                val frontEntry = "${COVERS_DIR}/${index}_front.webp"
+                val backEntry = "${COVERS_DIR}/${index}_back.webp"
+
+                val frontPath = card.frontCoverPath
+                val backPath = card.backCoverPath
+
+                // Копируем обложку и ссылаемся в JSON только на ту, что реально попала в архив:
+                // ассет (cards/...) мог быть удалён из приложения в новой версии, и это
+                // не должно ломать экспорт остальных карточек.
+                val frontInZip = frontPath != null && copyCoverToZip(context, frontPath, frontEntry, zip)
+                val backInZip = backPath != null &&
+                    !backPath.startsWith("cards/") &&
+                    copyFileToZip(File(backPath), backEntry, zip)
+
                 val obj = JSONObject().apply {
                     put("name", card.name)
                     put("code", card.code)
@@ -45,17 +57,10 @@ object BackupManager {
                     put("sortOrder", card.sortOrder)
                     put("color", card.color)
                     put("note", card.note ?: "")
-                    if (frontInZip != null) put("frontCoverFile", frontInZip)
-                    if (backInZip != null) put("backCoverFile", backInZip)
+                    if (frontInZip) put("frontCoverFile", frontEntry)
+                    if (backInZip) put("backCoverFile", backEntry)
                 }
                 jsonArray.put(obj)
-                card.frontCoverPath?.let { path ->
-                    copyCoverToZip(context, path, "${COVERS_DIR}/${index}_front.webp", zip)
-                }
-                card.backCoverPath?.let { path ->
-                    if (path.startsWith("cards/")) return@let
-                    copyFileToZip(File(path), "${COVERS_DIR}/${index}_back.webp", zip)
-                }
             }
             it.putNextEntry(ZipEntry(CARDS_JSON))
             it.write(jsonArray.toString(2).toByteArray(Charsets.UTF_8))
@@ -63,23 +68,42 @@ object BackupManager {
         }
     }
 
-    private fun copyCoverToZip(context: Context, sourcePath: String, entryName: String, zip: ZipOutputStream) {
+    /** @return true, если обложка действительно записана в архив. */
+    private fun copyCoverToZip(context: Context, sourcePath: String, entryName: String, zip: ZipOutputStream): Boolean {
         if (sourcePath.startsWith("cards/")) {
-            context.assets.open(sourcePath).use { input ->
-                zip.putNextEntry(ZipEntry(entryName))
-                input.copyTo(zip)
-                zip.closeEntry()
+            return try {
+                context.assets.open(sourcePath).use { input ->
+                    writeZipEntry(zip, entryName) { out -> input.copyTo(out) }
+                }
+                true
+            } catch (_: Exception) {
+                // Обложка-ассет удалена из приложения — пропускаем её, экспорт продолжается.
+                false
             }
-        } else {
-            copyFileToZip(File(sourcePath), entryName, zip)
+        }
+        return copyFileToZip(File(sourcePath), entryName, zip)
+    }
+
+    /** @return true, если файл существует и записан в архив. */
+    private fun copyFileToZip(file: File, entryName: String, zip: ZipOutputStream): Boolean {
+        if (!file.exists()) return false
+        return try {
+            file.inputStream().use { input ->
+                writeZipEntry(zip, entryName) { out -> input.copyTo(out) }
+            }
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 
-    private fun copyFileToZip(file: File, entryName: String, zip: ZipOutputStream) {
-        if (!file.exists()) return
+    private fun writeZipEntry(zip: ZipOutputStream, entryName: String, writeBody: (ZipOutputStream) -> Unit) {
         zip.putNextEntry(ZipEntry(entryName))
-        file.inputStream().use { it.copyTo(zip) }
-        zip.closeEntry()
+        try {
+            writeBody(zip)
+        } finally {
+            zip.closeEntry()
+        }
     }
 
     /**

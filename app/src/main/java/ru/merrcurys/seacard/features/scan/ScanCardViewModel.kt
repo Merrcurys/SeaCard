@@ -136,6 +136,16 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
     ) = withContext(Dispatchers.IO) {
         val normalizedName = normalizeCardName(name)
         val timestamp = System.currentTimeMillis()
+        // Если ассет-обложку удалили из приложения в новой версии, не ссылаемся на
+        // несуществующий файл — генерируем обычную цветную обложку.
+        val resolvedFrontPath = if (
+            frontPath != null && frontPath.startsWith("cards/") && !assetExists(frontPath)
+        ) {
+            val safeName = normalizedName.replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\-_]"), "_").take(50).ifBlank { "card" }
+            ColorCoverGenerator.generateAndSaveAsWebp(app, normalizedName, color, "front_${safeName}_$timestamp.webp")
+        } else {
+            frontPath
+        }
         dao.insert(CardEntity(
             name = normalizedName,
             code = code,
@@ -143,12 +153,19 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
             addTime = timestamp,
             usageCount = 0,
             color = color,
-            frontCoverPath = frontPath,
+            frontCoverPath = resolvedFrontPath,
             backCoverPath = backPath,
             note = null,
             sortOrder = -timestamp
         ))
         ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(app)
+    }
+
+    private fun assetExists(path: String): Boolean = try {
+        app.assets.open(path).use { }
+        true
+    } catch (_: Exception) {
+        false
     }
 
     /** Сохраняет карту с обложками из Uri (конвертирует в файлы). Если обложка не выбрана — генерирует из цвета и названия. */

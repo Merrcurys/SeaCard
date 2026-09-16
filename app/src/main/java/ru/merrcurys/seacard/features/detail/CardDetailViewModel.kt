@@ -151,6 +151,10 @@ class CardDetailViewModel(application: Application, initialCardId: Long) : Andro
 
     fun deleteCard(onDone: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
+            // Обложка принадлежит конкретной карте — при удалении чистим и её файлы.
+            val entity = dao.getById(cardId)
+            deleteCoverFileIfLocal(entity?.frontCoverPath)
+            deleteCoverFileIfLocal(entity?.backCoverPath)
             dao.deleteById(cardId)
             ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(getApplication())
             withContext(Dispatchers.Main) { onDone() }

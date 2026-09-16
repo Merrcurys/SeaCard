@@ -20,6 +20,7 @@ import ru.merrcurys.seacard.core.db.DatabaseProvider
 import ru.merrcurys.seacard.core.design.BerlinAzure
 import ru.merrcurys.seacard.core.design.GradientColorOption
 import ru.merrcurys.seacard.core.utils.CardSortUtil
+import ru.merrcurys.seacard.core.utils.CoverBitmapStorage
 import ru.merrcurys.seacard.core.utils.SortType
 import androidx.compose.ui.graphics.Color
 import ru.merrcurys.seacard.domain.entity.Card as CardModel
@@ -110,7 +111,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteCards(cardsToDelete: List<CardModel>) {
         viewModelScope.launch(Dispatchers.IO) {
-            cardsToDelete.forEach { dao.deleteById(it.id) }
+            cardsToDelete.forEach { card ->
+                // Обложка принадлежит конкретной карте — при удалении чистим и её файлы.
+                CoverBitmapStorage.deleteLocalCover(card.frontCoverPath)
+                CoverBitmapStorage.deleteLocalCover(card.backCoverPath)
+                dao.deleteById(card.id)
+            }
             ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(getApplication())
         }
     }
