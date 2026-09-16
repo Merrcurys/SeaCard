@@ -17,7 +17,7 @@ import ru.merrcurys.seacard.core.utils.CoverBitmapStorage
 import ru.merrcurys.seacard.domain.entity.Card as CardModel
 import java.io.File
 
-class CardDetailViewModel(application: Application, val cardId: Long) : AndroidViewModel(application) {
+class CardDetailViewModel(application: Application, initialCardId: Long) : AndroidViewModel(application) {
 
     private val app = application
     private val dao = DatabaseProvider.get(application).cardDao()
@@ -25,11 +25,25 @@ class CardDetailViewModel(application: Application, val cardId: Long) : AndroidV
     private val _card = MutableStateFlow<CardModel?>(null)
     val card: StateFlow<CardModel?> = _card.asStateFlow()
 
+    var cardId: Long = initialCardId
+        private set
+
     init {
+        openCard(initialCardId)
+    }
+
+    /**
+     * Открывает карточку: переключает экран и учитывает использование.
+     * Вызывается при первом открытии и при повторном тапе по виджету (onNewIntent).
+     */
+    fun openCard(id: Long) {
+        if (id < 0) return
+        cardId = id
+        _card.value = null
         loadCard()
-        // Учитываем использование при каждом открытии карточки — в т.ч. при клике из виджета.
+        // Учитываем использование при каждом открытии карточки — в т.ч. из виджета.
         viewModelScope.launch(Dispatchers.IO) {
-            dao.incrementUsage(cardId)
+            dao.incrementUsage(id)
         }
     }
 

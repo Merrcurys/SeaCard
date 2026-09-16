@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -23,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -129,6 +129,10 @@ class CardDetailActivity : ComponentActivity() {
     private var originalBrightness: Float = 0f
     private var hasBrightnessPermission: Boolean = false
 
+    private val detailViewModel: CardDetailViewModel by viewModels {
+        CardDetailViewModelFactory(application, intent.getLongExtra("card_id", -1L))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         applySeaCardSystemBarColors()
@@ -147,8 +151,7 @@ class CardDetailActivity : ComponentActivity() {
         setBrightness(1.0f) // Максимальная яркость
 
         setContent {
-            val viewModel: CardDetailViewModel = viewModel(factory = CardDetailViewModelFactory(application, cardId))
-            val card by viewModel.card.collectAsState()
+            val card by detailViewModel.card.collectAsState()
             var frontImageUri by remember { mutableStateOf<Uri?>(null) }
             var hasCameraPermission by remember {
                 mutableStateOf(ContextCompat.checkSelfPermission(this@CardDetailActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
@@ -198,13 +201,13 @@ class CardDetailActivity : ComponentActivity() {
                             frontImageUri = frontImageUri,
                             note = card?.note ?: "",
                             backCoverPath = card?.backCoverPath,
-                            onSaveNote = { viewModel.updateNote(it) },
+                            onSaveNote = { detailViewModel.updateNote(it) },
                             hasCameraPermission = hasCameraPermission,
                             permissionLauncher = permissionLauncher,
                             onBack = { finish() },
-                            onDelete = { viewModel.deleteCard { setResult(RESULT_OK); finish() } },
+                            onDelete = { detailViewModel.deleteCard { setResult(RESULT_OK); finish() } },
                             onEdit = { newName, newCode, newType, newColor, frontUri, backUri, frontRemoved, backRemoved, frontDirty, backDirty ->
-                                viewModel.updateCardFromEdit(
+                                detailViewModel.updateCardFromEdit(
                                     newName,
                                     newCode,
                                     newType,
@@ -223,6 +226,16 @@ class CardDetailActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    /** Повторный тап по виджету: активность уже открыта, переключаем её на нужную карточку. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val newCardId = intent.getLongExtra("card_id", -1L)
+        if (newCardId >= 0) {
+            detailViewModel.openCard(newCardId)
         }
     }
 

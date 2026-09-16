@@ -50,7 +50,11 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
                     R.id.widget_cards_grid,
                     SeaCardWidgetDataLoader.buildItems(context, cards)
                 )
-                val templateIntent = Intent(context, CardDetailActivity::class.java)
+                val templateIntent = Intent(context, CardDetailActivity::class.java).apply {
+                    // NEW_TASK — запуск из виджета; SINGLE_TOP — повторный тап приходит в onNewIntent,
+                    // иначе показывалась бы ранее открытая карточка.
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
                 views.setPendingIntentTemplate(
                     R.id.widget_cards_grid,
                     PendingIntent.getActivity(

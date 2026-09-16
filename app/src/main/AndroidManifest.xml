@@ -49,6 +49,7 @@
         <activity
             android:name=".features.detail.CardDetailActivity"
             android:exported="false"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
             tools:ignore="LockedOrientationActivity"
