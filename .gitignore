@@ -3,6 +3,9 @@
 /converter-image/output/*
 !/converter-image/output/.gitkeep
 /local.properties
+/keystore.properties
+*.jks
+*.keystore
 /.idea/caches
 /.idea/workspace.xml
 /.idea/navEditor.xml
