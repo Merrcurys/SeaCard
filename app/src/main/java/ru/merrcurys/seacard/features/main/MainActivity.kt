@@ -991,8 +991,9 @@ private fun sortTypeIcon(type: SortType) = when (type) {
 /** Стильное меню сортировки вместо стандартного DropdownMenu — в стиле остальных bottom sheet приложения. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SortTypeSheet(
+internal fun SortTypeSheet(
     currentSortType: SortType,
+    sortTypes: List<SortType> = SortType.entries,
     onSelect: (SortType) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1024,7 +1025,7 @@ private fun SortTypeSheet(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
             Spacer(modifier = Modifier.height(4.dp))
-            SortType.entries.forEach { sortType ->
+            sortTypes.forEach { sortType ->
                 val selected = sortType == currentSortType
                 Row(
                     modifier = Modifier

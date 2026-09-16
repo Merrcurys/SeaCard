@@ -23,7 +23,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.sp
 import java.io.IOException
 import java.text.Collator
@@ -31,7 +30,6 @@ import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.ui.layout.ContentScale
 import ru.merrcurys.seacard.core.utils.CoverNames.coverNameMap
@@ -108,7 +106,9 @@ fun CardCoverPickerScreen(
                     }
                 }
         }
-        LaunchedEffect(currentSortType, filteredCovers) {
+        // Смена сортировки сбрасывает позицию через requestScrollToItem (до пересортировки),
+        // а при поиске просто возвращаемся к началу списка.
+        LaunchedEffect(searchQuery) {
             if (filteredCovers.isNotEmpty()) {
                 gridState.scrollToItem(0, 0)
             }
@@ -130,48 +130,12 @@ fun CardCoverPickerScreen(
                         }
                     },
                     actions = {
-                        Box {
-                            IconButton(onClick = { showFilterMenu = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.FilterAlt,
-                                    contentDescription = "Фильтр",
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = showFilterMenu,
-                                onDismissRequest = { showFilterMenu = false },
-                                offset = DpOffset(x = (-8).dp, y = 0.dp),
-                                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                            ) {
-                                availableSortTypes.forEach { sortType ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                text = sortType.displayName,
-                                                color = if (currentSortType == sortType) {
-                                                    MaterialTheme.colorScheme.primary
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSurface
-                                                }
-                                            )
-                                        },
-                                        onClick = {
-                                            currentSortType = sortType
-                                            showFilterMenu = false
-                                        },
-                                        leadingIcon = {
-                                            if (currentSortType == sortType) {
-                                                Icon(
-                                                    Icons.Default.Check,
-                                                    contentDescription = "Выбрано",
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-                                            }
-                                        }
-                                    )
-                                }
-                            }
+                        IconButton(onClick = { showFilterMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.FilterAlt,
+                                contentDescription = "Сортировка",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -356,6 +320,23 @@ fun CardCoverPickerScreen(
                     }
                 }
             }
+        }
+
+        if (showFilterMenu) {
+            SortTypeSheet(
+                currentSortType = currentSortType,
+                sortTypes = availableSortTypes,
+                onSelect = { sortType ->
+                    if (sortType != currentSortType) {
+                        // Сбрасываем позицию на самый верх ДО пересортировки: иначе LazyGrid
+                        // сначала «прилипнет» к первой карточке по ключу, а потом прыгнет наверх.
+                        gridState.requestScrollToItem(0, 0)
+                    }
+                    currentSortType = sortType
+                    showFilterMenu = false
+                },
+                onDismiss = { showFilterMenu = false }
+            )
         }
     }
 }
