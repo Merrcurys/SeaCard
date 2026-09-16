@@ -419,6 +419,9 @@ fun MainScreen(
         var dragItemSize by remember { mutableStateOf(IntSize.Zero) }
         var dragCenter by remember { mutableStateOf(Offset.Zero) }
         var lastDragEndedAt by remember { mutableStateOf(0L) }
+        // Клик по карте приходит раньше onDragEnd, поэтому гасим его флагом,
+        // выставленным ещё на старте долгого нажатия (см. onDragStart/stopDragging).
+        var longPressSelectPending by remember { mutableStateOf(false) }
 
         val displayCards = dragOrder ?: filteredCards
         // Перетаскивание доступно и в режиме выбора: начало движения из него выходит.
@@ -466,6 +469,7 @@ fun MainScreen(
         fun stopDragging() {
             pendingDragId = null
             pendingDragIndex = -1
+            longPressSelectPending = false
             draggingId = null
             draggingIndex = -1
             dragPointer = Offset.Zero
@@ -687,7 +691,7 @@ fun MainScreen(
                             indication = null
                         ) {
                             // Не выходим из режима выбора сразу после завершения перетаскивания.
-                            if (System.currentTimeMillis() - lastDragEndedAt < 250L) return@clickable
+                            if (longPressSelectPending || System.currentTimeMillis() - lastDragEndedAt < 250L) return@clickable
                             if (showSearch) {
                                 showSearch = false
                                 searchQueryState.clearText()
@@ -778,6 +782,7 @@ fun MainScreen(
                                                 selectionMode = true
                                                 selectedCards = setOf(id)
                                             }
+                                            longPressSelectPending = true
                                             pendingDragId = id
                                             pendingDragIndex = hit.index
                                             dragItemSize = hit.size
@@ -901,8 +906,8 @@ fun MainScreen(
                                             )
                                             .combinedClickable(
                                                 onClick = {
-                                                    // Отсекаем ложный клик после перетаскивания.
-                                                    if (System.currentTimeMillis() - lastDragEndedAt < 250L) return@combinedClickable
+                                                    // Отсекаем ложный клик после долгого нажатия/перетаскивания.
+                                                    if (longPressSelectPending || System.currentTimeMillis() - lastDragEndedAt < 250L) return@combinedClickable
                                                     if (selectionMode) {
                                                         selectedCards = if (isSelected) selectedCards - card.id else selectedCards + card.id
                                                         if (selectedCards.isEmpty()) selectionMode = false
