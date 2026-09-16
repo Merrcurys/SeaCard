@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -44,22 +45,28 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Reorder
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.Wallet
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -67,6 +74,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,6 +90,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -592,44 +601,12 @@ fun MainScreen(
                                     )
                                 }
                             }
-                            Box {
-                                IconButton(onClick = { showFilterMenu = true }) {
-                                    Icon(
-                                        Icons.Default.FilterAlt,
-                                        contentDescription = "Фильтр",
-                                        tint = colorScheme.onSurface
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = showFilterMenu,
-                                    onDismissRequest = { showFilterMenu = false },
-                                    modifier = Modifier.background(colorScheme.surface)
-                                ) {
-                                    SortType.entries.forEach { sortType ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    text = sortType.displayName,
-                                                    color = if (currentSortType == sortType) colorScheme.primary else colorScheme.onSurface
-                                                )
-                                            },
-                                            onClick = {
-                                                dragOrder = null
-                                                onSortTypeChange(sortType)
-                                                showFilterMenu = false
-                                            },
-                                            leadingIcon = {
-                                                if (currentSortType == sortType) {
-                                                    Icon(
-                                                        Icons.Default.Check,
-                                                        contentDescription = "Выбрано",
-                                                        tint = colorScheme.primary
-                                                    )
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
+                            IconButton(onClick = { showFilterMenu = true }) {
+                                Icon(
+                                    Icons.Default.FilterAlt,
+                                    contentDescription = "Сортировка",
+                                    tint = colorScheme.onSurface
+                                )
                             }
                             IconButton(onClick = onSettingsClick) {
                                 Icon(
@@ -978,6 +955,101 @@ fun MainScreen(
                 }
             }
         )
+
+        if (showFilterMenu) {
+            SortTypeSheet(
+                currentSortType = currentSortType,
+                onSelect = { sortType ->
+                    dragOrder = null
+                    onSortTypeChange(sortType)
+                    showFilterMenu = false
+                },
+                onDismiss = { showFilterMenu = false }
+            )
+        }
+    }
+}
+
+private fun sortTypeIcon(type: SortType) = when (type) {
+    SortType.ADD_TIME -> Icons.Filled.Schedule
+    SortType.NAME_ASC, SortType.NAME_DESC -> Icons.Filled.SortByAlpha
+    SortType.NAME_ASC_LATIN, SortType.NAME_DESC_LATIN -> Icons.Filled.Language
+    SortType.USAGE_FREQ -> Icons.AutoMirrored.Filled.TrendingUp
+    SortType.CUSTOM -> Icons.Filled.Reorder
+}
+
+/** Стильное меню сортировки вместо стандартного DropdownMenu — в стиле остальных bottom sheet приложения. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortTypeSheet(
+    currentSortType: SortType,
+    onSelect: (SortType) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color(0xFF141414),
+        contentColor = Color.White,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.3f)) },
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 8.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = "Сортировка",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            SortType.entries.forEach { sortType ->
+                val selected = sortType == currentSortType
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (selected) colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent)
+                        .clickable { onSelect(sortType) }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Icon(
+                        imageVector = sortTypeIcon(sortType),
+                        contentDescription = null,
+                        tint = if (selected) colorScheme.primary else Color.White.copy(alpha = 0.75f),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = sortType.displayName,
+                        color = if (selected) colorScheme.primary else Color.White,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        fontSize = 16.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (selected) {
+                        Icon(
+                            Icons.Filled.Check,
+                            contentDescription = "Выбрано",
+                            tint = colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
