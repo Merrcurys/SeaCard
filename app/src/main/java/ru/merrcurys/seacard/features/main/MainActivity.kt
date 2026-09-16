@@ -960,6 +960,16 @@ fun MainScreen(
             SortTypeSheet(
                 currentSortType = currentSortType,
                 onSelect = { sortType ->
+                    if (sortType != currentSortType) {
+                        // По умолчанию LazyGrid держит позицию по ключу первой видимой карточки
+                        // и после пересортировки уезжает за ней. requestScrollToItem сбрасывает
+                        // этот ключ заранее, поэтому сетка остаётся на том же индексе/смещении
+                        // без второго прохода и без дёрганья.
+                        gridState.requestScrollToItem(
+                            gridState.firstVisibleItemIndex,
+                            gridState.firstVisibleItemScrollOffset
+                        )
+                    }
                     dragOrder = null
                     onSortTypeChange(sortType)
                     showFilterMenu = false
