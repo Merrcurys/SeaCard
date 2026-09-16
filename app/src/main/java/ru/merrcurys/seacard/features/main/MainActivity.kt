@@ -333,7 +333,8 @@ class MainActivity : ComponentActivity() {
                             gradientColor = gradientColor,
                             onAddCard = { viewModel.setShowCoverPicker(true) },
                             onCardClick = { card ->
-                                viewModel.updateCardUsage(card.id)
+                                // Счётчик использования увеличивается при открытии CardDetailActivity
+                                // (в т.ч. при клике по карточке из виджета).
                                 cardDetailLauncher.launch(Intent(context, CardDetailActivity::class.java).apply { putExtra("card_id", card.id) })
                             },
                             onSettingsClick = { settingsLauncher.launch(Intent(context, SettingsActivity::class.java)) },

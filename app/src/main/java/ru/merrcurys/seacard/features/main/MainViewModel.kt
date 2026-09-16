@@ -108,12 +108,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateCardUsage(cardId: Long) {
-        viewModelScope.launch(Dispatchers.IO) {
-            dao.incrementUsage(cardId)
-        }
-    }
-
     fun deleteCards(cardsToDelete: List<CardModel>) {
         viewModelScope.launch(Dispatchers.IO) {
             cardsToDelete.forEach { dao.deleteById(it.id) }

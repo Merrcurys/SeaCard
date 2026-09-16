@@ -27,6 +27,10 @@ class CardDetailViewModel(application: Application, val cardId: Long) : AndroidV
 
     init {
         loadCard()
+        // Учитываем использование при каждом открытии карточки — в т.ч. при клике из виджета.
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.incrementUsage(cardId)
+        }
     }
 
     fun loadCard() {
