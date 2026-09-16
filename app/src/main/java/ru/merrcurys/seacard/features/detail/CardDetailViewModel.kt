@@ -1,6 +1,7 @@
 package ru.merrcurys.seacard.features.detail
 
 import android.app.Application
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -14,7 +15,9 @@ import kotlinx.coroutines.launch
 import ru.merrcurys.seacard.core.db.DatabaseProvider
 import ru.merrcurys.seacard.core.utils.ColorCoverGenerator
 import ru.merrcurys.seacard.core.utils.CoverBitmapStorage
+import ru.merrcurys.seacard.core.utils.SortType
 import ru.merrcurys.seacard.domain.entity.Card as CardModel
+import ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider
 import java.io.File
 
 class CardDetailViewModel(application: Application, initialCardId: Long) : AndroidViewModel(application) {
@@ -44,6 +47,13 @@ class CardDetailViewModel(application: Application, initialCardId: Long) : Andro
         // Учитываем использование при каждом открытии карточки — в т.ч. из виджета.
         viewModelScope.launch(Dispatchers.IO) {
             dao.incrementUsage(id)
+            // При сортировке по частоте порядок карт в виджете зависит от usageCount,
+            // поэтому просим виджет перечитать данные (иначе он остаётся в старом порядке).
+            val sortType = app.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                .getString("sort_type", null)
+            if (sortType == SortType.USAGE_FREQ.name) {
+                SeaCardAppWidgetProvider.notifyDataChanged(app)
+            }
         }
     }
 

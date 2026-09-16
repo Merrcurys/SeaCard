@@ -409,6 +409,10 @@ fun MainScreen(
         var dragOrder by remember { mutableStateOf<List<CardModel>?>(null) }
         var draggingId by remember { mutableStateOf<Long?>(null) }
         var draggingIndex by remember { mutableIntStateOf(-1) }
+        // Карта, которую держат пальцем: выделяется сразу, но перетаскивание начнётся
+        // только при реальном движении (см. onDrag) — как в Google Sheets.
+        var pendingDragId by remember { mutableStateOf<Long?>(null) }
+        var pendingDragIndex by remember { mutableIntStateOf(-1) }
         var dragPointer by remember { mutableStateOf(Offset.Zero) }
         var dragStartPointer by remember { mutableStateOf(Offset.Zero) }
         var dragGrabOffset by remember { mutableStateOf(Offset.Zero) }
@@ -417,7 +421,7 @@ fun MainScreen(
         var lastDragEndedAt by remember { mutableStateOf(0L) }
 
         val displayCards = dragOrder ?: filteredCards
-        // Перетаскивание доступно и в режиме выбора: оно само его включает.
+        // Перетаскивание доступно и в режиме выбора: начало движения из него выходит.
         val dragEnabled = cardsFromDbReady && searchQueryState.text.isBlank()
 
         val latestFilteredCards by rememberUpdatedState(filteredCards)
@@ -460,6 +464,8 @@ fun MainScreen(
         }
 
         fun stopDragging() {
+            pendingDragId = null
+            pendingDragIndex = -1
             draggingId = null
             draggingIndex = -1
             dragPointer = Offset.Zero
@@ -754,6 +760,7 @@ fun MainScreen(
                                 .pointerInput(Unit) {
                                     // Жест висит на стабильном контейнере: ячейка под пальцем
                                     // заменяется плейсхолдером, но узел жеста не пересоздаётся.
+                                    val dragThresholdPx = 8.dp.toPx()
                                     detectDragGesturesAfterLongPress(
                                         onDragStart = { position ->
                                             if (!latestDragEnabled) return@detectDragGesturesAfterLongPress
@@ -764,11 +771,15 @@ fun MainScreen(
                                                     position.y >= top && position.y < top + info.size.height
                                             } ?: return@detectDragGesturesAfterLongPress
                                             val id = hit.key as? Long ?: return@detectDragGesturesAfterLongPress
-                                            // Drag-and-Drop автоматически включает режим «Выбрать карты».
-                                            selectionMode = true
-                                            if (dragOrder == null) dragOrder = latestFilteredCards
-                                            draggingId = id
-                                            draggingIndex = hit.index
+                                            // Google Sheets-стиль: долгое нажатие выделяет карту и включает режим
+                                            // «Выбрать карты». Перетаскивание стартует только при движении (onDrag)
+                                            // и сбрасывает этот режим.
+                                            if (!selectionMode) {
+                                                selectionMode = true
+                                                selectedCards = setOf(id)
+                                            }
+                                            pendingDragId = id
+                                            pendingDragIndex = hit.index
                                             dragItemSize = hit.size
                                             dragGrabOffset = position - Offset(hit.offset.x.toFloat(), hit.offset.y.toFloat())
                                             dragPointer = position
@@ -778,6 +789,30 @@ fun MainScreen(
                                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                         },
                                         onDrag = { change, _ ->
+                                            if (draggingId == null) {
+                                                // Ещё не перетаскиваем: ждём, пока палец сдвинется заметно.
+                                                val pending = pendingDragId
+                                                    ?: return@detectDragGesturesAfterLongPress
+                                                if ((change.position - dragStartPointer).getDistance() < dragThresholdPx) {
+                                                    change.consume()
+                                                    return@detectDragGesturesAfterLongPress
+                                                }
+                                                // Началось перемещение — режим множественного выбора сбрасывается.
+                                                val startIndex = pendingDragIndex
+                                                    .takeIf { it in 0 until latestFilteredCards.size }
+                                                    ?: latestFilteredCards.indexOfFirst { it.id == pending }
+                                                if (startIndex < 0) {
+                                                    stopDragging()
+                                                    return@detectDragGesturesAfterLongPress
+                                                }
+                                                selectionMode = false
+                                                selectedCards = emptySet()
+                                                dragOrder = latestFilteredCards
+                                                draggingId = pending
+                                                draggingIndex = startIndex
+                                                pendingDragId = null
+                                                pendingDragIndex = -1
+                                            }
                                             if (draggingId == null) return@detectDragGesturesAfterLongPress
                                             change.consume()
                                             dragPointer = change.position
@@ -804,7 +839,12 @@ fun MainScreen(
                                             }
                                         },
                                         onDragEnd = {
-                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
+                                            if (draggingId == null) {
+                                                // Отпустили без движения — остаёмся в режиме выбора.
+                                                stopDragging()
+                                                lastDragEndedAt = System.currentTimeMillis()
+                                                return@detectDragGesturesAfterLongPress
+                                            }
                                             val finished = dragOrder
                                             stopDragging()
                                             lastDragEndedAt = System.currentTimeMillis()
@@ -815,7 +855,11 @@ fun MainScreen(
                                             }
                                         },
                                         onDragCancel = {
-                                            if (draggingId == null) return@detectDragGesturesAfterLongPress
+                                            if (draggingId == null) {
+                                                stopDragging()
+                                                lastDragEndedAt = System.currentTimeMillis()
+                                                return@detectDragGesturesAfterLongPress
+                                            }
                                             stopDragging()
                                             lastDragEndedAt = System.currentTimeMillis()
                                             dragOrder = null
@@ -826,7 +870,7 @@ fun MainScreen(
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(gridColumns.coerceIn(1, 4)),
                                 state = gridState,
-                                userScrollEnabled = draggingId == null,
+                                userScrollEnabled = draggingId == null && pendingDragId == null,
                                 contentPadding = PaddingValues(
                                     start = 8.dp,
                                     top = 8.dp,
