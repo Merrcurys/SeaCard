@@ -67,7 +67,7 @@
                 android:resource="@xml/appwidget_seacard_info" />
         </receiver>
         <service
-            android:name="androidx.core.widget.RemoteViewsCompatService"
+            android:name=".widget.SeaCardWidgetService"
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
         <provider

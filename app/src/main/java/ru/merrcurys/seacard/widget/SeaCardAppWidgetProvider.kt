@@ -9,11 +9,11 @@ import android.content.Intent
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
-import androidx.core.widget.RemoteViewsCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import ru.merrcurys.seacard.R
+import ru.merrcurys.seacard.core.db.DatabaseProvider
 import ru.merrcurys.seacard.features.detail.CardDetailActivity
 
 class SeaCardAppWidgetProvider : AppWidgetProvider() {
@@ -29,8 +29,7 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
         // система считает приёмник отработавшим и может убить процесс до вызова
         // updateAppWidget() — на «холодную» (первое добавление виджета сразу после
         // установки) лончер так и не получает RemoteViews и показывает
-        // «Не удалось загрузить виджет». Повторное добавление работает только потому,
-        // что процесс уже прогрет. goAsync() удерживает процесс до pendingResult.finish().
+        // «Не удалось загрузить виджет». goAsync() удерживает процесс до pendingResult.finish().
         val pendingResult = goAsync()
         val appContext = context.applicationContext
         widgetScope.launch {
@@ -49,26 +48,29 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    // Осознанно используем классический API коллекций: он единственный, что работает
+    // и на API ≤ 31 (через сервис), и на новых версиях. Платформенный setRemoteAdapter
+    // с RemoteCollectionItems доступен только на API 32+.
+    @Suppress("DEPRECATION")
     private suspend fun updateAppWidget(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int
     ) {
-        val cards = SeaCardWidgetDataLoader.load(context)
+        val hasCards = DatabaseProvider.get(context).cardDao().getAll().isNotEmpty()
         val views = RemoteViews(context.packageName, R.layout.widget_seacard)
-        if (cards.isEmpty()) {
+        if (!hasCards) {
             views.setViewVisibility(R.id.widget_cards_grid, View.GONE)
             views.setViewVisibility(R.id.widget_empty_text, View.VISIBLE)
         } else {
             views.setViewVisibility(R.id.widget_cards_grid, View.VISIBLE)
             views.setViewVisibility(R.id.widget_empty_text, View.GONE)
-            RemoteViewsCompat.setRemoteAdapter(
-                context,
-                views,
-                appWidgetId,
-                R.id.widget_cards_grid,
-                SeaCardWidgetDataLoader.buildItems(context, cards)
-            )
+            // Классический RemoteViewsService: элементы строятся лениво в фабрике,
+            // Bitmap не сериализуются в SharedPreferences и не теряются на API ≤ 31.
+            val serviceIntent = Intent(context, SeaCardWidgetService::class.java).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            }
+            views.setRemoteAdapter(R.id.widget_cards_grid, serviceIntent)
             val templateIntent = Intent(context, CardDetailActivity::class.java).apply {
                 // NEW_TASK — запуск из виджета; SINGLE_TOP — повторный тап приходит в onNewIntent,
                 // иначе показывалась бы ранее открытая карточка.
@@ -85,6 +87,9 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
             )
         }
         appWidgetManager.updateAppWidget(appWidgetId, views)
+        if (hasCards) {
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_cards_grid)
+        }
     }
 
     /** Вызвать при изменении списка карт (добавление/удаление), чтобы виджет обновился. */
@@ -95,11 +100,14 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val componentName = ComponentName(context, SeaCardAppWidgetProvider::class.java)
             val ids = appWidgetManager.getAppWidgetIds(componentName)
-            if (ids.isNotEmpty()) {
-                val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
-                intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-                context.sendBroadcast(intent)
+            if (ids.isEmpty()) return
+            val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+                // Явно адресуем трансляцию своему приложению: иначе на Android 8+
+                // неявные трансляции манифестным приёмникам не доставляются.
+                setPackage(context.packageName)
             }
+            context.sendBroadcast(intent)
         }
     }
 }
