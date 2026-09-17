@@ -8,5 +8,6 @@
     android:minResizeHeight="120dp"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
+    android:initialLayout="@layout/widget_seacard"
     android:description="@string/widget_seacard_description"
     android:previewLayout="@layout/widget_seacard_preview" />
