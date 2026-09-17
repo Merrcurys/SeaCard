@@ -10,4 +10,5 @@
     android:widgetCategory="home_screen"
     android:initialLayout="@layout/widget_seacard"
     android:description="@string/widget_seacard_description"
+    android:previewImage="@drawable/widget_seacard_preview_image"
     android:previewLayout="@layout/widget_seacard_preview" />
