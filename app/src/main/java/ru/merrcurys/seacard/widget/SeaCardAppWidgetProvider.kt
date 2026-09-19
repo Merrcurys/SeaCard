@@ -70,6 +70,11 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
             val serviceIntent = Intent(context, SeaCardWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
+            // Число колонок из настроек нужно задать до установки адаптера.
+            val widgetColumns = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                .getInt("widget_columns", 2)
+                .coerceIn(1, 4)
+            views.setInt(R.id.widget_cards_grid, "setNumColumns", widgetColumns)
             views.setRemoteAdapter(R.id.widget_cards_grid, serviceIntent)
             val templateIntent = Intent(context, CardDetailActivity::class.java).apply {
                 // NEW_TASK — запуск из виджета; SINGLE_TOP — повторный тап приходит в onNewIntent,

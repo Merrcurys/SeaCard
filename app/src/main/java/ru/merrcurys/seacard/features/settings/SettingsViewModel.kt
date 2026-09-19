@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import ru.merrcurys.seacard.core.design.BerlinAzure
 import ru.merrcurys.seacard.core.design.GradientColorOption
+import ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider
 import androidx.compose.ui.graphics.Color
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -20,6 +21,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _gridColumns = MutableStateFlow(loadGridColumns())
     val gridColumns: StateFlow<Int> = _gridColumns.asStateFlow()
 
+    private val _widgetColumns = MutableStateFlow(loadWidgetColumns())
+    val widgetColumns: StateFlow<Int> = _widgetColumns.asStateFlow()
+
     private fun loadGradientColor(): Color {
         val colorValue = prefs.getInt("gradient_color", BerlinAzure.hashCode())
         return GradientColorOption.entries.find { it.color.hashCode() == colorValue }?.color ?: BerlinAzure
@@ -27,6 +31,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadGridColumns(): Int =
         prefs.getInt("grid_columns", 2).coerceIn(1, 4)
+
+    private fun loadWidgetColumns(): Int =
+        prefs.getInt("widget_columns", 2).coerceIn(1, 4)
 
     fun setGradientColor(color: Color) {
         prefs.edit { putInt("gradient_color", color.hashCode()) }
@@ -37,5 +44,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val fixed = columns.coerceIn(1, 4)
         prefs.edit { putInt("grid_columns", fixed) }
         _gridColumns.value = fixed
+    }
+
+    fun setWidgetColumns(columns: Int) {
+        val fixed = columns.coerceIn(1, 4)
+        prefs.edit { putInt("widget_columns", fixed) }
+        _widgetColumns.value = fixed
+        // Виджет читает это значение при сборке RemoteViews — просим его пересобраться.
+        SeaCardAppWidgetProvider.notifyDataChanged(getApplication())
     }
 }

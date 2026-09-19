@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.ViewModule
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Info
@@ -142,6 +143,7 @@ class SettingsActivity : ComponentActivity() {
             val viewModel: SettingsViewModel = viewModel()
             val gradientColor by viewModel.gradientColor.collectAsState(initial = BerlinAzure)
             val gridColumns by viewModel.gridColumns.collectAsState(initial = 2)
+            val widgetColumns by viewModel.widgetColumns.collectAsState(initial = 2)
             SeaCardTheme {
                 GradientBackground(gradientColor = gradientColor) {
                     SettingsScreen(
@@ -149,6 +151,8 @@ class SettingsActivity : ComponentActivity() {
                         onGradientColorChange = { viewModel.setGradientColor(it) },
                         gridColumns = gridColumns,
                         onGridColumnsChange = { viewModel.setGridColumns(it) },
+                        widgetColumns = widgetColumns,
+                        onWidgetColumnsChange = { viewModel.setWidgetColumns(it) },
                         onBack = { finish() },
                         topBarContainerColor = Color.Transparent,
                         onExport = { exportCards() },
@@ -213,6 +217,8 @@ fun SettingsScreen(
     onGradientColorChange: (Color) -> Unit,
     gridColumns: Int,
     onGridColumnsChange: (Int) -> Unit,
+    widgetColumns: Int,
+    onWidgetColumnsChange: (Int) -> Unit,
     onBack: () -> Unit,
     topBarContainerColor: Color = Color.Transparent,
     onExport: () -> Unit = {},
@@ -223,6 +229,7 @@ fun SettingsScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showAboutSheet by remember { mutableStateOf(false) }
     var showGridColumnsDialog by remember { mutableStateOf(false) }
+    var showWidgetColumnsDialog by remember { mutableStateOf(false) }
     var showGradientDialog by remember { mutableStateOf(false) }
     val appVersion = BuildConfig.VERSION_NAME
     val sectionCardColor = Color(0xFF141414)
@@ -350,6 +357,35 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { showGridColumnsDialog = true }
+                        )
+                        HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
+                        ListItem(
+                            headlineContent = { Text("Виджет") },
+                            supportingContent = {
+                                Text(
+                                    text = "Колонок: ${widgetColumns.coerceIn(1, 4)}",
+                                    fontSize = 12.sp,
+                                    color = colorScheme.onSurface.copy(alpha = 0.62f)
+                                )
+                            },
+                            colors = listItemColors,
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.Widgets,
+                                    contentDescription = null,
+                                    tint = colorScheme.primary
+                                )
+                            },
+                            trailingContent = {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .noRippleClickable { showWidgetColumnsDialog = true }
                         )
                     }
                 }
@@ -695,6 +731,51 @@ fun SettingsScreen(
         )
     }
 
+    if (showWidgetColumnsDialog) {
+        val current = widgetColumns.coerceIn(1, 4)
+        AlertDialog(
+            onDismissRequest = { showWidgetColumnsDialog = false },
+            title = { Text("Колонок в виджете") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (1..4).forEach { cols ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .noRippleClickable {
+                                    onWidgetColumnsChange(cols)
+                                    showWidgetColumnsDialog = false
+                                }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "$cols",
+                                modifier = Modifier.weight(1f),
+                                color = colorScheme.onSurface
+                            )
+                            if (cols == current) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showWidgetColumnsDialog = false }) {
+                    Text("Закрыть")
+                }
+            },
+            containerColor = sectionCardColor,
+            titleContentColor = colorScheme.onSurface,
+            textContentColor = colorScheme.onSurface
+        )
+    }
+
     if (showGradientDialog) {
         AlertDialog(
             onDismissRequest = { showGradientDialog = false },
@@ -883,6 +964,8 @@ fun SettingsScreenPreview() {
             onGradientColorChange = {},
             gridColumns = 2,
             onGridColumnsChange = {},
+            widgetColumns = 2,
+            onWidgetColumnsChange = {},
             onBack = {},
             topBarContainerColor = Color.Transparent
         )
