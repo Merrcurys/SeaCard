@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import ru.merrcurys.seacard.core.design.BerlinAzure
 import ru.merrcurys.seacard.core.design.GradientColorOption
+import ru.merrcurys.seacard.core.nfc.NfcPauseManager
 import ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider
 import androidx.compose.ui.graphics.Color
 
@@ -24,6 +25,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _widgetColumns = MutableStateFlow(loadWidgetColumns())
     val widgetColumns: StateFlow<Int> = _widgetColumns.asStateFlow()
 
+    private val _pauseNfc = MutableStateFlow(loadPauseNfc())
+    val pauseNfc: StateFlow<Boolean> = _pauseNfc.asStateFlow()
+
     private fun loadGradientColor(): Color {
         val colorValue = prefs.getInt("gradient_color", BerlinAzure.hashCode())
         return GradientColorOption.entries.find { it.color.hashCode() == colorValue }?.color ?: BerlinAzure
@@ -34,6 +38,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadWidgetColumns(): Int =
         prefs.getInt("widget_columns", 2).coerceIn(1, 4)
+
+    private fun loadPauseNfc(): Boolean =
+        prefs.getBoolean(NfcPauseManager.KEY_PAUSE_NFC, false)
 
     fun setGradientColor(color: Color) {
         prefs.edit { putInt("gradient_color", color.hashCode()) }
@@ -52,5 +59,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _widgetColumns.value = fixed
         // Виджет читает это значение при сборке RemoteViews — просим его пересобраться.
         SeaCardAppWidgetProvider.notifyDataChanged(getApplication())
+    }
+
+    fun setPauseNfc(enabled: Boolean) {
+        prefs.edit { putBoolean(NfcPauseManager.KEY_PAUSE_NFC, enabled) }
+        _pauseNfc.value = enabled
     }
 }
