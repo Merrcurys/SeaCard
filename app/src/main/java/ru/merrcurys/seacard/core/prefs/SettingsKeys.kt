@@ -9,4 +9,7 @@ object SettingsKeys {
 
     /** Не давать экрану гаснуть/блокироваться, пока открыта карта. */
     const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
+
+    /** Выкручивать яркость на максимум при открытии карты (нужно некоторым сканерам). */
+    const val KEY_MAX_BRIGHTNESS = "max_brightness"
 }

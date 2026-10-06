@@ -130,6 +130,7 @@ fun saveBitmapAsWebp(context: Context, bitmap: Bitmap, fileName: String): String
 class CardDetailActivity : ComponentActivity() {
     private var originalBrightness: Float = 0f
     private var hasBrightnessPermission: Boolean = false
+    private var brightnessForced: Boolean = false
 
     private val detailViewModel: CardDetailViewModel by viewModels {
         CardDetailViewModelFactory(application, intent.getLongExtra("card_id", -1L))
@@ -150,12 +151,15 @@ class CardDetailActivity : ComponentActivity() {
             return
         }
 
-        // Сохранение текущей яркости и увеличение ее.
-        originalBrightness = window.attributes.screenBrightness
-        if (originalBrightness == -1f) {
-            originalBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
+        // Сохранение текущей яркости и увеличение ее — только если не отключено в настройках.
+        if (isMaxBrightnessEnabled()) {
+            originalBrightness = window.attributes.screenBrightness
+            if (originalBrightness == -1f) {
+                originalBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
+            }
+            setBrightness(1.0f) // Максимальная яркость
+            brightnessForced = true
         }
-        setBrightness(1.0f) // Максимальная яркость
 
         setContent {
             val card by detailViewModel.card.collectAsState()
@@ -169,6 +173,7 @@ class CardDetailActivity : ComponentActivity() {
 
             // Обновляем проверку разрешения при изменении состояния
             LaunchedEffect(Unit) {
+                if (!isMaxBrightnessEnabled()) return@LaunchedEffect
                 if (Settings.System.canWrite(this@CardDetailActivity)) {
                     hasBrightnessPermission = true
                     originalBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
@@ -248,7 +253,7 @@ class CardDetailActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        setBrightness(originalBrightness)
+        if (brightnessForced) setBrightness(originalBrightness)
     }
 
     private fun setBrightness(brightness: Float) {
@@ -269,6 +274,10 @@ class CardDetailActivity : ComponentActivity() {
     private fun isKeepScreenOnEnabled(): Boolean =
         getSharedPreferences(SettingsKeys.PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(SettingsKeys.KEY_KEEP_SCREEN_ON, false)
+
+    private fun isMaxBrightnessEnabled(): Boolean =
+        getSharedPreferences(SettingsKeys.PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(SettingsKeys.KEY_MAX_BRIGHTNESS, true)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

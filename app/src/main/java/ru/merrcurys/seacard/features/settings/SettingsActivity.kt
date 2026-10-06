@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Palette
@@ -151,6 +152,7 @@ class SettingsActivity : ComponentActivity() {
             val widgetColumns by viewModel.widgetColumns.collectAsState(initial = 2)
             val pauseNfc by viewModel.pauseNfc.collectAsState(initial = false)
             val keepScreenOn by viewModel.keepScreenOn.collectAsState(initial = false)
+            val maxBrightness by viewModel.maxBrightness.collectAsState(initial = true)
             val nfcSupported = remember { NfcPauseManager.isSupported(this@SettingsActivity) }
             SeaCardTheme {
                 GradientBackground(gradientColor = gradientColor) {
@@ -169,6 +171,8 @@ class SettingsActivity : ComponentActivity() {
                         },
                         keepScreenOn = keepScreenOn,
                         onKeepScreenOnChange = { viewModel.setKeepScreenOn(it) },
+                        maxBrightness = maxBrightness,
+                        onMaxBrightnessChange = { viewModel.setMaxBrightness(it) },
                         onBack = { finish() },
                         topBarContainerColor = Color.Transparent,
                         onExport = { exportCards() },
@@ -240,6 +244,8 @@ fun SettingsScreen(
     onPauseNfcChange: (Boolean) -> Unit = {},
     keepScreenOn: Boolean = false,
     onKeepScreenOnChange: (Boolean) -> Unit = {},
+    maxBrightness: Boolean = true,
+    onMaxBrightnessChange: (Boolean) -> Unit = {},
     onBack: () -> Unit,
     topBarContainerColor: Color = Color.Transparent,
     onExport: () -> Unit = {},
@@ -414,7 +420,7 @@ fun SettingsScreen(
 
             item {
                 Text(
-                    text = "Безопасность",
+                    text = "Экран и NFC",
                     color = colorScheme.onSurface.copy(alpha = 0.9f),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
@@ -495,6 +501,35 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { onKeepScreenOnChange(!keepScreenOn) }
+                        )
+                        HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
+                        ListItem(
+                            headlineContent = { Text("Максимальная яркость экрана") },
+                            supportingContent = {
+                                Text(
+                                    text = "Ставит яркость на максимум при открытии карты — нужно некоторым сканерам",
+                                    fontSize = 12.sp,
+                                    color = colorScheme.onSurface.copy(alpha = 0.62f)
+                                )
+                            },
+                            colors = listItemColors,
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.BrightnessHigh,
+                                    contentDescription = null,
+                                    tint = colorScheme.primary
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = maxBrightness,
+                                    onCheckedChange = onMaxBrightnessChange,
+                                    colors = SwitchDefaults.colors()
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .noRippleClickable { onMaxBrightnessChange(!maxBrightness) }
                         )
                     }
                 }

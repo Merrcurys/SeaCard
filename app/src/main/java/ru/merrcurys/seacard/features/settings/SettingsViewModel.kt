@@ -34,6 +34,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _keepScreenOn = MutableStateFlow(loadKeepScreenOn())
     val keepScreenOn: StateFlow<Boolean> = _keepScreenOn.asStateFlow()
 
+    private val _maxBrightness = MutableStateFlow(loadMaxBrightness())
+    val maxBrightness: StateFlow<Boolean> = _maxBrightness.asStateFlow()
+
     private fun loadGradientColor(): Color {
         val colorValue = prefs.getInt("gradient_color", BerlinAzure.hashCode())
         return GradientColorOption.entries.find { it.color.hashCode() == colorValue }?.color ?: BerlinAzure
@@ -50,6 +53,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadKeepScreenOn(): Boolean =
         prefs.getBoolean(SettingsKeys.KEY_KEEP_SCREEN_ON, false)
+
+    private fun loadMaxBrightness(): Boolean =
+        prefs.getBoolean(SettingsKeys.KEY_MAX_BRIGHTNESS, true)
 
     fun setGradientColor(color: Color) {
         prefs.edit { putInt("gradient_color", color.hashCode()) }
@@ -78,5 +84,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setKeepScreenOn(enabled: Boolean) {
         prefs.edit { putBoolean(SettingsKeys.KEY_KEEP_SCREEN_ON, enabled) }
         _keepScreenOn.value = enabled
+    }
+
+    fun setMaxBrightness(enabled: Boolean) {
+        prefs.edit { putBoolean(SettingsKeys.KEY_MAX_BRIGHTNESS, enabled) }
+        _maxBrightness.value = enabled
     }
 }
