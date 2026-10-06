@@ -39,6 +39,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.view.WindowManager
 import android.widget.Toast
 import android.provider.Settings
 import androidx.compose.material.icons.filled.MoreVert
@@ -47,6 +48,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Close
 import ru.merrcurys.seacard.core.design.applySeaCardSystemBarColors
 import ru.merrcurys.seacard.core.design.SeaCardTheme
+import ru.merrcurys.seacard.core.prefs.SettingsKeys
 import ru.merrcurys.seacard.core.barcode.formatBarcodeForStandard
 import ru.merrcurys.seacard.core.barcode.generateBarcodeBitmap
 import ru.merrcurys.seacard.core.barcode.isValidBarcodeWithChecksum
@@ -136,6 +138,11 @@ class CardDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         applySeaCardSystemBarColors()
+
+        // «Не давать блокировать экран»: пока открыт экран карты, экран не гаснет.
+        if (isKeepScreenOnEnabled()) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
 
         val cardId = intent.getLongExtra("card_id", -1L)
         if (cardId < 0) {
@@ -258,6 +265,10 @@ class CardDetailActivity : ComponentActivity() {
         val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
         return prefs.getBoolean("dark_theme", true)
     }
+
+    private fun isKeepScreenOnEnabled(): Boolean =
+        getSharedPreferences(SettingsKeys.PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(SettingsKeys.KEY_KEEP_SCREEN_ON, false)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

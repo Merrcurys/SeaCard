@@ -5,6 +5,7 @@ import android.content.Context
 import android.nfc.NfcAdapter
 import android.nfc.NfcManager
 import android.util.Log
+import ru.merrcurys.seacard.core.prefs.SettingsKeys
 
 /**
  * «Пауза NFC» на время, пока приложение открыто.
@@ -20,9 +21,6 @@ import android.util.Log
  * Это и обеспечивает требование «только пока открыто приложение».
  */
 object NfcPauseManager {
-
-    const val PREFS_NAME = "settings"
-    const val KEY_PAUSE_NFC = "pause_nfc_when_open"
 
     private const val TAG = "NfcPauseManager"
 
@@ -46,8 +44,8 @@ object NfcPauseManager {
 
     /** Включена ли пользователем пауза NFC (значение настройки). */
     fun isPauseEnabled(context: Context): Boolean =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_PAUSE_NFC, false)
+        context.getSharedPreferences(SettingsKeys.PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(SettingsKeys.KEY_PAUSE_NFC, false)
 
     /** Применяет настройку к конкретной активности: включить или снять reader mode. */
     fun apply(activity: Activity, pause: Boolean) {

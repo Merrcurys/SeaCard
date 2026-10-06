@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.ViewModule
@@ -149,6 +150,7 @@ class SettingsActivity : ComponentActivity() {
             val gridColumns by viewModel.gridColumns.collectAsState(initial = 2)
             val widgetColumns by viewModel.widgetColumns.collectAsState(initial = 2)
             val pauseNfc by viewModel.pauseNfc.collectAsState(initial = false)
+            val keepScreenOn by viewModel.keepScreenOn.collectAsState(initial = false)
             val nfcSupported = remember { NfcPauseManager.isSupported(this@SettingsActivity) }
             SeaCardTheme {
                 GradientBackground(gradientColor = gradientColor) {
@@ -165,6 +167,8 @@ class SettingsActivity : ComponentActivity() {
                             viewModel.setPauseNfc(enabled)
                             NfcPauseManager.apply(this@SettingsActivity, enabled)
                         },
+                        keepScreenOn = keepScreenOn,
+                        onKeepScreenOnChange = { viewModel.setKeepScreenOn(it) },
                         onBack = { finish() },
                         topBarContainerColor = Color.Transparent,
                         onExport = { exportCards() },
@@ -234,6 +238,8 @@ fun SettingsScreen(
     pauseNfc: Boolean = false,
     nfcSupported: Boolean = true,
     onPauseNfcChange: (Boolean) -> Unit = {},
+    keepScreenOn: Boolean = false,
+    onKeepScreenOnChange: (Boolean) -> Unit = {},
     onBack: () -> Unit,
     topBarContainerColor: Color = Color.Transparent,
     onExport: () -> Unit = {},
@@ -460,6 +466,35 @@ fun SettingsScreen(
                                 .noRippleClickable {
                                     if (nfcSupported) onPauseNfcChange(!pauseNfc)
                                 }
+                        )
+                        HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
+                        ListItem(
+                            headlineContent = { Text("Не давать блокировать экран") },
+                            supportingContent = {
+                                Text(
+                                    text = "Экран не гаснет, пока открыта карта",
+                                    fontSize = 12.sp,
+                                    color = colorScheme.onSurface.copy(alpha = 0.62f)
+                                )
+                            },
+                            colors = listItemColors,
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.Lightbulb,
+                                    contentDescription = null,
+                                    tint = colorScheme.primary
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = keepScreenOn,
+                                    onCheckedChange = onKeepScreenOnChange,
+                                    colors = SwitchDefaults.colors()
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .noRippleClickable { onKeepScreenOnChange(!keepScreenOn) }
                         )
                     }
                 }
