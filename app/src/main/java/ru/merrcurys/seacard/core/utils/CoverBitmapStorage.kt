@@ -75,6 +75,10 @@ object CoverBitmapStorage {
         }
     }
 
+    /** Безопасная часть имени файла обложки: без спецсимволов и ограничения имени карты. */
+    fun safeFileNamePart(name: String, maxLength: Int = 40): String =
+        name.replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\-_]"), "_").take(maxLength).ifBlank { "card" }
+
     /**
      * Удаляет файл пользовательской обложки. Пути-ассеты (`cards/...`) не трогаем:
      * они лежат в APK, общие для всех карт и доступны только на чтение.
