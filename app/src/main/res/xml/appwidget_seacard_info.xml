@@ -8,6 +8,7 @@
     android:minResizeHeight="120dp"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
+    android:updatePeriodMillis="21600000"
     android:initialLayout="@layout/widget_seacard"
     android:description="@string/widget_seacard_description"
     android:previewImage="@drawable/widget_seacard_preview_image"
