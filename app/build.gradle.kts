@@ -32,11 +32,11 @@ val abiSplitsEnabled = providers.gradleProperty("abiSplits").orNull?.toBoolean()
 
 android {
     namespace = "ru.merrcurys.seacard"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 28
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 24
         versionName = "3.4.2"
 
@@ -77,7 +77,7 @@ android {
     productFlavors {
         create("merrcurys") {
             dimension = "brand"
-            applicationId = "ru.merrcurys.seacard"
+            applicationId = "ru.merrcurys.seacard2"
             signingConfig = if (hasMerrcurysKey) {
                 signingConfigs.getByName("merrcurys")
             } else {
@@ -185,7 +185,6 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.ui.test.junit4)
