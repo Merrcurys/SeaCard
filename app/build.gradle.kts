@@ -77,7 +77,7 @@ android {
     productFlavors {
         create("merrcurys") {
             dimension = "brand"
-            applicationId = "ru.merrcurys.seacard2"
+            applicationId = "ru.merrcurys.seacard"
             signingConfig = if (hasMerrcurysKey) {
                 signingConfigs.getByName("merrcurys")
             } else {
