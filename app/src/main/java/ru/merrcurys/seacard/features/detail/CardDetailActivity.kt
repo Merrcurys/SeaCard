@@ -1085,12 +1085,27 @@ fun CardDetailScreen(
                                     }
                                 }
                                 Text(
-                                    text = "Нажмите на обложку, чтобы увеличить изображение. А изменить обложку, можно в меню изменения карты.",
+                                    text = "Нажмите на обложку, чтобы увеличить.",
                                     fontSize = 13.sp,
                                     color = colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
+                                Button(
+                                    onClick = {
+                                        showCoverDialog = false
+                                        resetEditDraft()
+                                        showEditDialog = true
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = colorScheme.surfaceVariant,
+                                        contentColor = colorScheme.onSurface
+                                    )
+                                ) {
+                                    Text("Изменить", fontWeight = FontWeight.Medium)
+                                }
                             }
                         },
                         confirmButton = {
