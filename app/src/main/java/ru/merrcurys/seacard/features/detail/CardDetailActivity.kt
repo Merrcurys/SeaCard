@@ -553,7 +553,7 @@ fun CardDetailScreen(
                 AlertDialog(
                     onDismissRequest = { showDeleteDialog = false },
                     title = { Text("Удалить карту?") },
-                    text = { Text("Карта '$cardName' будет удалена безвозвратно.") },
+                    text = { Text("Карта «$cardName» будет удалена безвозвратно.") },
                     confirmButton = {
                         TextButton(
                             onClick = {

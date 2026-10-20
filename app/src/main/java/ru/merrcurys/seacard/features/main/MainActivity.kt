@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.Wallet
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -72,6 +73,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -385,6 +387,7 @@ fun MainScreen(
         var showSearch by rememberSaveable { mutableStateOf(false) }
         var showFilterMenu by rememberSaveable { mutableStateOf(false) }
         var selectionMode by rememberSaveable { mutableStateOf(false) }
+        var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
         // Храним идентификаторы: после drag меняется sortOrder и объекты CardModel пересоздаются.
         var selectedCards by retain { mutableStateOf<Set<Long>>(emptySet()) }
         val focusRequester = retain { FocusRequester() }
@@ -578,10 +581,7 @@ fun MainScreen(
                     actions = {
                         if (selectionMode) {
                             IconButton(onClick = {
-                                dragOrder = null
-                                onDeleteCards(displayCards.filter { it.id in selectedCards })
-                                selectedCards = emptySet()
-                                selectionMode = false
+                                if (selectedCards.isNotEmpty()) showDeleteDialog = true
                             }) {
                                 Icon(
                                     Icons.Default.Delete,
@@ -975,6 +975,45 @@ fun MainScreen(
                     showFilterMenu = false
                 },
                 onDismiss = { showFilterMenu = false }
+            )
+        }
+
+        if (showDeleteDialog) {
+            val cardsToDelete = displayCards.filter { it.id in selectedCards }
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = {
+                    Text(if (cardsToDelete.size == 1) "Удалить карту?" else "Удалить карты?")
+                },
+                text = {
+                    Text(
+                        when (cardsToDelete.size) {
+                            1 -> "Карта «${cardsToDelete.first().name}» будет удалена безвозвратно."
+                            else -> "Выбранные карты (${cardsToDelete.size}) будут удалены безвозвратно."
+                        }
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteDialog = false
+                            dragOrder = null
+                            onDeleteCards(cardsToDelete)
+                            selectedCards = emptySet()
+                            selectionMode = false
+                        }
+                    ) {
+                        Text("Удалить", color = Color.Red)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Отмена")
+                    }
+                },
+                containerColor = colorScheme.surface,
+                titleContentColor = colorScheme.onSurface,
+                textContentColor = colorScheme.onSurface
             )
         }
     }
