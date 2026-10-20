@@ -72,7 +72,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val fixed = columns.coerceIn(1, 4)
         prefs.edit { putInt("widget_columns", fixed) }
         _widgetColumns.value = fixed
-        // Виджет читает это значение при сборке RemoteViews — просим его пересобраться.
+        // Сначала частичное обновление — оно применяется сразу, без асинхронной
+        // конвертации коллекции. Полное обновление ниже нужно, чтобы новое значение
+        // попало в закэшированные RemoteViews (перезагрузка лончера/устройства).
+        SeaCardAppWidgetProvider.applyColumns(getApplication(), fixed)
         SeaCardAppWidgetProvider.notifyDataChanged(getApplication())
     }
 
