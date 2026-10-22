@@ -60,6 +60,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import android.content.Intent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -88,6 +89,7 @@ import ru.merrcurys.seacard.core.utils.CoverNames
 import ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider
 
 private const val PRIVACY_POLICY_URL = "https://seacard.merrcurys.ru/privacy.html"
+private const val SOURCE_CODE_URL = "https://github.com/Merrcurys/SeaCard"
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -681,6 +683,10 @@ fun SettingsScreen(
                 onPrivacyPolicyClick = {
                     val intent = Intent(Intent.ACTION_VIEW, PRIVACY_POLICY_URL.toUri())
                     context.startActivity(intent)
+                },
+                onSourceCodeClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, SOURCE_CODE_URL.toUri())
+                    context.startActivity(intent)
                 }
             )
         }
@@ -823,6 +829,7 @@ private fun AboutBottomSheetContent(
     appVersion: String,
     sheetHeight: Dp,
     onPrivacyPolicyClick: () -> Unit,
+    onSourceCodeClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val mutedColor = colorScheme.onSurface.copy(alpha = 0.55f)
@@ -904,6 +911,44 @@ private fun AboutBottomSheetContent(
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
                     text = "Политика конфиденциальности",
+                    modifier = Modifier.weight(1f),
+                    color = colorScheme.onSurface,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Surface(
+            shape = sectionShape,
+            color = sectionCardColor,
+            tonalElevation = 2.dp,
+            shadowElevation = 0.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, sectionBorderColor, sectionShape)
+                .noRippleClickable(onSourceCodeClick)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_github),
+                    contentDescription = null,
+                    tint = colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "Исходный код проекта",
                     modifier = Modifier.weight(1f),
                     color = colorScheme.onSurface,
                     fontSize = 12.sp,

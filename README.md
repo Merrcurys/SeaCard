@@ -54,7 +54,8 @@ APK-релизы можно скачать с GitHub -[<img align="center" heigh
   <img src="https://contrib.rocks/image?repo=Merrcurys/SeaCard&max=300&columns=15" />
 </a>
 
-## История популярности проекта
+<details>
+<summary>История звёзд</summary>
 
 <a href="https://star-history.com/#Merrcurys/SeaCard&Date">
  <picture>
@@ -63,6 +64,8 @@ APK-релизы можно скачать с GitHub -[<img align="center" heigh
    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Merrcurys/SeaCard&type=Date" />
  </picture>
 </a>
+
+</details>
 
 ## Лицензия
 Море карт распространяется под лицензией GNU GPL-3.0.
