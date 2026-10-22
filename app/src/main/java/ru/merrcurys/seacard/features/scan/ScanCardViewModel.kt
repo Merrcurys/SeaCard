@@ -141,7 +141,7 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
         val resolvedFrontPath = if (
             frontPath != null && frontPath.startsWith("cards/") && !assetExists(frontPath)
         ) {
-            val safeName = normalizedName.replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\-_]"), "_").take(50).ifBlank { "card" }
+            val safeName = CoverBitmapStorage.safeFileNamePart(normalizedName)
             ColorCoverGenerator.generateAndSaveAsWebp(app, normalizedName, color, "front_${safeName}_$timestamp.webp")
         } else {
             frontPath
@@ -184,19 +184,25 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
             try {
                 app.contentResolver.openInputStream(uri)?.use { input ->
                     val bmp = android.graphics.BitmapFactory.decodeStream(input)
-                    if (bmp != null) frontPath = saveBitmapAsWebp(bmp, "front_${normalizedName}_$timestamp.webp")
+                    if (bmp != null) frontPath = saveBitmapAsWebp(
+                        bmp,
+                        "front_${CoverBitmapStorage.safeFileNamePart(normalizedName)}_$timestamp.webp"
+                    )
                 }
             } catch (_: Exception) { }
         }
         if (frontPath == null && coverAsset == null) {
-            val safeName = normalizedName.replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\-_]"), "_").take(50).ifBlank { "card" }
+            val safeName = CoverBitmapStorage.safeFileNamePart(normalizedName)
             frontPath = ColorCoverGenerator.generateAndSaveAsWebp(app, normalizedName, color, "front_${safeName}_$timestamp.webp")
         }
         backCoverUri.value?.let { uri ->
             try {
                 app.contentResolver.openInputStream(uri)?.use { input ->
                     val bmp = android.graphics.BitmapFactory.decodeStream(input)
-                    if (bmp != null) backPath = saveBitmapAsWebp(bmp, "back_${normalizedName}_$timestamp.webp")
+                    if (bmp != null) backPath = saveBitmapAsWebp(
+                        bmp,
+                        "back_${CoverBitmapStorage.safeFileNamePart(normalizedName)}_$timestamp.webp"
+                    )
                 }
             } catch (_: Exception) { }
         }

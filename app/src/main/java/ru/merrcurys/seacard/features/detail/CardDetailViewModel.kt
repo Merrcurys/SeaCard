@@ -123,7 +123,10 @@ class CardDetailViewModel(application: Application, initialCardId: Long) : Andro
                 deleteCoverFileIfLocal(frontPath)
                 frontPath = when {
                     frontRemoved -> generateFrontCoverFromColor(normalizedName, color, timestamp)
-                    frontUri != null -> saveCoverFromUri(frontUri, "front_${normalizedName}_$timestamp.webp")
+                    frontUri != null -> saveCoverFromUri(
+                        frontUri,
+                        "front_${CoverBitmapStorage.safeFileNamePart(normalizedName)}_$timestamp.webp"
+                    )
                     else -> frontPath
                 }
             } else if (
@@ -139,7 +142,10 @@ class CardDetailViewModel(application: Application, initialCardId: Long) : Andro
                 deleteCoverFileIfLocal(backPath)
                 backPath = when {
                     backRemoved -> null
-                    backUri != null -> saveCoverFromUri(backUri, "back_${normalizedName}_$timestamp.webp")
+                    backUri != null -> saveCoverFromUri(
+                        backUri,
+                        "back_${CoverBitmapStorage.safeFileNamePart(normalizedName)}_$timestamp.webp"
+                    )
                     else -> backPath
                 }
             }
@@ -202,7 +208,7 @@ class CardDetailViewModel(application: Application, initialCardId: Long) : Andro
     }
 
     private fun generateFrontCoverFromColor(name: String, color: Int, timestamp: Long): String? {
-        val safeName = name.replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\-_]"), "_").take(50).ifBlank { "card" }
+        val safeName = CoverBitmapStorage.safeFileNamePart(name)
         return ColorCoverGenerator.generateAndSaveAsWebp(
             app,
             name,

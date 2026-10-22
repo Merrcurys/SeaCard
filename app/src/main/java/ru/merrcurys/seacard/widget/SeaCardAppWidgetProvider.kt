@@ -58,6 +58,12 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
         appWidgetId: Int
     ) {
         val hasCards = DatabaseProvider.get(context).cardDao().getAll().isNotEmpty()
+        // Число колонок задаётся через setNumColumns в общей разметке: менять layout
+        // на каждый вариант нельзя — частичное обновление колонок тогда не совпадёт
+        // по layout id и сбросит адаптер.
+        val widgetColumns = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+            .getInt("widget_columns", 2)
+            .coerceIn(1, 4)
         val views = RemoteViews(context.packageName, R.layout.widget_seacard)
         if (!hasCards) {
             views.setViewVisibility(R.id.widget_cards_grid, View.GONE)
@@ -70,10 +76,7 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
             val serviceIntent = Intent(context, SeaCardWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
-            // Число колонок из настроек нужно задать до установки адаптера.
-            val widgetColumns = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-                .getInt("widget_columns", 2)
-                .coerceIn(1, 4)
+            // Дублируем на случай, если лончер всё же переиспользует разметку.
             views.setInt(R.id.widget_cards_grid, "setNumColumns", widgetColumns)
             views.setRemoteAdapter(R.id.widget_cards_grid, serviceIntent)
             val templateIntent = Intent(context, CardDetailActivity::class.java).apply {
@@ -100,6 +103,26 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
     /** Вызвать при изменении списка карт (добавление/удаление), чтобы виджет обновился. */
     companion object {
         private const val TAG = "SeaCardWidget"
+
+        /**
+         * Немедленно применяет число колонок к уже показанному виджету.
+         *
+         * Полный `updateAppWidget` с коллекцией на Android 16+ сначала асинхронно
+         * конвертирует legacy-список и только потом доходит до лончера — из-за этого
+         * смена колонок применялась с задержкой. Частичное обновление содержит только
+         * `setNumColumns`, не ждёт конвертации и применяется сразу.
+         */
+        fun applyColumns(context: Context, columns: Int) {
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val ids = appWidgetManager.getAppWidgetIds(
+                ComponentName(context, SeaCardAppWidgetProvider::class.java)
+            )
+            if (ids.isEmpty()) return
+            val views = RemoteViews(context.packageName, R.layout.widget_seacard)
+            views.setInt(R.id.widget_cards_grid, "setNumColumns", columns.coerceIn(1, 4))
+            // Частичное обновление работает только после полного: виджет уже отрисован.
+            appWidgetManager.partiallyUpdateAppWidget(ids, views)
+        }
 
         fun notifyDataChanged(context: Context) {
             val appWidgetManager = AppWidgetManager.getInstance(context)

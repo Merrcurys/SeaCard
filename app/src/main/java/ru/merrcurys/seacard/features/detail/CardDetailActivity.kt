@@ -39,6 +39,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.view.WindowManager
 import android.widget.Toast
 import android.provider.Settings
 import androidx.compose.material.icons.filled.MoreVert
@@ -47,6 +48,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Close
 import ru.merrcurys.seacard.core.design.applySeaCardSystemBarColors
 import ru.merrcurys.seacard.core.design.SeaCardTheme
+import ru.merrcurys.seacard.core.prefs.SettingsKeys
 import ru.merrcurys.seacard.core.barcode.formatBarcodeForStandard
 import ru.merrcurys.seacard.core.barcode.generateBarcodeBitmap
 import ru.merrcurys.seacard.core.barcode.isValidBarcodeWithChecksum
@@ -128,6 +130,7 @@ fun saveBitmapAsWebp(context: Context, bitmap: Bitmap, fileName: String): String
 class CardDetailActivity : ComponentActivity() {
     private var originalBrightness: Float = 0f
     private var hasBrightnessPermission: Boolean = false
+    private var brightnessForced: Boolean = false
 
     private val detailViewModel: CardDetailViewModel by viewModels {
         CardDetailViewModelFactory(application, intent.getLongExtra("card_id", -1L))
@@ -137,18 +140,26 @@ class CardDetailActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         applySeaCardSystemBarColors()
 
+        // «Не давать блокировать экран»: пока открыт экран карты, экран не гаснет.
+        if (isKeepScreenOnEnabled()) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+
         val cardId = intent.getLongExtra("card_id", -1L)
         if (cardId < 0) {
             finish()
             return
         }
 
-        // Сохранение текущей яркости и увеличение ее.
-        originalBrightness = window.attributes.screenBrightness
-        if (originalBrightness == -1f) {
-            originalBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
+        // Сохранение текущей яркости и увеличение ее — только если не отключено в настройках.
+        if (isMaxBrightnessEnabled()) {
+            originalBrightness = window.attributes.screenBrightness
+            if (originalBrightness == -1f) {
+                originalBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
+            }
+            setBrightness(1.0f) // Максимальная яркость
+            brightnessForced = true
         }
-        setBrightness(1.0f) // Максимальная яркость
 
         setContent {
             val card by detailViewModel.card.collectAsState()
@@ -162,6 +173,7 @@ class CardDetailActivity : ComponentActivity() {
 
             // Обновляем проверку разрешения при изменении состояния
             LaunchedEffect(Unit) {
+                if (!isMaxBrightnessEnabled()) return@LaunchedEffect
                 if (Settings.System.canWrite(this@CardDetailActivity)) {
                     hasBrightnessPermission = true
                     originalBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
@@ -241,7 +253,7 @@ class CardDetailActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        setBrightness(originalBrightness)
+        if (brightnessForced) setBrightness(originalBrightness)
     }
 
     private fun setBrightness(brightness: Float) {
@@ -258,6 +270,14 @@ class CardDetailActivity : ComponentActivity() {
         val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
         return prefs.getBoolean("dark_theme", true)
     }
+
+    private fun isKeepScreenOnEnabled(): Boolean =
+        getSharedPreferences(SettingsKeys.PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(SettingsKeys.KEY_KEEP_SCREEN_ON, false)
+
+    private fun isMaxBrightnessEnabled(): Boolean =
+        getSharedPreferences(SettingsKeys.PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(SettingsKeys.KEY_MAX_BRIGHTNESS, true)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -533,7 +553,7 @@ fun CardDetailScreen(
                 AlertDialog(
                     onDismissRequest = { showDeleteDialog = false },
                     title = { Text("Удалить карту?") },
-                    text = { Text("Карта '$cardName' будет удалена безвозвратно.") },
+                    text = { Text("Карта «$cardName» будет удалена безвозвратно.") },
                     confirmButton = {
                         TextButton(
                             onClick = {
@@ -1065,12 +1085,27 @@ fun CardDetailScreen(
                                     }
                                 }
                                 Text(
-                                    text = "Нажмите на обложку, чтобы увеличить изображение. А изменить обложку, можно в меню изменения карты.",
+                                    text = "Нажмите на обложку, чтобы увеличить.",
                                     fontSize = 13.sp,
                                     color = colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
+                                Button(
+                                    onClick = {
+                                        showCoverDialog = false
+                                        resetEditDraft()
+                                        showEditDialog = true
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = colorScheme.surfaceVariant,
+                                        contentColor = colorScheme.onSurface
+                                    )
+                                ) {
+                                    Text("Изменить", fontWeight = FontWeight.Medium)
+                                }
                             }
                         },
                         confirmButton = {

@@ -16,6 +16,9 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.BrightnessHigh
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.Widgets
@@ -52,6 +55,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -83,6 +88,7 @@ import ru.merrcurys.seacard.core.design.GradientColorOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import ru.merrcurys.seacard.core.backup.BackupManager
+import ru.merrcurys.seacard.core.nfc.NfcPauseManager
 import ru.merrcurys.seacard.core.db.CardEntity
 import ru.merrcurys.seacard.core.db.DatabaseProvider
 import ru.merrcurys.seacard.core.utils.CoverNames
@@ -146,6 +152,10 @@ class SettingsActivity : ComponentActivity() {
             val gradientColor by viewModel.gradientColor.collectAsState(initial = BerlinAzure)
             val gridColumns by viewModel.gridColumns.collectAsState(initial = 2)
             val widgetColumns by viewModel.widgetColumns.collectAsState(initial = 2)
+            val pauseNfc by viewModel.pauseNfc.collectAsState(initial = false)
+            val keepScreenOn by viewModel.keepScreenOn.collectAsState(initial = false)
+            val maxBrightness by viewModel.maxBrightness.collectAsState(initial = true)
+            val nfcSupported = remember { NfcPauseManager.isSupported(this@SettingsActivity) }
             SeaCardTheme {
                 GradientBackground(gradientColor = gradientColor) {
                     SettingsScreen(
@@ -155,6 +165,16 @@ class SettingsActivity : ComponentActivity() {
                         onGridColumnsChange = { viewModel.setGridColumns(it) },
                         widgetColumns = widgetColumns,
                         onWidgetColumnsChange = { viewModel.setWidgetColumns(it) },
+                        pauseNfc = pauseNfc,
+                        nfcSupported = nfcSupported,
+                        onPauseNfcChange = { enabled ->
+                            viewModel.setPauseNfc(enabled)
+                            NfcPauseManager.apply(this@SettingsActivity, enabled)
+                        },
+                        keepScreenOn = keepScreenOn,
+                        onKeepScreenOnChange = { viewModel.setKeepScreenOn(it) },
+                        maxBrightness = maxBrightness,
+                        onMaxBrightnessChange = { viewModel.setMaxBrightness(it) },
                         onBack = { finish() },
                         topBarContainerColor = Color.Transparent,
                         onExport = { exportCards() },
@@ -221,6 +241,13 @@ fun SettingsScreen(
     onGridColumnsChange: (Int) -> Unit,
     widgetColumns: Int,
     onWidgetColumnsChange: (Int) -> Unit,
+    pauseNfc: Boolean = false,
+    nfcSupported: Boolean = true,
+    onPauseNfcChange: (Boolean) -> Unit = {},
+    keepScreenOn: Boolean = false,
+    onKeepScreenOnChange: (Boolean) -> Unit = {},
+    maxBrightness: Boolean = true,
+    onMaxBrightnessChange: (Boolean) -> Unit = {},
     onBack: () -> Unit,
     topBarContainerColor: Color = Color.Transparent,
     onExport: () -> Unit = {},
@@ -388,6 +415,123 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { showWidgetColumnsDialog = true }
+                        )
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    text = "Экран и NFC",
+                    color = colorScheme.onSurface.copy(alpha = 0.9f),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+
+            item {
+                Surface(
+                    shape = sectionShape,
+                    color = sectionCardColor,
+                    tonalElevation = 2.dp,
+                    shadowElevation = 0.dp
+                    ,
+                    modifier = Modifier.border(1.dp, sectionBorderColor, sectionShape)
+                ) {
+                    Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                        ListItem(
+                            headlineContent = { Text("Отключать NFC") },
+                            supportingContent = {
+                                Text(
+                                    text = if (nfcSupported) {
+                                        "Пауза NFC-платежей, пока приложение открыто"
+                                    } else {
+                                        "NFC недоступен на этом устройстве"
+                                    },
+                                    fontSize = 12.sp,
+                                    color = colorScheme.onSurface.copy(alpha = 0.62f)
+                                )
+                            },
+                            colors = listItemColors,
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.Nfc,
+                                    contentDescription = null,
+                                    tint = colorScheme.primary
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = pauseNfc,
+                                    onCheckedChange = { if (nfcSupported) onPauseNfcChange(it) },
+                                    enabled = nfcSupported,
+                                    colors = SwitchDefaults.colors()
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .noRippleClickable {
+                                    if (nfcSupported) onPauseNfcChange(!pauseNfc)
+                                }
+                        )
+                        HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
+                        ListItem(
+                            headlineContent = { Text("Не давать блокировать экран") },
+                            supportingContent = {
+                                Text(
+                                    text = "Экран не гаснет, пока открыта карта",
+                                    fontSize = 12.sp,
+                                    color = colorScheme.onSurface.copy(alpha = 0.62f)
+                                )
+                            },
+                            colors = listItemColors,
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.Lightbulb,
+                                    contentDescription = null,
+                                    tint = colorScheme.primary
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = keepScreenOn,
+                                    onCheckedChange = onKeepScreenOnChange,
+                                    colors = SwitchDefaults.colors()
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .noRippleClickable { onKeepScreenOnChange(!keepScreenOn) }
+                        )
+                        HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
+                        ListItem(
+                            headlineContent = { Text("Максимальная яркость экрана") },
+                            supportingContent = {
+                                Text(
+                                    text = "Ставит яркость на максимум при открытии карты — нужно некоторым сканерам",
+                                    fontSize = 12.sp,
+                                    color = colorScheme.onSurface.copy(alpha = 0.62f)
+                                )
+                            },
+                            colors = listItemColors,
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.BrightnessHigh,
+                                    contentDescription = null,
+                                    tint = colorScheme.primary
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = maxBrightness,
+                                    onCheckedChange = onMaxBrightnessChange,
+                                    colors = SwitchDefaults.colors()
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .noRippleClickable { onMaxBrightnessChange(!maxBrightness) }
                         )
                     }
                 }

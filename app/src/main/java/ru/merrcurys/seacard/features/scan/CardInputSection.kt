@@ -627,7 +627,7 @@ fun CardInputSection(
                 ) {
                     OutlinedTextField(
                         value = cardName,
-                        onValueChange = { if (it.length <= 20) onCardNameChange(it) },
+                        onValueChange = onCardNameChange,
                         label = { Text("Название") },
                         modifier = Modifier
                             .fillMaxWidth()

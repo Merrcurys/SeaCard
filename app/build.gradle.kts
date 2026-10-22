@@ -32,13 +32,13 @@ val abiSplitsEnabled = providers.gradleProperty("abiSplits").orNull?.toBoolean()
 
 android {
     namespace = "ru.merrcurys.seacard"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 28
-        targetSdk = 36
-        versionCode = 24
-        versionName = "3.4.2"
+        targetSdk = 37
+        versionCode = 25
+        versionName = "3.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -185,7 +185,6 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.ui.test.junit4)
