@@ -83,6 +83,7 @@ import java.nio.charset.StandardCharsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.unit.Dp
 import ru.merrcurys.seacard.BuildConfig
+import ru.merrcurys.seacard.R
 import ru.merrcurys.seacard.core.design.BerlinAzure
 import ru.merrcurys.seacard.core.design.GradientColorOption
 import kotlinx.coroutines.Dispatchers
