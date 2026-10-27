@@ -79,3 +79,11 @@ kotlin-ide/
 .teamcity/
 .npmrc
 /.idea/AndroidProjectSystem.xml
+
+# .idea: храним в git только общие настройки проекта
+/.idea/*
+!/.idea/codeStyles/
+!/.idea/codeStyles/**
+!/.idea/inspectionProfiles/
+!/.idea/inspectionProfiles/Project_Default.xml
+!/.idea/runConfigurations.xml
