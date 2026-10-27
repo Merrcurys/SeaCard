@@ -9,7 +9,7 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:updatePeriodMillis="21600000"
-    android:initialLayout="@layout/widget_seacard"
+    android:initialLayout="@layout/widget_seacard_loading"
     android:description="@string/widget_seacard_description"
     android:previewImage="@drawable/widget_seacard_preview_image"
     android:previewLayout="@layout/widget_seacard_preview" />

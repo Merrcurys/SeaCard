@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
@@ -13,7 +14,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import ru.merrcurys.seacard.R
-import ru.merrcurys.seacard.core.db.DatabaseProvider
 import ru.merrcurys.seacard.features.detail.CardDetailActivity
 
 class SeaCardAppWidgetProvider : AppWidgetProvider() {
@@ -48,16 +48,21 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    // Осознанно используем классический API коллекций: он единственный, что работает
-    // и на API ≤ 31 (через сервис), и на новых версиях. Платформенный setRemoteAdapter
-    // с RemoteCollectionItems доступен только на API 32+.
+    // Legacy-адаптер осознанно оставлен для API ≤ 30: там он работает штатно.
     @Suppress("DEPRECATION")
     private suspend fun updateAppWidget(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int
     ) {
-        val hasCards = DatabaseProvider.get(context).cardDao().getAll().isNotEmpty()
+        // Сбой чтения БД не должен превращать виджет в «Карт нет»: просто оставляем
+        // предыдущее состояние до следующего обновления.
+        val cards = try {
+            SeaCardWidgetData.loadCards(context)
+        } catch (t: Throwable) {
+            Log.e(TAG, "loadCards failed for widget $appWidgetId", t)
+            return
+        }
         // Число колонок задаётся через setNumColumns в общей разметке: менять layout
         // на каждый вариант нельзя — частичное обновление колонок тогда не совпадёт
         // по layout id и сбросит адаптер.
@@ -65,26 +70,55 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
             .getInt("widget_columns", 2)
             .coerceIn(1, 4)
         val views = RemoteViews(context.packageName, R.layout.widget_seacard)
-        if (!hasCards) {
+        if (cards.isEmpty()) {
             views.setViewVisibility(R.id.widget_cards_grid, View.GONE)
             views.setViewVisibility(R.id.widget_empty_text, View.VISIBLE)
-        } else {
-            views.setViewVisibility(R.id.widget_cards_grid, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_empty_text, View.GONE)
-            // Классический RemoteViewsService: элементы строятся лениво в фабрике,
-            // Bitmap не сериализуются в SharedPreferences и не теряются на API ≤ 31.
-            val serviceIntent = Intent(context, SeaCardWidgetService::class.java).apply {
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+            return
+        }
+
+        // На API 31+ отправляем RemoteCollectionItems в одном вызове. Legacy-адаптер
+        // на Android 16+ конвертируется асинхронно уже после возврата из updateAppWidget,
+        // и если процесс умрёт до завершения конвертации, виджет останется пустым.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                val collectionViews = buildCollectionViews(context, widgetColumns)
+                collectionViews.setRemoteAdapter(
+                    R.id.widget_cards_grid,
+                    SeaCardWidgetCollection.build(context, cards)
+                )
+                appWidgetManager.updateAppWidget(appWidgetId, collectionViews)
+                return
+            } catch (t: Throwable) {
+                // Коллекция могла не влезть в лимит RemoteViews (много карт/крупные превью).
+                // Тогда ниже отправим тот же список через сервис: он асинхронный, но рабочий.
+                Log.e(TAG, "explicit collection update failed, falling back to service", t)
             }
-            // Дублируем на случай, если лончер всё же переиспользует разметку.
-            views.setInt(R.id.widget_cards_grid, "setNumColumns", widgetColumns)
-            views.setRemoteAdapter(R.id.widget_cards_grid, serviceIntent)
+        }
+
+        // API ≤ 30 (и запасной путь): классический RemoteViewsService. Элементы
+        // строятся лениво в фабрике, bitmap не сериализуются целиком.
+        val legacyViews = buildCollectionViews(context, widgetColumns)
+        val serviceIntent = Intent(context, SeaCardWidgetService::class.java).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+        }
+        legacyViews.setRemoteAdapter(R.id.widget_cards_grid, serviceIntent)
+        appWidgetManager.updateAppWidget(appWidgetId, legacyViews)
+        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_cards_grid)
+    }
+
+    /** Базовая разметка списка: видимость, колонки и шаблон клика по карте. */
+    private fun buildCollectionViews(context: Context, widgetColumns: Int): RemoteViews =
+        RemoteViews(context.packageName, R.layout.widget_seacard).apply {
+            setViewVisibility(R.id.widget_cards_grid, View.VISIBLE)
+            setViewVisibility(R.id.widget_empty_text, View.GONE)
+            setInt(R.id.widget_cards_grid, "setNumColumns", widgetColumns)
             val templateIntent = Intent(context, CardDetailActivity::class.java).apply {
                 // NEW_TASK — запуск из виджета; SINGLE_TOP — повторный тап приходит в onNewIntent,
                 // иначе показывалась бы ранее открытая карточка.
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
-            views.setPendingIntentTemplate(
+            setPendingIntentTemplate(
                 R.id.widget_cards_grid,
                 PendingIntent.getActivity(
                     context,
@@ -94,13 +128,7 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
                 )
             )
         }
-        appWidgetManager.updateAppWidget(appWidgetId, views)
-        if (hasCards) {
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_cards_grid)
-        }
-    }
 
-    /** Вызвать при изменении списка карт (добавление/удаление), чтобы виджет обновился. */
     companion object {
         private const val TAG = "SeaCardWidget"
 

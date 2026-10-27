@@ -138,6 +138,7 @@ import ru.merrcurys.seacard.core.utils.SortType
 import ru.merrcurys.seacard.features.detail.CardDetailActivity
 import ru.merrcurys.seacard.features.scan.ScanCardActivity
 import ru.merrcurys.seacard.features.settings.SettingsActivity
+import ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider
 import java.io.File
 import ru.merrcurys.seacard.domain.entity.Card as CardModel
 
@@ -291,6 +292,12 @@ class MainActivity : ComponentActivity() {
                 ruStoreUpdateController = RuStoreInAppUpdateController(this).also { it.checkOnLaunch() }
             AppInstallSource.UNKNOWN -> Unit
         }
+
+        // Самовосстановление виджета при открытии приложения. Раньше вызов был в
+        // SeaCardApplication.onCreate и срабатывал на любом старте процесса — включая
+        // старт только ради обновления виджета, из-за чего процесс сам себе слал
+        // повторный APPWIDGET_UPDATE. Теперь лечим только при реальном открытии UI.
+        SeaCardAppWidgetProvider.notifyDataChanged(this)
 
         setContent {
             val viewModel: MainViewModel = viewModel()
