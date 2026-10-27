@@ -1,0 +1,36 @@
+version: 2
+
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Moscow"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    labels:
+      - "dependencies"
+    groups:
+      androidx:
+        patterns:
+          - "androidx.*"
+      kotlin-and-ksp:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "com.google.devtools.ksp"
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Мажорные обновления AGP, Kotlin, Compose и Room ломают сборку чаще, чем помогают.
+      # Их обновляем вручную; security-обновления Dependabot присылает отдельно.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
