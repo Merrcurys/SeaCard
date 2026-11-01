@@ -72,10 +72,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val fixed = columns.coerceIn(1, 4)
         prefs.edit { putInt("widget_columns", fixed) }
         _widgetColumns.value = fixed
-        // Сначала частичное обновление — оно применяется сразу, без асинхронной
-        // конвертации коллекции. Полное обновление ниже нужно, чтобы новое значение
-        // попало в закэшированные RemoteViews (перезагрузка лончера/устройства).
-        SeaCardAppWidgetProvider.applyColumns(getApplication(), fixed)
+        // Полное обновление: колонки заданы отдельными layout'ами (setNumColumns
+        // недоступен через RemoteViews на Android 10/11).
         SeaCardAppWidgetProvider.notifyDataChanged(getApplication())
     }
 

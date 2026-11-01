@@ -21,7 +21,10 @@ class SeaCardRemoteViewsFactory(
 
     private var cards: List<Card> = emptyList()
 
-    override fun onCreate() = loadCards()
+    // onCreate() вызывается на главном потоке прямо из onBind(), поэтому тяжёлую работу
+    // (запрос к Room) здесь не делаем — иначе лончер может не дождаться сервиса
+    // и показать «Не удалось загрузить виджет». Данные грузит onDataSetChanged().
+    override fun onCreate() = Unit
 
     override fun onDataSetChanged() = loadCards()
 

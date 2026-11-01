@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.view.View
@@ -63,13 +64,14 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
             Log.e(TAG, "loadCards failed for widget $appWidgetId", t)
             return
         }
-        // Число колонок задаётся через setNumColumns в общей разметке: менять layout
-        // на каждый вариант нельзя — частичное обновление колонок тогда не совпадёт
-        // по layout id и сбросит адаптер.
+        // На API ≤ 30 GridView.setNumColumns() НЕ помечен @RemotableViewMethod, поэтому
+        // RemoteViews.setInt(..., "setNumColumns", n) на Android 10/11 бросает ActionException
+        // и лончер показывает «Не удалось загрузить виджет». Колонки задаём статически
+        // отдельными layout'ами.
         val widgetColumns = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
             .getInt("widget_columns", 2)
             .coerceIn(1, 4)
-        val views = RemoteViews(context.packageName, R.layout.widget_seacard)
+        val views = RemoteViews(context.packageName, layoutForColumns(widgetColumns))
         if (cards.isEmpty()) {
             views.setViewVisibility(R.id.widget_cards_grid, View.GONE)
             views.setViewVisibility(R.id.widget_empty_text, View.VISIBLE)
@@ -101,18 +103,24 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
         val legacyViews = buildCollectionViews(context, widgetColumns)
         val serviceIntent = Intent(context, SeaCardWidgetService::class.java).apply {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            // Уникальный data: без него FilterComparison у всех виджетов одинаковый
+            // и лончер может переиспользовать не тот адаптер/не перепривязать сервис.
+            data = Uri.parse("seacard-widget://${context.packageName}/$appWidgetId")
         }
         legacyViews.setRemoteAdapter(R.id.widget_cards_grid, serviceIntent)
         appWidgetManager.updateAppWidget(appWidgetId, legacyViews)
         appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_cards_grid)
+        // Держим процесс и RemoteViewsService живыми, пока лончер привязывается к сервису.
+        // Иначе процесс может умереть сразу после onUpdate (goAsync завершён), лончер
+        // стартует его заново и на Android 10/11 показывает «Не удалось загрузить виджет».
+        SeaCardWidgetServicePrewarm.prewarm(context)
     }
 
-    /** Базовая разметка списка: видимость, колонки и шаблон клика по карте. */
+    /** Базовая разметка списка: видимость и шаблон клика по карте. */
     private fun buildCollectionViews(context: Context, widgetColumns: Int): RemoteViews =
-        RemoteViews(context.packageName, R.layout.widget_seacard).apply {
+        RemoteViews(context.packageName, layoutForColumns(widgetColumns)).apply {
             setViewVisibility(R.id.widget_cards_grid, View.VISIBLE)
             setViewVisibility(R.id.widget_empty_text, View.GONE)
-            setInt(R.id.widget_cards_grid, "setNumColumns", widgetColumns)
             val templateIntent = Intent(context, CardDetailActivity::class.java).apply {
                 // NEW_TASK — запуск из виджета; SINGLE_TOP — повторный тап приходит в onNewIntent,
                 // иначе показывалась бы ранее открытая карточка.
@@ -133,23 +141,14 @@ class SeaCardAppWidgetProvider : AppWidgetProvider() {
         private const val TAG = "SeaCardWidget"
 
         /**
-         * Немедленно применяет число колонок к уже показанному виджету.
-         *
-         * Полный `updateAppWidget` с коллекцией на Android 16+ сначала асинхронно
-         * конвертирует legacy-список и только потом доходит до лончера — из-за этого
-         * смена колонок применялась с задержкой. Частичное обновление содержит только
-         * `setNumColumns`, не ждёт конвертации и применяется сразу.
+         * Колонки задаются статически в layout, а не через `setNumColumns`: на API ≤ 30
+         * этот метод не помечен @RemotableViewMethod, и вызов через RemoteViews падает.
          */
-        fun applyColumns(context: Context, columns: Int) {
-            val appWidgetManager = AppWidgetManager.getInstance(context)
-            val ids = appWidgetManager.getAppWidgetIds(
-                ComponentName(context, SeaCardAppWidgetProvider::class.java)
-            )
-            if (ids.isEmpty()) return
-            val views = RemoteViews(context.packageName, R.layout.widget_seacard)
-            views.setInt(R.id.widget_cards_grid, "setNumColumns", columns.coerceIn(1, 4))
-            // Частичное обновление работает только после полного: виджет уже отрисован.
-            appWidgetManager.partiallyUpdateAppWidget(ids, views)
+        private fun layoutForColumns(columns: Int): Int = when (columns) {
+            1 -> R.layout.widget_seacard_1col
+            3 -> R.layout.widget_seacard_3col
+            4 -> R.layout.widget_seacard_4col
+            else -> R.layout.widget_seacard
         }
 
         fun notifyDataChanged(context: Context) {
