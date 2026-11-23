@@ -56,7 +56,9 @@ import android.graphics.BitmapFactory
 import androidx.compose.ui.draw.shadow
 import ru.merrcurys.seacard.core.design.DynamicGradientBackground
 import ru.merrcurys.seacard.core.utils.CoverBitmapStorage
+import ru.merrcurys.seacard.core.utils.FolderCreationResult
 import ru.merrcurys.seacard.core.utils.createImagePickerChooserIntent
+import ru.merrcurys.seacard.domain.entity.Folder
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.filled.TouchApp
@@ -163,6 +165,8 @@ class CardDetailActivity : ComponentActivity() {
 
         setContent {
             val card by detailViewModel.card.collectAsState()
+            val folders by detailViewModel.folders.collectAsState()
+            val foldersEnabled = remember { SettingsKeys.isFoldersEnabled(this@CardDetailActivity) }
             var frontImageUri by remember { mutableStateOf<Uri?>(null) }
             var hasCameraPermission by remember {
                 mutableStateOf(ContextCompat.checkSelfPermission(this@CardDetailActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
@@ -213,12 +217,16 @@ class CardDetailActivity : ComponentActivity() {
                             frontImageUri = frontImageUri,
                             note = card?.note ?: "",
                             backCoverPath = card?.backCoverPath,
+                            folderIds = card?.folderIds ?: emptySet(),
+                            folders = folders,
+                            showFolderPicker = foldersEnabled,
+                            onCreateFolder = { name -> detailViewModel.createFolder(name) },
                             onSaveNote = { detailViewModel.updateNote(it) },
                             hasCameraPermission = hasCameraPermission,
                             permissionLauncher = permissionLauncher,
                             onBack = { finish() },
                             onDelete = { detailViewModel.deleteCard { setResult(RESULT_OK); finish() } },
-                            onEdit = { newName, newCode, newType, newColor, frontUri, backUri, frontRemoved, backRemoved, frontDirty, backDirty ->
+                            onEdit = { newName, newCode, newType, newColor, frontUri, backUri, frontRemoved, backRemoved, frontDirty, backDirty, newFolderIds ->
                                 detailViewModel.updateCardFromEdit(
                                     newName,
                                     newCode,
@@ -229,7 +237,8 @@ class CardDetailActivity : ComponentActivity() {
                                     frontRemoved,
                                     backRemoved,
                                     frontDirty,
-                                    backDirty
+                                    backDirty,
+                                    newFolderIds
                                 )
                             },
                             topBarContainerColor = Color.Transparent,
@@ -292,6 +301,12 @@ fun CardDetailScreen(
     frontImageUri: Uri? = null,
     note: String = "",
     backCoverPath: String? = null,
+    folderIds: Set<Long> = emptySet(),
+    folders: List<Folder> = emptyList(),
+    showFolderPicker: Boolean = true,
+    onCreateFolder: suspend (String) -> FolderCreationResult = {
+        FolderCreationResult.Failure("Недоступно")
+    },
     onSaveNote: (String) -> Unit = {},
     hasCameraPermission: Boolean = true,
     permissionLauncher: androidx.activity.result.ActivityResultLauncher<String>? = null,
@@ -307,7 +322,8 @@ fun CardDetailScreen(
         frontRemoved: Boolean,
         backRemoved: Boolean,
         frontDirty: Boolean,
-        backDirty: Boolean
+        backDirty: Boolean,
+        newFolderIds: Set<Long>
     ) -> Unit,
     topBarContainerColor: Color = Color.Transparent,
     topBarTextColor: Color = MaterialTheme.colorScheme.onSurface
@@ -332,6 +348,7 @@ fun CardDetailScreen(
     var editCode by remember { mutableStateOf(cardCode) }
     var editType by remember { mutableStateOf(codeType) }
     var editColor by remember { mutableStateOf(cardColor) }
+    var editFolderIds by remember { mutableStateOf(folderIds) }
     var editError by remember { mutableStateOf("") }
     var editFrontCoverUri by remember { mutableStateOf<Uri?>(null) }
     var editBackCoverUri by remember { mutableStateOf<Uri?>(null) }
@@ -360,6 +377,7 @@ fun CardDetailScreen(
         editCode = cardCode
         editType = displayCodeType
         editColor = cardColor
+        editFolderIds = folderIds
         editError = ""
         editFrontCoverUri = frontCoverUri
         editBackCoverUri = backCoverUri
@@ -607,7 +625,8 @@ fun CardDetailScreen(
                                 editFrontCoverRemoved,
                                 editBackCoverRemoved,
                                 frontDirty,
-                                backDirty
+                                backDirty,
+                                editFolderIds
                             )
                         }
                     },
@@ -652,6 +671,11 @@ fun CardDetailScreen(
                     codeType = editType.ifBlank { "code128" },
                     onCodeTypeChange = { editType = it },
                     showBarcodeFields = true,
+                    folderIds = editFolderIds,
+                    folders = folders,
+                    showFolderPicker = showFolderPicker,
+                    onFolderChange = { editFolderIds = it },
+                    onCreateFolder = onCreateFolder,
                     onPickBarcode = {
                         scanBarcodeLauncher.launch(
                             Intent(context2, ScanCardActivity::class.java).apply {

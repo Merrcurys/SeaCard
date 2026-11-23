@@ -12,4 +12,11 @@ object SettingsKeys {
 
     /** Выкручивать яркость на максимум при открытии карты (нужно некоторым сканерам). */
     const val KEY_MAX_BRIGHTNESS = "max_brightness"
+
+    /** Пользовательские вкладки-папки на главном экране. По умолчанию выключены. */
+    const val KEY_FOLDERS_ENABLED = "folders_enabled"
+
+    fun isFoldersEnabled(context: android.content.Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+            .getBoolean(KEY_FOLDERS_ENABLED, false)
 }

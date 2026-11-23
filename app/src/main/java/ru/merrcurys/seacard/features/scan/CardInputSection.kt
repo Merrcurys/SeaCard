@@ -59,6 +59,11 @@ import ru.merrcurys.seacard.core.barcode.BARCODE_TYPE_OPTIONS
 import ru.merrcurys.seacard.core.barcode.generateBarcodeBitmap
 import ru.merrcurys.seacard.core.barcode.validateBarcodeCode
 import ru.merrcurys.seacard.core.utils.DominantColorExtractor
+import ru.merrcurys.seacard.core.utils.FolderCreationResult
+import ru.merrcurys.seacard.domain.entity.Folder
+import ru.merrcurys.seacard.domain.entity.NO_FOLDER_LABEL
+import ru.merrcurys.seacard.features.folders.FolderPickerRow
+import ru.merrcurys.seacard.features.folders.FolderPickerSheet
 
 // Функция для загрузки bitmap из URI или asset
 @Composable
@@ -505,11 +510,17 @@ fun CardInputSection(
     onCodeTypeChange: ((String) -> Unit)? = null,
     showBarcodeFields: Boolean = false,
     onPickBarcode: (() -> Unit)? = null,
+    folderIds: Set<Long> = emptySet(),
+    folders: List<Folder> = emptyList(),
+    showFolderPicker: Boolean = false,
+    onFolderChange: ((Set<Long>) -> Unit)? = null,
+    onCreateFolder: (suspend (String) -> FolderCreationResult)? = null,
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val gradientColor = GradientUtils.loadGradientColorPref(context)
     var showRgbColorDialog by remember { mutableStateOf(false) }
+    var showFolderSheet by remember { mutableStateOf(false) }
     var colorManuallyOverridden by remember { mutableStateOf(false) }
     val coverColorKey = frontCoverUri?.toString() ?: coverAsset
     val initialCoverKey = remember { coverColorKey }
@@ -641,6 +652,32 @@ fun CardInputSection(
                             unfocusedLabelColor = colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     )
+
+                    if (showFolderPicker && onFolderChange != null && onCreateFolder != null) {
+                        val currentFolderNames = folders
+                            .filter { it.id in folderIds }
+                            .joinToString(", ") { it.name }
+                            .ifBlank { NO_FOLDER_LABEL }
+                        FolderPickerRow(
+                            folderNames = currentFolderNames,
+                            onClick = { showFolderSheet = true },
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        if (showFolderSheet) {
+                            FolderPickerSheet(
+                                title = "Вкладки",
+                                folders = folders,
+                                selectedFolderIds = folderIds,
+                                onToggleFolder = { id ->
+                                    onFolderChange(
+                                        if (id in folderIds) folderIds - id else folderIds + id
+                                    )
+                                },
+                                onDismiss = { showFolderSheet = false },
+                                onCreateFolder = onCreateFolder
+                            )
+                        }
+                    }
 
                     val showCodeError = codeError != null && cardCode.isNotBlank() && codeType != "none" && showBarcodeFields
                     OutlinedTextField(

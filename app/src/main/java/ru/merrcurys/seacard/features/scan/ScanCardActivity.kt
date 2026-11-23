@@ -48,6 +48,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import ru.merrcurys.seacard.core.design.applySeaCardSystemBarColors
 import ru.merrcurys.seacard.core.design.SeaCardTheme
+import ru.merrcurys.seacard.core.prefs.SettingsKeys
 import ru.merrcurys.seacard.core.design.BlackBackground
 import ru.merrcurys.seacard.core.design.GradientBackground
 import ru.merrcurys.seacard.core.design.GradientUtils
@@ -72,6 +73,7 @@ class ScanCardActivity : ComponentActivity() {
         applySeaCardSystemBarColors()
         cameraExecutor = Executors.newSingleThreadExecutor()
         val coverAsset = intent.getStringExtra("cover_asset")
+        val initialFolderId = intent.getLongExtra(EXTRA_FOLDER_ID, -1L).takeIf { it >= 0L }
         val barcodePickOnly = intent.getBooleanExtra(EXTRA_BARCODE_PICK_ONLY, false)
 
         fun deliverBarcodeResult(code: String, type: String) {
@@ -98,7 +100,7 @@ class ScanCardActivity : ComponentActivity() {
         setContent {
             var hasCameraPermission by remember { mutableStateOf(false) }
             val viewModel: ScanCardViewModel = viewModel(
-                factory = ScanCardViewModelFactory(application, coverAsset)
+                factory = ScanCardViewModelFactory(application, coverAsset, initialFolderId)
             )
             val cardName by viewModel.cardName.collectAsState()
             val cardCode by viewModel.cardCode.collectAsState()
@@ -112,6 +114,9 @@ class ScanCardActivity : ComponentActivity() {
             val showBackCropDialog by viewModel.showBackCropDialog.collectAsState()
             val frontCropImageUri by viewModel.frontCropImageUri.collectAsState()
             val backCropImageUri by viewModel.backCropImageUri.collectAsState()
+            val folders by viewModel.folders.collectAsState()
+            val folderIds by viewModel.folderIds.collectAsState()
+            val foldersEnabled = remember { SettingsKeys.isFoldersEnabled(this@ScanCardActivity) }
 
             val context = this@ScanCardActivity
             val coroutineScope = rememberCoroutineScope()
@@ -261,7 +266,12 @@ class ScanCardActivity : ComponentActivity() {
                             onBackCoverRemove = { viewModel.setBackCoverUri(null) },
                             codeType = codeTypeState.ifBlank { "code128" },
                             onCodeTypeChange = { viewModel.setCodeType(it) },
-                            showBarcodeFields = true
+                            showBarcodeFields = true,
+                            folderIds = folderIds,
+                            folders = folders,
+                            showFolderPicker = foldersEnabled,
+                            onFolderChange = { viewModel.setFolderIds(it) },
+                            onCreateFolder = { name -> viewModel.createFolder(name) }
                         )
                         }
                         else -> {
@@ -347,14 +357,20 @@ class ScanCardActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_BARCODE_PICK_ONLY = "barcode_pick_only"
+        const val EXTRA_FOLDER_ID = "folder_id"
         const val RESULT_BARCODE_CODE = "barcode_code"
         const val RESULT_BARCODE_TYPE = "barcode_type"
     }
 }
 
-class ScanCardViewModelFactory(private val application: Application, private val coverAsset: String?) : androidx.lifecycle.ViewModelProvider.Factory {
+class ScanCardViewModelFactory(
+    private val application: Application,
+    private val coverAsset: String?,
+    private val initialFolderId: Long? = null
+) : androidx.lifecycle.ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = ScanCardViewModel(application, coverAsset) as T
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+        ScanCardViewModel(application, coverAsset, initialFolderId) as T
 }
 
 private fun barcodeFormatToCodeType(format: Int): String = when (format) {

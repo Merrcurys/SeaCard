@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +46,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -71,6 +73,8 @@ import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -84,6 +88,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.retain.retain
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -124,6 +129,7 @@ import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import ru.merrcurys.seacard.core.design.GradientBackground
@@ -134,8 +140,18 @@ import ru.merrcurys.seacard.core.play.PlayReviewHelper
 import ru.merrcurys.seacard.core.rustore.RuStoreInAppUpdateController
 import ru.merrcurys.seacard.core.rustore.RuStoreReviewHelper
 import ru.merrcurys.seacard.core.store.AppInstallSource
+import ru.merrcurys.seacard.core.utils.FolderCreationResult
 import ru.merrcurys.seacard.core.utils.SortType
+import ru.merrcurys.seacard.domain.entity.Folder
 import ru.merrcurys.seacard.features.detail.CardDetailActivity
+import ru.merrcurys.seacard.features.folders.FolderActionsSheet
+import ru.merrcurys.seacard.features.folders.FolderDeleteConfirmDialog
+import ru.merrcurys.seacard.features.folders.FolderNameDialog
+import ru.merrcurys.seacard.features.folders.FolderOrderSheet
+import ru.merrcurys.seacard.features.main.folders.CardsFoldersSheet
+import ru.merrcurys.seacard.features.main.folders.FolderTabsRow
+import ru.merrcurys.seacard.features.main.folders.TabSelection
+import ru.merrcurys.seacard.features.main.folders.folderIdOrNull
 import ru.merrcurys.seacard.features.scan.ScanCardActivity
 import ru.merrcurys.seacard.features.settings.SettingsActivity
 import ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider
@@ -307,6 +323,11 @@ class MainActivity : ComponentActivity() {
             val showCoverPicker by viewModel.showCoverPicker.collectAsStateWithLifecycle()
             val gridColumns by viewModel.gridColumns.collectAsStateWithLifecycle()
             val gradientColor by viewModel.gradientColor.collectAsStateWithLifecycle()
+            val folders by viewModel.folders.collectAsStateWithLifecycle()
+            val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
+            val folderCardCounts by viewModel.folderCardCounts.collectAsStateWithLifecycle()
+            val totalCardCount by viewModel.totalCardCount.collectAsStateWithLifecycle()
+            val foldersEnabled by viewModel.foldersEnabled.collectAsStateWithLifecycle()
 
             val scanCardLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
             val cardDetailLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
@@ -318,9 +339,9 @@ class MainActivity : ComponentActivity() {
 
                 Log.i(
                     IN_APP_REVIEW_LOG_TAG,
-                    "Ожидание: главный экран (!picker) и карт >= 5, магазин=$installSource, сейчас карт=${cards.size}",
+                    "Ожидание: главный экран (!picker) и карт >= 5, магазин=$installSource, сейчас карт=$totalCardCount",
                 )
-                snapshotFlow { !showCoverPicker && cards.size >= 5 }
+                snapshotFlow { !showCoverPicker && totalCardCount >= 5 }
                     .first { it }
                 Log.i(IN_APP_REVIEW_LOG_TAG, "Условие выполнено, запрос отзыва ($installSource)")
                 when (installSource) {
@@ -338,6 +359,11 @@ class MainActivity : ComponentActivity() {
                                 viewModel.setShowCoverPicker(false)
                                 val intent = Intent(context, ScanCardActivity::class.java)
                                 if (coverAsset != null) intent.putExtra("cover_asset", coverAsset)
+                                if (foldersEnabled) {
+                                    selectedTab.folderIdOrNull()?.let { folderId ->
+                                        intent.putExtra("folder_id", folderId)
+                                    }
+                                }
                                 scanCardLauncher.launch(intent)
                             },
                             onBack = { viewModel.setShowCoverPicker(false) }
@@ -349,6 +375,11 @@ class MainActivity : ComponentActivity() {
                             currentSortType = currentSortType,
                             gridColumns = gridColumns,
                             gradientColor = gradientColor,
+                            folders = folders,
+                            selectedTab = selectedTab,
+                            folderCardCounts = folderCardCounts,
+                            hasAnyCards = totalCardCount > 0,
+                            foldersEnabled = foldersEnabled,
                             onAddCard = { viewModel.setShowCoverPicker(true) },
                             onCardClick = { card ->
                                 // Счётчик использования увеличивается при открытии CardDetailActivity
@@ -358,7 +389,15 @@ class MainActivity : ComponentActivity() {
                             onSettingsClick = { settingsLauncher.launch(Intent(context, SettingsActivity::class.java)) },
                             onSortTypeChange = { viewModel.setSortType(it) },
                             onReorderCards = { viewModel.reorderCards(it) },
-                            onDeleteCards = { viewModel.deleteCards(it) }
+                            onDeleteCards = { viewModel.deleteCards(it) },
+                            onTabSelected = { viewModel.selectTab(it) },
+                            onCreateFolder = { viewModel.createFolder(it) },
+                            onRenameFolder = { id, name -> viewModel.renameFolder(id, name) },
+                            onDeleteFolder = { viewModel.deleteFolder(it) },
+                            onReorderFolders = { viewModel.reorderFolders(it) },
+                            onSetCardsFolder = { ids, folderId, inFolder ->
+                                viewModel.setCardsInFolder(ids, folderId, inFolder)
+                            }
                         )
                     }
                 }
@@ -381,12 +420,23 @@ fun MainScreen(
     currentSortType: SortType,
     gridColumns: Int,
     gradientColor: Color,
-    onAddCard: () -> Unit,
+    folders: List<Folder> = emptyList(),
+    selectedTab: TabSelection = TabSelection.All,
+    folderCardCounts: Map<Long?, Int> = emptyMap(),
+    hasAnyCards: Boolean = cards.isNotEmpty(),
+    foldersEnabled: Boolean = false,
+    onAddCard: (Long?) -> Unit,
     onCardClick: (CardModel) -> Unit,
     onSettingsClick: () -> Unit,
     onSortTypeChange: (SortType) -> Unit,
     onReorderCards: (List<CardModel>) -> Unit,
-    onDeleteCards: (List<CardModel>) -> Unit
+    onDeleteCards: (List<CardModel>) -> Unit,
+    onTabSelected: (TabSelection) -> Unit = {},
+    onCreateFolder: suspend (String) -> FolderCreationResult = { FolderCreationResult.Failure("Недоступно") },
+    onRenameFolder: suspend (Long, String) -> FolderCreationResult = { _, _ -> FolderCreationResult.Failure("Недоступно") },
+    onDeleteFolder: (Long) -> Unit = {},
+    onReorderFolders: (List<Long>) -> Unit = {},
+    onSetCardsFolder: (Collection<Long>, Long, Boolean) -> Unit = { _, _, _ -> }
 ) {
     val colorScheme = MaterialTheme.colorScheme
     GradientBackground(gradientColor = gradientColor) {
@@ -395,6 +445,15 @@ fun MainScreen(
         var showFilterMenu by rememberSaveable { mutableStateOf(false) }
         var selectionMode by rememberSaveable { mutableStateOf(false) }
         var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+        var showCreateFolderDialog by remember { mutableStateOf(false) }
+        var showFolderOrderSheet by remember { mutableStateOf(false) }
+        var showMoveSheet by remember { mutableStateOf(false) }
+        var cardsFoldersDraft by remember { mutableStateOf<Set<Long>>(emptySet()) }
+        var folderActionTarget by remember { mutableStateOf<Folder?>(null) }
+        var renamingFolder by remember { mutableStateOf<Folder?>(null) }
+        var deletingFolder by remember { mutableStateOf<Folder?>(null) }
+        val snackbarHostState = remember { SnackbarHostState() }
+        val snackbarScope = rememberCoroutineScope()
         // Храним идентификаторы: после drag меняется sortOrder и объекты CardModel пересоздаются.
         var selectedCards by retain { mutableStateOf<Set<Long>>(emptySet()) }
         val focusRequester = retain { FocusRequester() }
@@ -424,6 +483,10 @@ fun MainScreen(
         val haptics = LocalHapticFeedback.current
         val gridState = rememberLazyGridState()
         val spacingPx = with(density) { 8.dp.toPx() }
+
+        LaunchedEffect(selectedTab) {
+            gridState.scrollToItem(0)
+        }
 
         var dragOrder by remember { mutableStateOf<List<CardModel>?>(null) }
         var draggingId by remember { mutableStateOf<Long?>(null) }
@@ -508,9 +571,16 @@ fun MainScreen(
             showSearch = false
         }
 
+        BackHandler(
+            enabled = foldersEnabled && !selectionMode && !showSearch && selectedTab != TabSelection.All
+        ) {
+            onTabSelected(TabSelection.All)
+        }
+
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets.safeDrawing,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 TopAppBar(
                     title = {
@@ -587,6 +657,29 @@ fun MainScreen(
                     navigationIcon = {},
                     actions = {
                         if (selectionMode) {
+                            if (foldersEnabled) {
+                                IconButton(onClick = {
+                                    if (selectedCards.isNotEmpty()) {
+                                        val selected = cards.filter { it.id in selectedCards }
+                                        cardsFoldersDraft = if (
+                                            selected.size == selectedCards.size && selected.isNotEmpty()
+                                        ) {
+                                            selected
+                                                .map { it.folderIds }
+                                                .reduce { acc, ids -> acc intersect ids }
+                                        } else {
+                                            emptySet()
+                                        }
+                                        showMoveSheet = true
+                                    }
+                                }) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.DriveFileMove,
+                                        contentDescription = "Переместить",
+                                        tint = colorScheme.onSurface
+                                    )
+                                }
+                            }
                             IconButton(onClick = {
                                 if (selectedCards.isNotEmpty()) showDeleteDialog = true
                             }) {
@@ -631,7 +724,9 @@ fun MainScreen(
                 if (!selectionMode && cardsFromDbReady) {
                     val addFabShape = RoundedCornerShape(28.dp)
                     Surface(
-                        onClick = onAddCard,
+                        onClick = {
+                            onAddCard(if (foldersEnabled) selectedTab.folderIdOrNull() else null)
+                        },
                         modifier = Modifier
                             .semantics { contentDescription = "Добавить карту" }
                             .height(52.dp)
@@ -665,15 +760,87 @@ fun MainScreen(
                 }
             },
             content = { innerPadding ->
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(top = innerPadding.calculateTopPadding())
                         .consumeWindowInsets(innerPadding)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
+                ) {
+                    if (foldersEnabled) {
+                        FolderTabsRow(
+                            folders = folders,
+                            selectedTab = selectedTab,
+                            onSelect = { tab ->
+                                if (tab != selectedTab) {
+                                    selectionMode = false
+                                    selectedCards = emptySet()
+                                    dragOrder = null
+                                    stopDragging()
+                                    onTabSelected(tab)
+                                }
+                            },
+                            onCreateFolder = { showCreateFolderDialog = true },
+                            onOrderClick = { showFolderOrderSheet = true },
+                            onFolderLongPress = { folderActionTarget = it }
+                        )
+                    }
+                    val swipeTabs = remember(folders) {
+                        buildList<TabSelection> {
+                            add(TabSelection.All)
+                            folders.forEach { add(TabSelection.Folder(it.id)) }
+                        }
+                    }
+                    val swipeEnabled by rememberUpdatedState(
+                        foldersEnabled && !selectionMode && !showSearch &&
+                            draggingId == null && pendingDragId == null
+                    )
+                    val swipeTabsLatest by rememberUpdatedState(swipeTabs)
+                    val selectedTabLatest by rememberUpdatedState(selectedTab)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                val threshold = 64.dp.toPx()
+                                var total = 0f
+                                var startedAt = 0L
+                                detectHorizontalDragGestures(
+                                    onDragStart = {
+                                        total = 0f
+                                        startedAt = System.currentTimeMillis()
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        if (swipeEnabled) {
+                                            total += dragAmount
+                                            change.consume()
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        val fastEnough = System.currentTimeMillis() - startedAt <= 350L
+                                        if (swipeEnabled &&
+                                            fastEnough &&
+                                            kotlin.math.abs(total) >= threshold
+                                        ) {
+                                            val tabs = swipeTabsLatest
+                                            val index = tabs.indexOf(selectedTabLatest)
+                                            if (index >= 0) {
+                                                when {
+                                                    total < 0f && index < tabs.lastIndex ->
+                                                        onTabSelected(tabs[index + 1])
+                                                    total > 0f && index > 0 ->
+                                                        onTabSelected(tabs[index - 1])
+                                                }
+                                            }
+                                        }
+                                        total = 0f
+                                    },
+                                    onDragCancel = { total = 0f }
+                                )
+                            }
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
                             // Не выходим из режима выбора сразу после завершения перетаскивания.
                             if (longPressSelectPending || System.currentTimeMillis() - lastDragEndedAt < 250L) return@clickable
                             if (showSearch) {
@@ -728,10 +895,10 @@ fun MainScreen(
                             )
                             Spacer(modifier = Modifier.height(20.dp))
                             Text(
-                                text = if (searchQueryState.text.isBlank()) {
-                                    "Вы еще не добавили\nни одной карты"
-                                } else {
-                                    "Карты не найдены"
+                                text = when {
+                                    searchQueryState.text.isNotBlank() -> "Карты не найдены"
+                                    !hasAnyCards -> "Вы еще не добавили\nни одной карты"
+                                    else -> "В этой вкладке пока нет карт"
                                 },
                                 color = colorScheme.onBackground.copy(alpha = 0.7f),
                                 fontSize = 22.sp,
@@ -740,6 +907,15 @@ fun MainScreen(
                                 modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
                                 textAlign = TextAlign.Center
                             )
+                            if (searchQueryState.text.isBlank() && hasAnyCards) {
+                                Text(
+                                    text = "Добавьте карту или выделите ее на вкладке «Все» и переместите ее в эту вкладку.",
+                                    color = colorScheme.onBackground.copy(alpha = 0.55f),
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(horizontal = 32.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     } else {
                         Box(
@@ -961,6 +1137,7 @@ fun MainScreen(
                     }
                 }
             }
+            }
         )
 
         if (showFilterMenu) {
@@ -982,6 +1159,89 @@ fun MainScreen(
                     showFilterMenu = false
                 },
                 onDismiss = { showFilterMenu = false }
+            )
+        }
+
+        if (showMoveSheet) {
+            val movingIds = selectedCards
+            CardsFoldersSheet(
+                folders = folders,
+                selectedFolderIds = cardsFoldersDraft,
+                onToggleFolder = { folderId ->
+                    val add = folderId !in cardsFoldersDraft
+                    cardsFoldersDraft = if (add) {
+                        cardsFoldersDraft + folderId
+                    } else {
+                        cardsFoldersDraft - folderId
+                    }
+                    onSetCardsFolder(movingIds, folderId, add)
+                    val folderName = folders.firstOrNull { it.id == folderId }?.name.orEmpty()
+                    snackbarScope.launch {
+                        snackbarHostState.showSnackbar(
+                            if (add) "Добавлено в «$folderName»" else "Убрано из «$folderName»"
+                        )
+                    }
+                },
+                onCreateFolder = onCreateFolder,
+                onDismiss = {
+                    showMoveSheet = false
+                    selectedCards = emptySet()
+                    selectionMode = false
+                }
+            )
+        }
+
+        if (showCreateFolderDialog) {
+            FolderNameDialog(
+                title = "Новая вкладка",
+                existingNames = folders.map { it.name },
+                onDismiss = { showCreateFolderDialog = false },
+                onSubmit = onCreateFolder
+            )
+        }
+
+        if (showFolderOrderSheet) {
+            FolderOrderSheet(
+                folders = folders,
+                onReorder = onReorderFolders,
+                onDismiss = { showFolderOrderSheet = false }
+            )
+        }
+
+        folderActionTarget?.let { folder ->
+            FolderActionsSheet(
+                folderName = folder.name,
+                cardCount = folderCardCounts[folder.id],
+                onRename = {
+                    folderActionTarget = null
+                    renamingFolder = folder
+                },
+                onDelete = {
+                    folderActionTarget = null
+                    deletingFolder = folder
+                },
+                onDismiss = { folderActionTarget = null }
+            )
+        }
+
+        renamingFolder?.let { folder ->
+            FolderNameDialog(
+                title = "Переименовать вкладку",
+                initialName = folder.name,
+                existingNames = folders.filter { it.id != folder.id }.map { it.name },
+                onDismiss = { renamingFolder = null },
+                onSubmit = { name -> onRenameFolder(folder.id, name) }
+            )
+        }
+
+        deletingFolder?.let { folder ->
+            FolderDeleteConfirmDialog(
+                folderName = folder.name,
+                onConfirm = {
+                    onDeleteFolder(folder.id)
+                    deletingFolder = null
+                },
+                onDismiss = { deletingFolder = null }
             )
         }
 

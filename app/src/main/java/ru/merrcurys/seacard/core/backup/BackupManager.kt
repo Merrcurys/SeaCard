@@ -4,9 +4,13 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import ru.merrcurys.seacard.core.db.CardEntity
+import ru.merrcurys.seacard.core.db.CardFolderEntity
+import ru.merrcurys.seacard.core.db.CardFolderRefEntity
 import ru.merrcurys.seacard.core.db.DatabaseProvider
 import ru.merrcurys.seacard.core.utils.CardColorResolver
+import ru.merrcurys.seacard.core.utils.FolderNameValidator
 import java.io.File
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.InputStream
@@ -22,14 +26,25 @@ import java.util.zip.ZipOutputStream
 object BackupManager {
 
     private const val CARDS_JSON = "cards.json"
+    private const val FOLDERS_JSON = "folders.json"
     private const val COVERS_DIR = "covers"
 
     /**
-     * Экспортирует все карточки и их обложки в ZIP в outputStream.
+     * Экспортирует все карточки, папки, связи и обложки в ZIP в outputStream.
      * Обложки: файлы с диска или из assets (cards/...) копируются в папку covers/ внутри ZIP.
      * @param cards список карточек (получить через dao.getAll() на IO)
+     * @param folders список папок (получить через folderDao.getAll() на IO)
+     * @param refs связи карта ↔ папка (получить через refDao.getAll() на IO)
      */
-    fun exportToZip(context: Context, cards: List<CardEntity>, outputStream: OutputStream) {
+    fun exportToZip(
+        context: Context,
+        cards: List<CardEntity>,
+        folders: List<CardFolderEntity>,
+        refs: List<CardFolderRefEntity>,
+        outputStream: OutputStream
+    ) {
+        val folderNames = folders.associate { it.id to it.name }
+        val folderIdsByCard = refs.groupBy({ it.cardId }, { it.folderId })
         val zip = ZipOutputStream(outputStream)
         zip.use {
             val jsonArray = JSONArray()
@@ -57,11 +72,31 @@ object BackupManager {
                     put("sortOrder", card.sortOrder)
                     put("color", card.color)
                     put("note", card.note ?: "")
+                    val cardFolderNames = folderIdsByCard[card.id].orEmpty()
+                        .mapNotNull { id -> folderNames[id] }
+                        .distinct()
+                    if (cardFolderNames.isNotEmpty()) {
+                        // "folder" оставляем для совместимости со старыми импортёрами.
+                        put("folder", cardFolderNames.first())
+                        put("folders", JSONArray(cardFolderNames))
+                    }
                     if (frontInZip) put("frontCoverFile", frontEntry)
                     if (backInZip) put("backCoverFile", backEntry)
                 }
                 jsonArray.put(obj)
             }
+            val foldersArray = JSONArray()
+            folders.forEach { folder ->
+                foldersArray.put(JSONObject().apply {
+                    put("name", folder.name)
+                    put("sortOrder", folder.sortOrder)
+                    put("createdAt", folder.createdAt)
+                })
+            }
+            it.putNextEntry(ZipEntry(FOLDERS_JSON))
+            it.write(foldersArray.toString(2).toByteArray(Charsets.UTF_8))
+            it.closeEntry()
+
             it.putNextEntry(ZipEntry(CARDS_JSON))
             it.write(jsonArray.toString(2).toByteArray(Charsets.UTF_8))
             it.closeEntry()
@@ -112,7 +147,10 @@ object BackupManager {
      * Возвращает пару (импортировано, ошибки). Вызывать из корутины (например runBlocking(IO)).
      */
     suspend fun importFromZip(context: Context, inputStream: InputStream): Pair<Int, List<String>> = withContext(Dispatchers.IO) {
-        val dao = DatabaseProvider.get(context).cardDao()
+        val db = DatabaseProvider.get(context)
+        val dao = db.cardDao()
+        val folderDao = db.cardFolderDao()
+        val refDao = db.cardFolderRefDao()
         val coversDir = File(context.filesDir, "covers")
         if (!coversDir.exists()) coversDir.mkdirs()
         val errors = mutableListOf<String>()
@@ -127,6 +165,39 @@ object BackupManager {
                 zis.closeEntry()
                 entry = zis.nextEntry
             }
+            // Папки из нового бэкапа: создаём отсутствующие и запоминаем id по имени
+            // (без учёта регистра). Старые архивы без folders.json просто дают пустую карту.
+            val folderIdByName = mutableMapOf<String, Long>()
+            entriesByPath[FOLDERS_JSON]?.let { foldersJson ->
+                try {
+                    val foldersArray = JSONArray(String(foldersJson, Charsets.UTF_8))
+                    val byName = folderDao.getAll()
+                        .associateBy { it.name.lowercase(Locale.ROOT) }
+                        .toMutableMap()
+                    for (i in 0 until foldersArray.length()) {
+                        val obj = foldersArray.getJSONObject(i)
+                        val name = FolderNameValidator.normalize(obj.optString("name", ""))
+                        if (name.isBlank()) continue
+                        val key = name.lowercase(Locale.ROOT)
+                        val sortOrder = obj.optLong("sortOrder", i.toLong())
+                        val createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+                        val id = byName[key]?.id ?: run {
+                            val entity = CardFolderEntity(
+                                name = name,
+                                sortOrder = sortOrder,
+                                createdAt = createdAt
+                            )
+                            val newId = folderDao.insert(entity)
+                            byName[key] = entity.copy(id = newId)
+                            newId
+                        }
+                        folderIdByName[key] = id
+                    }
+                } catch (e: Exception) {
+                    errors.add("Папки: ${e.message}")
+                }
+            }
+
             val cardsJson = entriesByPath[CARDS_JSON] ?: return@withContext Pair(0, listOf("В архиве нет cards.json"))
             val array = JSONArray(String(cardsJson, Charsets.UTF_8))
             for (i in 0 until array.length()) {
@@ -161,7 +232,19 @@ object BackupManager {
                     val storedColor = obj.optInt("color", CardColorResolver.DEFAULT_CARD_COLOR)
                     val resolvedColor = CardColorResolver.resolveColor(context, storedColor, frontPath)
                     val addTime = obj.optLong("addTime", System.currentTimeMillis())
-                    dao.insert(CardEntity(
+                    val cardFolderNames = mutableListOf<String>()
+                    obj.optJSONArray("folders")?.let { foldersArray ->
+                        for (j in 0 until foldersArray.length()) {
+                            val folderName = foldersArray.optString(j, "")
+                            if (folderName.isNotBlank()) cardFolderNames.add(folderName)
+                        }
+                    }
+                    if (cardFolderNames.isEmpty()) {
+                        obj.optString("folder", "")
+                            .takeIf { it.isNotBlank() }
+                            ?.let { cardFolderNames.add(it) }
+                    }
+                    val cardId = dao.insert(CardEntity(
                         name = name,
                         code = code,
                         type = type,
@@ -173,6 +256,14 @@ object BackupManager {
                         note = obj.optString("note", "").takeIf { it.isNotBlank() },
                         sortOrder = obj.optLong("sortOrder", -addTime)
                     ))
+                    val cardFolderIds = cardFolderNames
+                        .mapNotNull { name ->
+                            folderIdByName[FolderNameValidator.normalize(name).lowercase(Locale.ROOT)]
+                        }
+                        .distinct()
+                    if (cardFolderIds.isNotEmpty()) {
+                        refDao.insertAll(cardFolderIds.map { CardFolderRefEntity(cardId, it) })
+                    }
                     imported++
                 } catch (e: Exception) {
                     errors.add("Карта $i: ${e.message}")

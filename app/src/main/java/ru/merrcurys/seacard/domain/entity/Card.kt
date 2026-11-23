@@ -18,7 +18,9 @@ data class Card(
     /** Заметка пользователя. */
     val note: String?,
     /** Позиция в пользовательской сортировке (меньше — раньше). */
-    val sortOrder: Long = 0L
+    val sortOrder: Long = 0L,
+    /** Папки, в которых лежит карта (может быть несколько). */
+    val folderIds: Set<Long> = emptySet()
 ) {
     /** Для совместимости с местами, где раньше использовался coverAsset (лицевая обложка). */
     val coverAsset: String? get() = frontCoverPath

@@ -29,6 +29,8 @@ fun signingValue(prefix: String, key: String): String? {
 // ABI-сплиты нельзя включать одновременно со сборкой App Bundle в одном запуске Gradle,
 // поэтому включаем их только по флагу -PabiSplits=true (build-release.sh).
 val abiSplitsEnabled = providers.gradleProperty("abiSplits").orNull?.toBoolean() ?: false
+// -PabiFilter=arm64-v8a собирает единственный APK под указанный ABI (build-test.sh).
+val abiFilter = providers.gradleProperty("abiFilter").orNull?.trim()?.takeIf { it.isNotEmpty() }
 
 android {
     namespace = "ru.merrcurys.seacard"
@@ -37,8 +39,8 @@ android {
     defaultConfig {
         minSdk = 28
         targetSdk = 37
-        versionCode = 26
-        versionName = "3.5.1"
+        versionCode = 27
+        versionName = "3.6.0-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -103,8 +105,12 @@ android {
         abi {
             isEnable = abiSplitsEnabled
             reset()
-            include("x86_64", "arm64-v8a", "armeabi-v7a")
-            isUniversalApk = true
+            if (abiFilter != null) {
+                include(abiFilter)
+            } else {
+                include("x86_64", "arm64-v8a", "armeabi-v7a")
+            }
+            isUniversalApk = abiFilter == null
         }
     }
 

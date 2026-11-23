@@ -4,20 +4,61 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import ru.merrcurys.seacard.core.db.CardEntity
+import ru.merrcurys.seacard.core.db.CardFolderRefEntity
 import ru.merrcurys.seacard.core.db.DatabaseProvider
+import ru.merrcurys.seacard.core.db.createWithValidation
+import ru.merrcurys.seacard.core.utils.FolderCreationResult
+import ru.merrcurys.seacard.domain.entity.Folder
 import ru.merrcurys.seacard.core.utils.ColorCoverGenerator
 import ru.merrcurys.seacard.core.utils.CoverBitmapStorage
 import ru.merrcurys.seacard.core.utils.CoverNames
 import java.io.File
 
-class ScanCardViewModel(application: Application, val coverAsset: String?) : AndroidViewModel(application) {
+class ScanCardViewModel(
+    application: Application,
+    val coverAsset: String?,
+    initialFolderId: Long? = null
+) : AndroidViewModel(application) {
 
     private val app = application
-    private val dao = DatabaseProvider.get(application).cardDao()
+    private val db = DatabaseProvider.get(application)
+    private val dao = db.cardDao()
+    private val folderDao = db.cardFolderDao()
+    private val refDao = db.cardFolderRefDao()
+
+    val folderIds = MutableStateFlow(
+        initialFolderId?.let { setOf(it) } ?: emptySet()
+    )
+
+    val folders: StateFlow<List<Folder>> = folderDao.getAllFlow()
+        .map { list -> list.map { it.toFolder() } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun setFolderIds(ids: Set<Long>) {
+        folderIds.value = ids
+    }
+
+    suspend fun createFolder(rawName: String): FolderCreationResult = withContext(Dispatchers.IO) {
+        val result = folderDao.createWithValidation(rawName)
+        if (result is FolderCreationResult.Success) {
+            folderIds.value = folderIds.value + result.folder.id
+        }
+        result
+    }
 
     val initialCardName: String = coverAsset?.let {
         val fileName = it.substringAfterLast('/')
@@ -146,18 +187,24 @@ class ScanCardViewModel(application: Application, val coverAsset: String?) : And
         } else {
             frontPath
         }
-        dao.insert(CardEntity(
-            name = normalizedName,
-            code = code,
-            type = codeType,
-            addTime = timestamp,
-            usageCount = 0,
-            color = color,
-            frontCoverPath = resolvedFrontPath,
-            backCoverPath = backPath,
-            note = null,
-            sortOrder = -timestamp
-        ))
+        db.withTransaction {
+            val cardId = dao.insert(CardEntity(
+                name = normalizedName,
+                code = code,
+                type = codeType,
+                addTime = timestamp,
+                usageCount = 0,
+                color = color,
+                frontCoverPath = resolvedFrontPath,
+                backCoverPath = backPath,
+                note = null,
+                sortOrder = -timestamp
+            ))
+            val selectedFolders = folderIds.value
+            if (selectedFolders.isNotEmpty()) {
+                refDao.insertAll(selectedFolders.map { CardFolderRefEntity(cardId, it) })
+            }
+        }
         ru.merrcurys.seacard.widget.SeaCardAppWidgetProvider.notifyDataChanged(app)
     }
 

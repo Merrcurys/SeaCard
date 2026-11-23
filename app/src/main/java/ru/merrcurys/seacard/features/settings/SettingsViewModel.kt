@@ -37,6 +37,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _maxBrightness = MutableStateFlow(loadMaxBrightness())
     val maxBrightness: StateFlow<Boolean> = _maxBrightness.asStateFlow()
 
+    private val _foldersEnabled = MutableStateFlow(loadFoldersEnabled())
+    val foldersEnabled: StateFlow<Boolean> = _foldersEnabled.asStateFlow()
+
     private fun loadGradientColor(): Color {
         val colorValue = prefs.getInt("gradient_color", BerlinAzure.hashCode())
         return GradientColorOption.entries.find { it.color.hashCode() == colorValue }?.color ?: BerlinAzure
@@ -56,6 +59,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadMaxBrightness(): Boolean =
         prefs.getBoolean(SettingsKeys.KEY_MAX_BRIGHTNESS, true)
+
+    private fun loadFoldersEnabled(): Boolean =
+        prefs.getBoolean(SettingsKeys.KEY_FOLDERS_ENABLED, false)
 
     fun setGradientColor(color: Color) {
         prefs.edit { putInt("gradient_color", color.hashCode()) }
@@ -90,5 +96,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setMaxBrightness(enabled: Boolean) {
         prefs.edit { putBoolean(SettingsKeys.KEY_MAX_BRIGHTNESS, enabled) }
         _maxBrightness.value = enabled
+    }
+
+    fun setFoldersEnabled(enabled: Boolean) {
+        prefs.edit { putBoolean(SettingsKeys.KEY_FOLDERS_ENABLED, enabled) }
+        _foldersEnabled.value = enabled
     }
 }

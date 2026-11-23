@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.BrightnessHigh
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Palette
@@ -108,10 +109,12 @@ class SettingsActivity : ComponentActivity() {
             if (uri != null) {
                 try {
                     runBlocking(Dispatchers.IO) {
-                        val dao = DatabaseProvider.get(this@SettingsActivity).cardDao()
-                        val cards = dao.getAll()
+                        val db = DatabaseProvider.get(this@SettingsActivity)
+                        val cards = db.cardDao().getAll()
+                        val folders = db.cardFolderDao().getAll()
+                        val refs = db.cardFolderRefDao().getAll()
                         contentResolver.openOutputStream(uri)?.use { out ->
-                            BackupManager.exportToZip(this@SettingsActivity, cards, out)
+                            BackupManager.exportToZip(this@SettingsActivity, cards, folders, refs, out)
                         }
                     }
                     Toast.makeText(this, "Бэкап экспортирован (карточки и обложки)", Toast.LENGTH_SHORT).show()
@@ -156,6 +159,7 @@ class SettingsActivity : ComponentActivity() {
             val pauseNfc by viewModel.pauseNfc.collectAsState(initial = false)
             val keepScreenOn by viewModel.keepScreenOn.collectAsState(initial = false)
             val maxBrightness by viewModel.maxBrightness.collectAsState(initial = true)
+            val foldersEnabled by viewModel.foldersEnabled.collectAsState(initial = false)
             val nfcSupported = remember { NfcPauseManager.isSupported(this@SettingsActivity) }
             SeaCardTheme {
                 GradientBackground(gradientColor = gradientColor) {
@@ -164,6 +168,8 @@ class SettingsActivity : ComponentActivity() {
                         onGradientColorChange = { viewModel.setGradientColor(it) },
                         gridColumns = gridColumns,
                         onGridColumnsChange = { viewModel.setGridColumns(it) },
+                        foldersEnabled = foldersEnabled,
+                        onFoldersEnabledChange = { viewModel.setFoldersEnabled(it) },
                         widgetColumns = widgetColumns,
                         onWidgetColumnsChange = { viewModel.setWidgetColumns(it) },
                         pauseNfc = pauseNfc,
@@ -240,6 +246,8 @@ fun SettingsScreen(
     onGradientColorChange: (Color) -> Unit,
     gridColumns: Int,
     onGridColumnsChange: (Int) -> Unit,
+    foldersEnabled: Boolean = false,
+    onFoldersEnabledChange: (Boolean) -> Unit = {},
     widgetColumns: Int,
     onWidgetColumnsChange: (Int) -> Unit,
     pauseNfc: Boolean = false,
@@ -387,6 +395,35 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { showGridColumnsDialog = true }
+                        )
+                        HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
+                        ListItem(
+                            headlineContent = { Text("Вкладки") },
+                            supportingContent = {
+                                Text(
+                                    text = "Группировать карты по вкладкам",
+                                    fontSize = 12.sp,
+                                    color = colorScheme.onSurface.copy(alpha = 0.62f)
+                                )
+                            },
+                            colors = listItemColors,
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.Folder,
+                                    contentDescription = null,
+                                    tint = colorScheme.primary
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = foldersEnabled,
+                                    onCheckedChange = onFoldersEnabledChange,
+                                    colors = SwitchDefaults.colors()
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .noRippleClickable { onFoldersEnabledChange(!foldersEnabled) }
                         )
                         HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
@@ -787,7 +824,9 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         runBlocking(Dispatchers.IO) {
-                            DatabaseProvider.get(context).cardDao().deleteAll()
+                            val db = DatabaseProvider.get(context)
+                            db.cardFolderRefDao().deleteAll()
+                            db.cardDao().deleteAll()
                         }
                         SeaCardAppWidgetProvider.notifyDataChanged(context)
                         showDeleteDialog = false
