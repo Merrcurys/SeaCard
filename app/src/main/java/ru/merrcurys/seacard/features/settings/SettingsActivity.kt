@@ -59,7 +59,8 @@ import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.tooling.preview.Preview
@@ -327,7 +328,6 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.padding(vertical = 6.dp)) {
                         ListItem(
-                            headlineContent = { Text("Градиентный цвет") },
                             supportingContent = {
                                 Text(
                                     text = "Меняет фон приложения",
@@ -366,10 +366,9 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { showGradientDialog = true }
-                        )
+                        ) { Text("Градиентный цвет") }
                         HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
-                            headlineContent = { Text("Отображение карт") },
                             supportingContent = {
                                 Text(
                                     text = "Колонок: ${gridColumns.coerceIn(1, 4)}",
@@ -395,10 +394,9 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { showGridColumnsDialog = true }
-                        )
+                        ) { Text("Отображение карт") }
                         HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
-                            headlineContent = { Text("Вкладки") },
                             supportingContent = {
                                 Text(
                                     text = "Группировать карты по вкладкам",
@@ -424,10 +422,9 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { onFoldersEnabledChange(!foldersEnabled) }
-                        )
+                        ) { Text("Вкладки") }
                         HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
-                            headlineContent = { Text("Виджет") },
                             supportingContent = {
                                 Text(
                                     text = "Колонок: ${widgetColumns.coerceIn(1, 4)}",
@@ -453,7 +450,7 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { showWidgetColumnsDialog = true }
-                        )
+                        ) { Text("Виджет") }
                     }
                 }
             }
@@ -479,7 +476,6 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.padding(vertical = 6.dp)) {
                         ListItem(
-                            headlineContent = { Text("Отключать NFC") },
                             supportingContent = {
                                 Text(
                                     text = if (nfcSupported) {
@@ -512,10 +508,9 @@ fun SettingsScreen(
                                 .noRippleClickable {
                                     if (nfcSupported) onPauseNfcChange(!pauseNfc)
                                 }
-                        )
+                        ) { Text("Отключать NFC") }
                         HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
-                            headlineContent = { Text("Не давать блокировать экран") },
                             supportingContent = {
                                 Text(
                                     text = "Экран не гаснет, пока открыта карта",
@@ -541,10 +536,9 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { onKeepScreenOnChange(!keepScreenOn) }
-                        )
+                        ) { Text("Не давать блокировать экран") }
                         HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
-                            headlineContent = { Text("Максимальная яркость экрана") },
                             supportingContent = {
                                 Text(
                                     text = "Ставит яркость на максимум при открытии карты — нужно некоторым сканерам",
@@ -570,7 +564,7 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { onMaxBrightnessChange(!maxBrightness) }
-                        )
+                        ) { Text("Максимальная яркость экрана") }
                     }
                 }
             }
@@ -596,7 +590,6 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.padding(vertical = 6.dp)) {
                         ListItem(
-                            headlineContent = { Text("Экспорт") },
                             supportingContent = {
                                 Text(
                                     text = "Сохранить все карточки в архив",
@@ -616,10 +609,9 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { onExport() }
-                        )
+                        ) { Text("Экспорт") }
                         HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
-                            headlineContent = { Text("Импорт") },
                             supportingContent = {
                                 Text(
                                     text = "Восстановить все карточки из архива",
@@ -639,7 +631,7 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { onImport() }
-                        )
+                        ) { Text("Импорт") }
                     }
                 }
             }
@@ -665,7 +657,6 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.padding(vertical = 6.dp)) {
                         ListItem(
-                            headlineContent = { Text("Связаться с разработчиком") },
                             supportingContent = {
                                 Text(
                                     text = "Telegram-бот поддержки",
@@ -688,10 +679,9 @@ fun SettingsScreen(
                                     val intent = Intent(Intent.ACTION_VIEW, "https://t.me/SeacardSupportBot".toUri())
                                     context.startActivity(intent)
                                 }
-                        )
+                        ) { Text("Связаться с разработчиком") }
                         HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.08f))
                         ListItem(
-                            headlineContent = { Text("Следить за приложением") },
                             supportingContent = {
                                 Text(
                                     text = "Telegram-канал разработчика",
@@ -714,7 +704,7 @@ fun SettingsScreen(
                                     val intent = Intent(Intent.ACTION_VIEW, "https://t.me/merrcurys_software".toUri())
                                     context.startActivity(intent)
                                 }
-                        )
+                        ) { Text("Следить за приложением") }
                     }
                 }
             }
@@ -740,7 +730,6 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.padding(vertical = 6.dp)) {
                         ListItem(
-                            headlineContent = { Text("Удалить все карточки") },
                             supportingContent = {
                                 Text(
                                     text = "Действие нельзя отменить",
@@ -760,7 +749,7 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .noRippleClickable { showDeleteDialog = true }
-                        )
+                        ) { Text("Удалить все карточки") }
                     }
                 }
             }
@@ -848,7 +837,10 @@ fun SettingsScreen(
     }
 
     if (showAboutSheet) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState = rememberBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+        )
         val sheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.42f
         val aboutSheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 

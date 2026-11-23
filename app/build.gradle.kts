@@ -35,6 +35,8 @@ val abiFilter = providers.gradleProperty("abiFilter").orNull?.trim()?.takeIf { i
 android {
     namespace = "ru.merrcurys.seacard"
     compileSdk = 37
+    // Compose 1.13 (BOM 2026.11.01) требует платформу 37.1+, используем 37.2.
+    compileSdkMinor = 2
 
     defaultConfig {
         minSdk = 28
